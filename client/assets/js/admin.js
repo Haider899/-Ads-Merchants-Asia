@@ -161,12 +161,41 @@
     const res = await AdminAPI.get('/api/admin/metrics');
     if (res && res.success && res.metrics) {
       state.metrics = res.metrics;
-      document.getElementById('statUsers').textContent = res.metrics.totalUsers;
-      document.getElementById('statUserBalance').textContent = `$${res.metrics.totalUserBalance}`;
-      document.getElementById('statPendingDeposits').textContent = res.metrics.pendingDeposits;
-      document.getElementById('statPendingWithdrawals').textContent = res.metrics.pendingWithdrawals;
-      if (document.getElementById('statPendingKycs')) {
-        document.getElementById('statPendingKycs').textContent = res.metrics.pendingKycs;
+      if (document.getElementById('statUsers')) document.getElementById('statUsers').textContent = res.metrics.totalUsers;
+      if (document.getElementById('statUserBalance')) document.getElementById('statUserBalance').textContent = `$${res.metrics.totalUserBalance}`;
+      if (document.getElementById('statPendingDeposits')) document.getElementById('statPendingDeposits').textContent = res.metrics.pendingDeposits;
+      if (document.getElementById('statPendingWithdrawals')) document.getElementById('statPendingWithdrawals').textContent = res.metrics.pendingWithdrawals;
+      if (document.getElementById('statPendingKycs')) document.getElementById('statPendingKycs').textContent = res.metrics.pendingKycs;
+
+      // Update Navigation Tab Badges
+      const depBadge = document.getElementById('adminDepositUnreadBadge');
+      if (depBadge) {
+        if (res.metrics.pendingDeposits > 0) {
+          depBadge.textContent = res.metrics.pendingDeposits;
+          depBadge.style.display = 'inline-block';
+        } else {
+          depBadge.style.display = 'none';
+        }
+      }
+
+      const withBadge = document.getElementById('adminWithdrawUnreadBadge');
+      if (withBadge) {
+        if (res.metrics.pendingWithdrawals > 0) {
+          withBadge.textContent = res.metrics.pendingWithdrawals;
+          withBadge.style.display = 'inline-block';
+        } else {
+          withBadge.style.display = 'none';
+        }
+      }
+
+      const kycBadge = document.getElementById('adminKycUnreadBadge');
+      if (kycBadge) {
+        if (res.metrics.pendingKycs > 0) {
+          kycBadge.textContent = res.metrics.pendingKycs;
+          kycBadge.style.display = 'inline-block';
+        } else {
+          kycBadge.style.display = 'none';
+        }
       }
     }
   }
@@ -926,14 +955,13 @@
       });
     }
 
-    // Auto-poll conversations every 4 seconds
+    // Auto-poll metrics, pending action counters, and chat every 4 seconds
     setInterval(() => {
+      loadMetrics();
+      loadChatConversations();
       const chatTab = document.getElementById('tabChat');
-      if (chatTab && chatTab.style.display !== 'none') {
-        loadChatConversations();
-        if (activeChatUserId) {
-          loadActiveUserMessages();
-        }
+      if (chatTab && chatTab.style.display !== 'none' && activeChatUserId) {
+        loadActiveUserMessages();
       }
     }, 4000);
   });
