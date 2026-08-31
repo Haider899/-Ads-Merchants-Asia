@@ -160,6 +160,49 @@ router.all('/notifications/mark-read', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'Notifications marked as read' });
 });
 
+// GET /api/user/chat - Fetch conversation history for current user
+router.get('/chat', authMiddleware, (req, res) => {
+  const user = db.findUserById(req.user.id);
+  const messages = db.getChatMessages(req.user.id);
+  db.markChatReadByUser(req.user.id);
+  res.json({
+    success: true,
+    user: {
+      id: user.id,
+      fullname: user.fullname || user.username,
+      email: user.email,
+      vip_level: user.vip_level
+    },
+    messages
+  });
+});
+
+// POST /api/user/chat - Send message from user to admin
+router.post('/chat', authMiddleware, (req, res) => {
+  const { text } = req.body;
+  const user = db.findUserById(req.user.id);
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ success: false, message: 'Message text cannot be empty' });
+  }
+
+  const message = db.createChatMessage({
+    userId: user.id,
+    sender: 'user',
+    text: text.trim(),
+    userName: user.fullname || user.username,
+    userEmail: user.email
+  });
+
+  const messages = db.getChatMessages(user.id);
+  res.json({
+    success: true,
+    message: 'Message sent',
+    newMessage: message,
+    messages
+  });
+});
+
 // GET /api/user/levels
 router.get('/levels', (req, res) => {
   res.json({

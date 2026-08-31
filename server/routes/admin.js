@@ -377,6 +377,70 @@ router.post('/tickets/reply', adminAuthMiddleware, (req, res) => {
   });
 });
 
+// GET /api/admin/chat/conversations - List all user chat threads with unread counts
+router.get('/chat/conversations', adminAuthMiddleware, (req, res) => {
+  const conversations = db.getChatConversations();
+  res.json({ success: true, conversations });
+});
+
+// GET /api/admin/chat/:userId - Get conversation messages for a specific user
+router.get('/chat/:userId', adminAuthMiddleware, (req, res) => {
+  const { userId } = req.params;
+  const user = db.findUserById(userId);
+  const messages = db.getChatMessages(userId);
+  db.markChatReadByAdmin(userId);
+  res.json({
+    success: true,
+    user: user ? {
+      id: user.id,
+      fullname: user.fullname || user.username,
+      email: user.email,
+      vip_level: user.vip_level,
+      balance: user.balance
+    } : null,
+    messages
+  });
+});
+
+// POST /api/admin/chat/:userId - Send admin reply to a user
+router.post('/chat/:userId', adminAuthMiddleware, (req, res) => {
+  const { userId } = req.params;
+  const { text } = req.body;
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ success: false, message: 'Reply text cannot be empty.' });
+  }
+
+  const user = db.findUserById(userId);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found.' });
+  }
+
+  const message = db.createChatMessage({
+    userId,
+    sender: 'admin',
+    text: text.trim(),
+    userName: user.fullname || user.username,
+    userEmail: user.email
+  });
+
+  // Also send notification alert to user
+  db.createNotification({
+    user_id: user.id,
+    title: 'Support Message 💬',
+    message: text.trim().length > 60 ? (text.trim().substring(0, 57) + '...') : text.trim(),
+    type: 'info'
+  });
+
+  const messages = db.getChatMessages(userId);
+  res.json({
+    success: true,
+    message: 'Reply sent to user',
+    newMessage: message,
+    messages
+  });
+});
+
 // GET /api/admin/settings
 router.get('/settings', adminAuthMiddleware, (req, res) => {
   const settings = db.getSettings();

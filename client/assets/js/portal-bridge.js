@@ -728,4 +728,363 @@
     }
   }
 
+  // NATIVE LIVE CUSTOMER SUPPORT CHAT ENGINE (NO AI - DIRECT ADMIN LINK)
+  function initLiveChatWidget(user) {
+    if (!user) return;
+
+    // Inject styles
+    const style = document.createElement('style');
+    style.innerHTML = `
+      #nativeChatFloatingBtn {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 58px;
+        height: 58px;
+        background: #00875a;
+        color: #ffffff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 20px rgba(0, 135, 90, 0.4);
+        cursor: pointer;
+        z-index: 999998;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      #nativeChatFloatingBtn:hover {
+        transform: scale(1.06);
+        box-shadow: 0 8px 25px rgba(0, 135, 90, 0.5);
+      }
+      #nativeChatBadge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #e71d36;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fff;
+      }
+      #nativeChatWindow {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 380px;
+        height: 580px;
+        max-height: calc(100vh - 40px);
+        max-width: calc(100vw - 40px);
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+        display: none;
+        flex-direction: column;
+        z-index: 999999;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        border: 1px solid rgba(0,0,0,0.08);
+      }
+      .native-chat-header {
+        background: #00875a;
+        color: #ffffff;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .native-chat-agent {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .native-chat-agent img {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #ffffff;
+        padding: 2px;
+      }
+      .native-chat-agent-info {
+        display: flex;
+        flex-direction: column;
+      }
+      .native-chat-agent-name {
+        font-weight: 700;
+        font-size: 15px;
+        line-height: 1.2;
+      }
+      .native-chat-agent-status {
+        font-size: 11px;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .native-chat-status-dot {
+        width: 7px;
+        height: 7px;
+        background: #4ade80;
+        border-radius: 50%;
+      }
+      .native-chat-actions button {
+        background: none;
+        border: none;
+        color: #ffffff;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 4px 6px;
+        opacity: 0.85;
+      }
+      .native-chat-actions button:hover { opacity: 1; }
+      .native-chat-messages {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .native-chat-bubble {
+        max-width: 80%;
+        padding: 10px 14px;
+        border-radius: 14px;
+        font-size: 13.5px;
+        line-height: 1.4;
+        word-break: break-word;
+        position: relative;
+      }
+      .native-bubble-user {
+        align-self: flex-end;
+        background: #e2e8f0;
+        color: #0f172a;
+        border-bottom-right-radius: 4px;
+      }
+      .native-bubble-admin {
+        align-self: flex-start;
+        background: #00875a;
+        color: #ffffff;
+        border-bottom-left-radius: 4px;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .native-bubble-time {
+        font-size: 10px;
+        opacity: 0.7;
+        margin-top: 4px;
+        text-align: right;
+      }
+      .native-chat-footer {
+        padding: 12px;
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .native-chat-input {
+        flex: 1;
+        border: 1px solid #cbd5e1;
+        border-radius: 20px;
+        padding: 10px 16px;
+        font-size: 13px;
+        outline: none;
+        transition: border-color 0.2s ease;
+      }
+      .native-chat-input:focus {
+        border-color: #00875a;
+      }
+      .native-chat-send-btn {
+        width: 38px;
+        height: 38px;
+        background: #00875a;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease;
+      }
+      .native-chat-send-btn:hover { background: #006c48; }
+    `;
+    document.head.appendChild(style);
+
+    // Create Floating Trigger Button
+    const floatBtn = document.createElement('div');
+    floatBtn.id = 'nativeChatFloatingBtn';
+    floatBtn.title = 'Live Support Chat';
+    floatBtn.innerHTML = `
+      <i class="fa fa-comments" style="font-size: 24px;"></i>
+      <span id="nativeChatBadge">0</span>
+    `;
+    document.body.appendChild(floatBtn);
+
+    // Create Chat Window
+    const chatWin = document.createElement('div');
+    chatWin.id = 'nativeChatWindow';
+    chatWin.innerHTML = `
+      <div class="native-chat-header">
+        <div class="native-chat-agent">
+          <img src="client/assets/img/icons/customer-service1.svg" alt="Support Agent" />
+          <div class="native-chat-agent-info">
+            <span class="native-chat-agent-name">Official Support</span>
+            <span class="native-chat-agent-status"><span class="native-chat-status-dot"></span> Admin Online</span>
+          </div>
+        </div>
+        <div class="native-chat-actions">
+          <button id="nativeChatCloseBtn" title="Close Chat">&times;</button>
+        </div>
+      </div>
+      <div class="native-chat-messages" id="nativeChatMsgContainer">
+        <div class="text-center text-muted py-3" style="font-size: 12px;">Connecting with live support...</div>
+      </div>
+      <div class="native-chat-footer">
+        <input type="text" id="nativeChatTextInput" class="native-chat-input" placeholder="Type here and press enter..." />
+        <button id="nativeChatSendBtn" class="native-chat-send-btn" title="Send Message">
+          <i class="fa fa-paper-plane" style="font-size: 13px;"></i>
+        </button>
+      </div>
+    `;
+    document.body.appendChild(chatWin);
+
+    let chatOpen = false;
+    let pollInterval = null;
+    let cachedMessagesCount = 0;
+
+    function toggleChat(open) {
+      chatOpen = open !== undefined ? open : !chatOpen;
+      chatWin.style.display = chatOpen ? 'flex' : 'none';
+      if (chatOpen) {
+        floatBtn.style.display = 'none';
+        loadChatMessages();
+        if (!pollInterval) pollInterval = setInterval(loadChatMessages, 3000);
+        setTimeout(() => {
+          document.getElementById('nativeChatTextInput').focus();
+        }, 100);
+      } else {
+        floatBtn.style.display = 'flex';
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+      }
+    }
+
+    floatBtn.addEventListener('click', () => toggleChat(true));
+    document.getElementById('nativeChatCloseBtn').addEventListener('click', () => toggleChat(false));
+
+    // Also bind click on any element with id/class for online chat (e.g. on contact.html)
+    document.querySelectorAll('.contact-item, #onlineChatTrigger, [onclick*="tawk"]').forEach(el => {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleChat(true);
+      });
+    });
+
+    async function loadChatMessages() {
+      try {
+        const res = await API.get('/api/user/chat');
+        const container = document.getElementById('nativeChatMsgContainer');
+        if (res && res.success && res.messages) {
+          if (res.messages.length === 0) {
+            container.innerHTML = `
+              <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 20px;">
+                <div style="font-size: 32px; margin-bottom: 8px;">👋</div>
+                <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Welcome to Live Support!</div>
+                <div>Send your question or deposit/withdrawal query below. A human support specialist will assist you.</div>
+              </div>
+            `;
+            return;
+          }
+
+          if (res.messages.length !== cachedMessagesCount) {
+            cachedMessagesCount = res.messages.length;
+            container.innerHTML = res.messages.map(m => {
+              const isUser = m.sender === 'user';
+              const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              if (isUser) {
+                return `
+                  <div class="native-chat-bubble native-bubble-user">
+                    <div>${escapeHtml(m.text)}</div>
+                    <div class="native-bubble-time">${time}</div>
+                  </div>
+                `;
+              } else {
+                return `
+                  <div class="native-chat-bubble native-bubble-admin">
+                    <img src="client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" />
+                    <div style="flex: 1;">
+                      <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; opacity: 0.9;">Ads Support</div>
+                      <div>${escapeHtml(m.text)}</div>
+                      <div class="native-bubble-time" style="text-align: left; color: #e2e8f0;">${time}</div>
+                    </div>
+                  </div>
+                `;
+              }
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+      } catch (err) {
+        console.error('Chat load error:', err);
+      }
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('nativeChatTextInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      const container = document.getElementById('nativeChatMsgContainer');
+
+      // Optimistic UI render
+      const tempBubble = document.createElement('div');
+      tempBubble.className = 'native-chat-bubble native-bubble-user';
+      tempBubble.innerHTML = `
+        <div>${escapeHtml(text)}</div>
+        <div class="native-bubble-time">Sending...</div>
+      `;
+      container.appendChild(tempBubble);
+      container.scrollTop = container.scrollHeight;
+
+      const res = await API.post('/api/user/chat', { text });
+      if (res && res.success) {
+        loadChatMessages();
+      }
+    }
+
+    document.getElementById('nativeChatSendBtn').addEventListener('click', sendMessage);
+    document.getElementById('nativeChatTextInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+  }
+
+  // Bind live chat initialization when user profile loads
+  const origPopulate = populateUserData;
+  populateUserData = function(user) {
+    origPopulate(user);
+    initLiveChatWidget(user);
+  };
+
 })();
+

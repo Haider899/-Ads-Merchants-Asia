@@ -54,6 +54,25 @@
       "created_at": "2026-08-31T07:09:37.316Z",
       "kyc_status": "reupload_required",
       "kyc_notes": "Upload orignal documents "
+    },
+    {
+      "id": "usr_1788174966466",
+      "fullname": "Ali Merchant",
+      "username": "ali_merchant882",
+      "email": "ali_merchant@gmail.com",
+      "phone": "+923001234567",
+      "gender": "Male",
+      "password_hash": "$2a$10$QqW47RBvCXDxwMaod/mqle83zulH.XyoRLbgEd8ciUgd0f/W19TdS",
+      "vip_level": "Bronze",
+      "balance": 50,
+      "frozen_balance": 0,
+      "today_profit": 0,
+      "today_tasks_completed": 0,
+      "total_tasks_completed": 0,
+      "current_set": 0,
+      "invite_code": "ASIA-77808",
+      "status": "active",
+      "created_at": "2026-08-31T11:16:06.466Z"
     }
   ],
   "tasks": [
@@ -330,6 +349,24 @@
   ],
   "notifications": [
     {
+      "id": "notif_1788174966507_428",
+      "user_id": "usr_1788174966466",
+      "title": "Support Message 💬",
+      "message": "Gold VIP allows 55 daily orders with 1.20% commission yield!",
+      "type": "info",
+      "read": false,
+      "created_at": "2026-08-31T11:16:06.507Z"
+    },
+    {
+      "id": "notif_1788174966352_893",
+      "user_id": "usr_repofa5484",
+      "title": "Support Message 💬",
+      "message": "Hello Repofa! Please send your TxHash and we will credit ...",
+      "type": "info",
+      "read": true,
+      "created_at": "2026-08-31T11:16:06.352Z"
+    },
+    {
       "id": "notif_1788168587424_587",
       "user_id": "usr_repofa5484",
       "title": "Deposit Approved! 💳",
@@ -355,6 +392,52 @@
       "type": "success",
       "read": true,
       "created_at": "2026-08-31T09:27:13.091Z"
+    }
+  ],
+  "chat_messages": [
+    {
+      "id": "msg_1788174966238_468",
+      "user_id": "usr_repofa5484",
+      "user_name": "Repofa Merchant",
+      "user_email": "repofa5484@prorises.com",
+      "sender": "user",
+      "text": "Hello support, I need help with my USDT TRC20 deposit.",
+      "read_by_admin": false,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:16:06.238Z"
+    },
+    {
+      "id": "msg_1788174966349_693",
+      "user_id": "usr_repofa5484",
+      "user_name": "Repofa Merchant",
+      "user_email": "repofa5484@prorises.com",
+      "sender": "admin",
+      "text": "Hello Repofa! Please send your TxHash and we will credit your balance right away.",
+      "read_by_admin": true,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:16:06.349Z"
+    },
+    {
+      "id": "msg_1788174966480_304",
+      "user_id": "usr_1788174966466",
+      "user_name": "Ali Merchant",
+      "user_email": "ali_merchant@gmail.com",
+      "sender": "user",
+      "text": "How many daily optimization orders in Gold VIP tier?",
+      "read_by_admin": false,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:16:06.481Z"
+    },
+    {
+      "id": "msg_1788174966503_849",
+      "user_id": "usr_1788174966466",
+      "user_name": "Ali Merchant",
+      "user_email": "ali_merchant@gmail.com",
+      "sender": "admin",
+      "text": "Gold VIP allows 55 daily orders with 1.20% commission yield!",
+      "read_by_admin": true,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:16:06.503Z"
     }
   ]
 }

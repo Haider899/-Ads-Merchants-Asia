@@ -154,6 +154,7 @@
     loadDeposits();
     loadWithdrawals();
     loadSettings();
+    loadChatConversations();
   };
 
   async function loadMetrics() {
@@ -731,30 +732,216 @@
     }
   }
 
-  // Zoom image modal
-  window.zoomImage = function(src, title = 'Document Preview') {
-    let zoomModal = document.getElementById('imageZoomModal');
-    if (!zoomModal) {
-      zoomModal = document.createElement('div');
-      zoomModal.id = 'imageZoomModal';
-      zoomModal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999999;padding:20px;backdrop-filter:blur(6px);';
-      document.body.appendChild(zoomModal);
+  // ==========================================
+  // LIVE CUSTOMER CHAT & TICKETS CONTROLLER
+  // ==========================================
+  let activeChatUserId = null;
+  let chatConversationsCache = [];
+  let chatMessagesCache = [];
+
+  window.loadChatConversations = async function() {
+    try {
+      const res = await AdminAPI.get('/api/admin/chat/conversations');
+      const listEl = document.getElementById('adminConversationsList');
+      if (!listEl) return;
+
+      if (res && res.success && res.conversations) {
+        chatConversationsCache = res.conversations;
+        renderConversationsList(chatConversationsCache);
+
+        // Update total unread badge
+        const totalUnread = chatConversationsCache.reduce((acc, c) => acc + (c.unread_admin_count || 0), 0);
+        const badgeEl = document.getElementById('adminChatUnreadBadge');
+        if (badgeEl) {
+          if (totalUnread > 0) {
+            badgeEl.textContent = totalUnread;
+            badgeEl.style.display = 'inline-block';
+          } else {
+            badgeEl.style.display = 'none';
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load conversations:', e);
+    }
+  };
+
+  function renderConversationsList(conversations) {
+    const listEl = document.getElementById('adminConversationsList');
+    if (!listEl) return;
+
+    if (conversations.length === 0) {
+      listEl.innerHTML = `<div class="text-center text-muted py-5" style="font-size: 13px;">No active chat conversations yet.</div>`;
+      return;
     }
 
-    zoomModal.innerHTML = `
-      <div style="max-width: 850px; width: 100%; text-align: center; font-family:'Plus Jakarta Sans',sans-serif;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #fff;">
-          <h5 style="margin: 0; font-weight: 700; font-size: 16px;">${title}</h5>
-          <button onclick="document.getElementById('imageZoomModal').style.display='none'" style="background: none; border: none; color: #fff; font-size: 28px; cursor: pointer;">&times;</button>
+    listEl.innerHTML = conversations.map(c => {
+      const isActive = c.user_id === activeChatUserId;
+      const time = new Date(c.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div onclick="selectChatUser('${c.user_id}')" style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; cursor: pointer; background: ${isActive ? '#ffffff' : 'transparent'}; border-left: ${isActive ? '4px solid #00875a' : '4px solid transparent'}; transition: all 0.15s ease;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div style="font-weight: 700; font-size: 13.5px; color: #0f172a; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${escapeHtml(c.user_name || 'Customer')}
+            </div>
+            <small class="text-muted" style="font-size: 11px;">${time}</small>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 12px; color: #64748b; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${c.last_sender === 'admin' ? '<strong style="color: #00875a;">You: </strong>' : ''}${escapeHtml(c.last_message)}
+            </div>
+            ${c.unread_admin_count > 0 ? `
+              <span class="badge badge-danger" style="border-radius: 10px; font-size: 10px; padding: 2px 6px;">${c.unread_admin_count}</span>
+            ` : ''}
+          </div>
+          <div style="margin-top: 4px; display: flex; gap: 6px;">
+            <span class="badge badge-light border" style="font-size: 10px;">${c.vip_level || 'Bronze'} VIP</span>
+            <span class="badge badge-light border text-success" style="font-size: 10px;">$${parseFloat(c.balance || 0).toFixed(2)}</span>
+          </div>
         </div>
-        <img src="${src}" style="max-width: 100%; max-height: 80vh; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); object-fit: contain; background: #fff; padding: 4px;" />
-      </div>
-    `;
+      `;
+    }).join('');
+  }
 
-    zoomModal.style.display = 'flex';
-    zoomModal.onclick = (e) => {
-      if (e.target === zoomModal) zoomModal.style.display = 'none';
-    };
+  window.filterChatUsers = function(query) {
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+      renderConversationsList(chatConversationsCache);
+      return;
+    }
+    const filtered = chatConversationsCache.filter(c => 
+      (c.user_name && c.user_name.toLowerCase().includes(q)) || 
+      (c.user_email && c.user_email.toLowerCase().includes(q)) ||
+      (c.last_message && c.last_message.toLowerCase().includes(q))
+    );
+    renderConversationsList(filtered);
   };
+
+  window.selectChatUser = async function(userId) {
+    activeChatUserId = userId;
+    renderConversationsList(chatConversationsCache);
+
+    const noSelection = document.getElementById('adminChatNoSelection');
+    const mainContent = document.getElementById('adminChatMainContent');
+    if (noSelection) noSelection.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'flex';
+
+    await loadActiveUserMessages();
+    setTimeout(() => {
+      const input = document.getElementById('adminReplyInput');
+      if (input) input.focus();
+    }, 50);
+  };
+
+  async function loadActiveUserMessages() {
+    if (!activeChatUserId) return;
+    try {
+      const res = await AdminAPI.get(`/api/admin/chat/${activeChatUserId}`);
+      if (res && res.success) {
+        if (res.user) {
+          document.getElementById('adminChatSelectedName').textContent = res.user.fullname || res.user.email;
+          document.getElementById('adminChatSelectedEmail').textContent = res.user.email;
+          document.getElementById('adminChatSelectedVip').textContent = `${res.user.vip_level || 'Bronze'} VIP`;
+          document.getElementById('adminChatSelectedBalance').textContent = `$${parseFloat(res.user.balance || 0).toFixed(2)}`;
+        }
+
+        const container = document.getElementById('adminChatMessagesContainer');
+        if (container && res.messages) {
+          chatMessagesCache = res.messages;
+          container.innerHTML = res.messages.map(m => {
+            const isAdmin = m.sender === 'admin';
+            const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            if (isAdmin) {
+              return `
+                <div style="align-self: flex-end; max-width: 75%; background: #00875a; color: #ffffff; padding: 10px 14px; border-radius: 14px; border-bottom-right-radius: 4px; font-size: 13.5px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                  <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; color: #bbf7d0;">You (Admin Support)</div>
+                  <div>${escapeHtml(m.text)}</div>
+                  <div style="font-size: 10px; color: #e2e8f0; margin-top: 4px; text-align: right;">${time}</div>
+                </div>
+              `;
+            } else {
+              return `
+                <div style="align-self: flex-start; max-width: 75%; background: #ffffff; color: #0f172a; padding: 10px 14px; border-radius: 14px; border-bottom-left-radius: 4px; font-size: 13.5px; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+                  <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; color: #0284c7;">${escapeHtml(m.user_name || 'Customer')}</div>
+                  <div>${escapeHtml(m.text)}</div>
+                  <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">${time}</div>
+                </div>
+              `;
+            }
+          }).join('');
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading chat messages:', e);
+    }
+  }
+
+  window.sendAdminReply = async function() {
+    if (!activeChatUserId) return;
+    const input = document.getElementById('adminReplyInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    const container = document.getElementById('adminChatMessagesContainer');
+
+    // Optimistic UI bubble
+    const tempBubble = document.createElement('div');
+    tempBubble.style.cssText = 'align-self:flex-end;max-width:75%;background:#00875a;color:#fff;padding:10px 14px;border-radius:14px;border-bottom-right-radius:4px;font-size:13.5px;';
+    tempBubble.innerHTML = `<div style="font-weight:700;font-size:11px;color:#bbf7d0;">You (Admin Support)</div><div>${escapeHtml(text)}</div><div style="font-size:10px;color:#e2e8f0;text-align:right;">Sending...</div>`;
+    container.appendChild(tempBubble);
+    container.scrollTop = container.scrollHeight;
+
+    const res = await AdminAPI.post(`/api/admin/chat/${activeChatUserId}`, { text });
+    if (res && res.success) {
+      await loadActiveUserMessages();
+      loadChatConversations();
+    } else {
+      showAdminToast('Send Error', (res && res.message) || 'Could not dispatch message', 'error');
+    }
+  };
+
+  window.applyQuickReply = function(text) {
+    const input = document.getElementById('adminReplyInput');
+    if (input) {
+      input.value = text;
+      input.focus();
+    }
+  };
+
+  // Bind send event handlers
+  document.addEventListener('DOMContentLoaded', () => {
+    const sendBtn = document.getElementById('adminSendReplyBtn');
+    if (sendBtn) {
+      sendBtn.addEventListener('click', sendAdminReply);
+    }
+    const input = document.getElementById('adminReplyInput');
+    if (input) {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendAdminReply();
+        }
+      });
+    }
+
+    // Auto-poll conversations every 4 seconds
+    setInterval(() => {
+      const chatTab = document.getElementById('tabChat');
+      if (chatTab && chatTab.style.display !== 'none') {
+        loadChatConversations();
+        if (activeChatUserId) {
+          loadActiveUserMessages();
+        }
+      }
+    }, 4000);
+  });
+
+  function escapeHtml(str) {
+    return (str || '').replace(/[&<>'"]/g, 
+      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+  }
 
 })();

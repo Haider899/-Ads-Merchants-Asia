@@ -320,6 +320,88 @@ const db = {
     });
     writeDb(data);
     return true;
+  },
+  // Live Customer Support Chat Helpers
+  getChatMessages: (userId) => {
+    const data = readDb();
+    const messages = data.chat_messages || [];
+    return messages.filter(m => m.user_id === userId).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  },
+  createChatMessage: ({ userId, sender, text, userName, userEmail }) => {
+    const data = readDb();
+    if (!data.chat_messages) data.chat_messages = [];
+    const message = {
+      id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      user_id: userId,
+      user_name: userName || 'User',
+      user_email: userEmail || '',
+      sender: sender || 'user', // 'user' | 'admin'
+      text: text.trim(),
+      read_by_admin: sender === 'admin',
+      read_by_user: sender === 'user',
+      created_at: new Date().toISOString()
+    };
+    data.chat_messages.push(message);
+    writeDb(data);
+    return message;
+  },
+  getChatConversations: () => {
+    const data = readDb();
+    const messages = data.chat_messages || [];
+    const users = data.users || [];
+    const conversationMap = {};
+
+    messages.forEach(m => {
+      if (!conversationMap[m.user_id]) {
+        const user = users.find(u => u.id === m.user_id);
+        conversationMap[m.user_id] = {
+          user_id: m.user_id,
+          user_name: user ? (user.fullname || user.username) : m.user_name,
+          user_email: user ? user.email : m.user_email,
+          vip_level: user ? user.vip_level : 'Bronze',
+          balance: user ? user.balance : 0,
+          last_message: m.text,
+          last_message_at: m.created_at,
+          last_sender: m.sender,
+          unread_admin_count: 0,
+          total_messages: 0
+        };
+      }
+
+      conversationMap[m.user_id].total_messages += 1;
+      if (new Date(m.created_at) >= new Date(conversationMap[m.user_id].last_message_at)) {
+        conversationMap[m.user_id].last_message = m.text;
+        conversationMap[m.user_id].last_message_at = m.created_at;
+        conversationMap[m.user_id].last_sender = m.sender;
+      }
+      if (m.sender === 'user' && !m.read_by_admin) {
+        conversationMap[m.user_id].unread_admin_count += 1;
+      }
+    });
+
+    return Object.values(conversationMap).sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+  },
+  markChatReadByAdmin: (userId) => {
+    const data = readDb();
+    if (!data.chat_messages) data.chat_messages = [];
+    data.chat_messages.forEach(m => {
+      if (m.user_id === userId && m.sender === 'user') {
+        m.read_by_admin = true;
+      }
+    });
+    writeDb(data);
+    return true;
+  },
+  markChatReadByUser: (userId) => {
+    const data = readDb();
+    if (!data.chat_messages) data.chat_messages = [];
+    data.chat_messages.forEach(m => {
+      if (m.user_id === userId && m.sender === 'admin') {
+        m.read_by_user = true;
+      }
+    });
+    writeDb(data);
+    return true;
   }
 };
 
