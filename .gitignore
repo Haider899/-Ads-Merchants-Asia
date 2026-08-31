@@ -9,6 +9,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Scraped raw dumps
+scraped_pages/
+scraped_dashboard.html
+download_all.py
+scratch_inspect.py
+build_local_portal.py
+inject_bridge.py
+fix_nav_links.py
+
 # Python cache & scratch
 __pycache__/
 *.pyc
