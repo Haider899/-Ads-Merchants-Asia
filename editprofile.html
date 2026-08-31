@@ -1,198 +1,311 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <base href="/">
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#007bff">
-    <title>Amazon Asia Merchant - Edit Profile & Security</title>
-    <link rel="shortcut icon" href="/assets/uploads/logo/1742595477_icon.png">
-    <link rel="stylesheet" href="/client/assets/css/index.css">
-    <link rel="stylesheet" href="/client/assets/css/home.css">
-    <link rel="stylesheet" href="/client/assets/css/levels.css">
-    <link rel="stylesheet" href="/client/assets/css/profile.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#daa520">
+    <title>Amazon Asia Merchant - Edit Profile</title>
+    <link rel="shortcut icon" href="assets/uploads/logo/1742595477_icon.png">
+    <link rel="stylesheet" href="client/assets/css/index.css">
 
     <style>
-        .edit-form-card {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        .edit-input-group {
-            margin-bottom: 14px;
-        }
-        .edit-input-label {
-            font-size: 12px;
-            font-weight: 700;
-            color: #334155;
-            margin-bottom: 5px;
-            display: block;
-        }
-        .edit-input-control {
-            width: 100%;
-            padding: 10px 14px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            font-size: 13.5px;
-            background: #f8fafc;
-            color: #0f172a;
-            outline: none;
+        * {
             box-sizing: border-box;
-            font-family: inherit;
         }
-        .edit-input-control:focus {
-            border-color: #daa520;
-            background: #ffffff;
+        body {
+            margin: 0;
+            padding: 0;
+            background: #edd7ae;
+            background: radial-gradient(circle, rgba(238,215,174,0.95) 30%, rgba(196,148,25,0.95) 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
         }
-        .edit-submit-btn {
+        .app-mobile-frame {
             width: 100%;
-            background: linear-gradient(135deg, #e6b800, #c69500);
-            color: #ffffff;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(218, 165, 32, 0.3);
-            margin-top: 6px;
+            max-width: 440px;
+            margin: 0 auto;
+            padding: 12px 14px 90px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
         }
-        .section-header-title {
-            font-weight: 800;
-            font-size: 15px;
+        .header-brand-block {
+            text-align: center;
+            padding: 8px 0;
+        }
+        .brand-logo-img {
+            width: 150px;
+            height: auto;
+            margin-bottom: 6px;
+        }
+        .user-header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(4px);
+            padding: 6px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .user-welcome-name {
+            font-size: 13px;
+            font-weight: 700;
             color: #0f172a;
-            margin-bottom: 14px;
-            border-bottom: 1px solid #f1f5f9;
-            padding-bottom: 8px;
+        }
+        .logout-pill-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+            background: #ffffff;
+            color: #ef4444;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .marquee-alert-pill {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 6px;
+            padding: 6px 10px;
             display: flex;
             align-items: center;
             gap: 8px;
+            font-size: 11.5px;
+            color: #334155;
+        }
+        .back-profile-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #1e293b;
+            font-size: 12px;
+            font-weight: 700;
+            background: #ffffff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            width: fit-content;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+        .compact-form-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .compact-card-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .compact-field {
+            margin-bottom: 10px;
+        }
+        .compact-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 4px;
+        }
+        .compact-field input, .compact-field select {
+            width: 100%;
+            height: 38px;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12.5px;
+            background: #f8fafc;
+            color: #0f172a;
+            outline: none;
+            font-family: inherit;
+        }
+        .compact-field input:focus, .compact-field select:focus {
+            border-color: #daa520;
+            background: #ffffff;
+            box-shadow: 0 0 0 2px rgba(218, 165, 32, 0.2);
+        }
+        .action-save-gold {
+            width: 100%;
+            height: 38px;
+            background: linear-gradient(135deg, #e6b800, #c69500);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(218, 165, 32, 0.35);
+            margin-top: 2px;
+        }
+        .action-save-blue {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            box-shadow: 0 3px 6px rgba(2, 132, 199, 0.35);
+        }
+        .fixed-bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 440px;
+            height: 58px;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 9999;
+            box-shadow: 0 -3px 12px rgba(0,0,0,0.06);
+        }
+        .bottom-tab-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+            gap: 2px;
+            flex: 1;
+            height: 100%;
+        }
+        .bottom-tab-link img {
+            width: 20px;
+            height: 20px;
+        }
+        .bottom-tab-link.active {
+            color: #daa520;
         }
     </style>
 </head>
 <body>
 
-    <div class="container-home">
+    <div class="app-mobile-frame">
 
-        <div class="container-home-top">
-
-            <a class="home-logo" href="/dashboard">
-                <img src="/assets/uploads/logo/1764857545_1743035462_logonew.webp" alt="Logo">
+        <!-- Top Header & Brand -->
+        <div class="header-brand-block">
+            <a href="dashboard">
+                <img src="assets/uploads/logo/1764857545_1743035462_logonew.webp" alt="Amazon Asia" class="brand-logo-img">
             </a>
 
-            <div>
-                <div class="heading heading-x">
-                    <div class="user-username">
-                        <span class="usernamee">Welcome</span>
-                        <span class="user-fullname">Merchant</span>
-                    </div>
-
-                    <a class="logout-button" href="/signout">
-                        <div class="profile-list-items-left">
-                            <div class="profile-list-text">Logout</div>
-                        </div>
-                        <div class="profile-list-items-right">
-                            <img src="/client/assets/img/right-chevron.svg" class="profile-list-icons" alt="">
-                        </div>
-                    </a>
+            <div class="user-header-bar">
+                <div class="user-welcome-name">
+                    <span>Welcome, </span>
+                    <span class="user-fullname">Merchant</span>
                 </div>
+                <a href="/signout" class="logout-pill-btn">
+                    <span>Logout</span>
+                </a>
             </div>
 
-            <div class="top-middle"> 
-                <div class="notification-panel">
-                    <div class="notification-panel-item">
-                        <img class="notification-bell" src="/client/assets/img/bell.png" alt="">
-                        <div class="notification-panel-content-text">
-                            <marquee behavior="" direction="">Security Center: Keep your account password safe and never share login credentials.</marquee>
-                        </div>
-                    </div>
-                </div>
+            <div class="marquee-alert-pill">
+                <img src="client/assets/img/bell.png" alt="Bell" style="width: 14px; height: 14px;">
+                <marquee behavior="" direction="">Security Center: Update your profile details and account password safely.</marquee>
             </div>
-
         </div>
 
-        <div class="container-home-middle" style="padding: 14px; margin-bottom: 80px;">
-
-            <!-- Back navigation button -->
-            <a href="/profileData" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: #475569; font-weight: 700; font-size: 13px; margin-bottom: 12px; background: #fff; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+        <!-- Back Link -->
+        <div>
+            <a href="profileData" class="back-profile-btn">
                 <span>&larr; Back to Profile</span>
             </a>
-
-            <!-- Personal Information Form -->
-            <div class="edit-form-card">
-                <div class="section-header-title">
-                    <span>Personal Profile Details</span>
-                </div>
-
-                <form id="editProfileForm">
-                    <div class="edit-input-group">
-                        <label class="edit-input-label">Full Legal Name</label>
-                        <input type="text" id="editFullName" class="edit-input-control" placeholder="Full Name" required />
-                    </div>
-                    <div class="edit-input-group">
-                        <label class="edit-input-label">Account Email</label>
-                        <input type="email" id="editEmail" class="edit-input-control" readonly style="background: #e2e8f0; opacity: 0.85;" />
-                    </div>
-                    <div class="edit-input-group">
-                        <label class="edit-input-label">Phone Number</label>
-                        <input type="tel" id="editPhone" class="edit-input-control" placeholder="+60 12 345 6789" />
-                    </div>
-                    <div class="edit-input-group">
-                        <label class="edit-input-label">Gender</label>
-                        <select id="editGender" class="edit-input-control">
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <button type="submit" id="saveProfileBtn" class="edit-submit-btn">
-                        Save Profile Changes
-                    </button>
-                </form>
-            </div>
-
-            <!-- Change Password Form -->
-            <div class="edit-form-card">
-                <div class="section-header-title">
-                    <span>Change Login Password</span>
-                </div>
-
-                <form id="changePasswordForm">
-                    <div class="edit-input-group">
-                        <label class="edit-input-label">Current Password</label>
-                        <input type="password" id="currentPassword" class="edit-input-control" placeholder="Enter current password" required />
-                    </div>
-                    <div class="edit-input-group">
-                        <label class="edit-input-label">New Password</label>
-                        <input type="password" id="newPassword" class="edit-input-control" placeholder="Minimum 6 characters" minlength="6" required />
-                    </div>
-                    <div class="edit-input-group">
-                        <label class="edit-input-label">Confirm New Password</label>
-                        <input type="password" id="confirmNewPassword" class="edit-input-control" placeholder="Re-type new password" minlength="6" required />
-                    </div>
-                    <button type="submit" id="savePasswordBtn" class="edit-submit-btn" style="background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);">
-                        Update Security Password
-                    </button>
-                </form>
-            </div>
-
         </div>
 
-        <!-- Bottom Navigation Bar -->
-        <div class="container-home-bottom">
-            <div class="container-home-bottom-navbar">
-                <a href="/dashboard"><div class="container-home-bottom-navbar-icon"><img src="/client/assets/img/home.png" alt=""><div class="bottom-navbar-text">Home</div></div></a>
-                <a href="/recordData"><div class="container-home-bottom-navbar-icon"><img src="/client/assets/img/record.png" alt=""><div class="bottom-navbar-text">Record</div></div></a>
-                <a href="/startData"><div class="container-home-bottom-navbar-icon"><img src="/client/assets/img/start.png" alt=""><div class="bottom-navbar-text">Start</div></div></a>
-                <a href="/contactData"><div class="container-home-bottom-navbar-icon"><img src="/client/assets/img/contact.png" alt=""><div class="bottom-navbar-text">Contact</div></div></a>
-                <a href="/profileData"><div class="container-home-bottom-navbar-icon"><img src="/client/assets/img/profile.png" alt=""><div class="bottom-navbar-text active">Profile</div></div></a>
-            </div>
+        <!-- Card 1: Personal Profile Details -->
+        <div class="compact-form-card">
+            <div class="compact-card-title">Personal Profile Details</div>
+            <form id="editProfileForm">
+                <div class="compact-field">
+                    <label>Full Legal Name</label>
+                    <input type="text" id="editFullName" placeholder="Full Legal Name" required />
+                </div>
+                <div class="compact-field">
+                    <label>Account Email</label>
+                    <input type="email" id="editEmail" readonly style="background: #e2e8f0; opacity: 0.85; cursor: not-allowed;" />
+                </div>
+                <div class="compact-field">
+                    <label>Phone Number</label>
+                    <input type="tel" id="editPhone" placeholder="+60 12 345 6789" />
+                </div>
+                <div class="compact-field">
+                    <label>Gender</label>
+                    <select id="editGender">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <button type="submit" id="saveProfileBtn" class="action-save-gold">
+                    Save Profile Changes
+                </button>
+            </form>
+        </div>
+
+        <!-- Card 2: Change Login Password -->
+        <div class="compact-form-card">
+            <div class="compact-card-title">Change Login Password</div>
+            <form id="changePasswordForm">
+                <div class="compact-field">
+                    <label>Current Password</label>
+                    <input type="password" id="currentPassword" placeholder="Enter current password" required />
+                </div>
+                <div class="compact-field">
+                    <label>New Password</label>
+                    <input type="password" id="newPassword" placeholder="Minimum 6 characters" minlength="6" required />
+                </div>
+                <div class="compact-field">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" placeholder="Re-type new password" minlength="6" required />
+                </div>
+                <button type="submit" id="savePasswordBtn" class="action-save-gold action-save-blue">
+                    Update Password
+                </button>
+            </form>
+        </div>
+
+        <div style="text-align: center; color: rgba(0,0,0,0.45); font-size: 10.5px; font-weight: 700; margin-top: 4px;">
+            Copyright © 2025 VIP Membership. All rights reserved.
         </div>
 
     </div>
 
-    <script src="/client/assets/js/portal-bridge.js"></script>
+    <!-- Fixed Bottom Bar -->
+    <div class="fixed-bottom-bar">
+        <a class="bottom-tab-link" href="dashboard">
+            <img src="client/assets/img/home.png" alt="Home">
+            <span>Home</span>
+        </a>
+        <a class="bottom-tab-link" href="recordData">
+            <img src="client/assets/img/record.png" alt="Record">
+            <span>Record</span>
+        </a>
+        <a class="bottom-tab-link" href="startData">
+            <img src="client/assets/img/start.png" alt="Start">
+            <span>Start</span>
+        </a>
+        <a class="bottom-tab-link" href="contactData">
+            <img src="client/assets/img/contact.png" alt="Contact">
+            <span>Contact</span>
+        </a>
+        <a class="bottom-tab-link active" href="profileData">
+            <img src="client/assets/img/profile.png" alt="Profile">
+            <span>Profile</span>
+        </a>
+    </div>
+
+    <script src="client/assets/js/portal-bridge.js"></script>
 </body>
 </html>
