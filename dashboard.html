@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#007bff">
+
+    <title>Amazon Asia Merchant</title>
+
+    <link rel="shortcut icon" href="assets/uploads/logo/1742595477_icon.png">
+
+    <link rel="stylesheet" href="client/assets/css/index.css">
+
+    <link rel="stylesheet" href="client/assets/css/home.css">
+
+    <link rel="stylesheet" href="client/assets/css/levels.css">
+
+                
+
+        
+
+        
+
+    <!-- FontAwesome 6.5.1 CDN -->
+
+<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> -->
+
+
+
+
+
+    <style>
+
+        .error, .alert-danger {
+
+            color: #D8000C;
+
+            background-color: #FFBABA;
+
+            padding: 10px;
+
+            border: 1px solid #D8000C;
+
+            margin-bottom: 15px;
+
+            border-radius: 5px;
+
+        }
+
+
+
+        .success, .alert-success {
+
+            color: #4F8A10;
+
+            background-color: #DFF2BF;
+
+            padding: 10px;
+
+            border: 1px solid #4F8A10;
+
+            margin-bottom: 15px;
+
+            border-radius: 5px;
+
+        }
+
+    </style>
+
+    <style>
+
+        body {
+
+            padding: 0;
+
+        }
+
+
+
+        @media screen and (min-width: 1200px) {
+
+            body {
+
+                padding: 0 450px;
+
+            }
+
+
+
+            .inner-header {
+
+                padding-left: 450px;
+
+                padding-right: 450px;
+
+            }
+
+
+
+            .footer-container {
+
+                padding-left: 450px;
+
+                padding-right: 450px;
+
+            }
+
+        }
+
+    </style>
+
+    <style>
+
+        .heading-x{
+
+            display: flex;
+
+            flex-direction: row;
+
+            gap: 10px;
+
+            align-items: center;
+
+            justify-content: space-evenly;
+
+        }
+
+        .user-username{
+
+            font-size: 20px;
+
+            font-weight: bold;
+
+        }
+
+
+
+.contact-containers{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:15px;
+
+    padding-top:80px;
+
+    padding-left:15px;
+
+    padding-right:15px;
+
+}
+
+.contact-item{
+
+    display:flex;
+
+    flex-direction:row;
+
+    gap:20px;
+
+    align-items:center;
+
+    padding:15px;
+
+    border-radius:10px;
+
+    background-color:white;
+
+}
+
+.contact-item a{
+
+    text-decoration:none;
+
+    color:black;
+
+}
+
+.contact-title{
+
+    font-size:14px;
+
+}
+
+
+
+    .record-container{
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 30px;
+
+        padding: 80px 15px 120px 15px;
+
+    }
+
+    .record-nav{
+
+        display: flex;
+
+        flex-direction: row;
+
+        justify-content: space-evenly;
+
+        cursor: pointer;
+
+    }
+
+    .record-nav-item{
+
+        color: grey;
+
+        width: 100%;
+
+        text-align: center;
+
+        padding: 10px 0px;
+
+        border-radius: 10px;
+
+    }
+
+    .record-nav-item-active{
+
+        background-color: rgba(255, 255, 255, 0.7);
+
+        color: black;
+
+    }
+
+    .record-item-tab{
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 30px;
+
+    }
+
+    .record-item-tab-field{
+
+        background-color: white;
+
+        padding: 10px;
+
+        border-radius: 10px;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 10px;
+
+    }
+
+    .record-item-tab-field-up{
+
+        display: flex;
+
+        flex-direction: row;
+
+        gap: 20px;
+
+        align-items: center;
+
+    }
+
+
+
+    .record-item-description{
+
+        font-size: 16px;
+
+        font-weight: bold;
+
+    }
+
+    .record-item-tab-field-down{
+
+        display: flex;
+
+        flex-direction: row;
+
+        align-items: center;
+
+        padding: 10px 0px;
+
+        justify-content: space-between;
+
+        border-top: 1px solid #c3c3c3;
+
+        
+
+    }
+
+    .tiny-text{
+
+        font-size: 12px;
+
+    }
+
+    .small-text{
+
+        font-size: 14px;
+
+        font-weight: bold;
+
+    }
+
+   
+
+    </style>
+
+</head>
+
+<input type="hidden" name="base_url" id="base_url" value=""/>
+
+
+
+<body>
+
+    <div class="main-containe .page-bodyr">
+
+        <div class="header-container" style="text-align:center;padding: 0px 15px;">
+
+        <a href="" class="logo">
+
+                        <img src="assets/uploads/logo/1764857545_1743035462_logonew.webp" alt="logo" width="170">
+
+                    </a>
+
+        <div class="">
+
+                                
+
+                <div class="heading heading-x">
+
+                    <div class="user-username">
+
+                    <span class="usernamee">Welcome</span>
+
+                        haider 
+
+                         
+
+                               
+
+                    </div>
+
+                    
+
+
+
+                    <a class="logout-button" href="login.html">
+
+                        <div class="profile-list-items-left">
+
+                            <div class="profile-list-text">Logout</div>
+
+                        </div>
+
+                        <div class="profile-list-items-right">
+
+                            <img src="client/assets/img/right-chevron.svg" class="profile-list-icons" alt="">
+
+                        </div>
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="top-middle"> 
+
+            <div class="notification-panel">
+
+                <div class="notification-panel-item">
+
+                    <img class="notification-bell" src="client/assets/img/bell.png" alt="">
+
+                    <div class="notification-panel-content-text"><marquee behavior="" direction="">We value your feedback! Please take a moment to complete our customer satisfaction survey and let us know how we can improve your experience.</marquee></div>
+
+                </div>
+
+            </div>
+
+            </div>
+
+
+
+
+
+        </div>
+
+        
+
+
+
+        <div class="container-home-middle">
+
+            
+
+                        <div class="middle-nav">
+
+                <a class="middle-nav-item" href="deposit">
+
+                    <div class=""><img src="client/assets/img/deposit.png" class="middle-nav-icon" alt=""></div>
+
+                    <div class="middle-nav-link">Deposit</div>
+
+                </a>
+
+                <a class="middle-nav-item" href="withdraw">
+
+                    <div class=""><img src="client/assets/img/withdraw.png" class="middle-nav-icon" alt=""></div>
+
+                    <div class="middle-nav-link">Withdraw</div>
+
+                </a>
+
+                <a class="middle-nav-item" href="license">
+
+                    <div class=""><img src="client/assets/img/icons/lisence.png" class="middle-nav-icon" alt=""></div>
+
+                    <div class="middle-nav-link">License</div>
+
+                </a>
+
+                <a class="middle-nav-item" href="contract">
+
+                    <div class=""><img src="client/assets/img/tc.png" class="middle-nav-icon" alt=""></div>
+
+                    <div class="middle-nav-link">Contract</div>
+
+                </a>
+
+                <a class="middle-nav-item" href="faqs">
+
+                    <div class=""><img src="client/assets/img/faq.png" class="middle-nav-icon" alt=""></div>
+
+                    <div class="middle-nav-link">FAQs</div>
+
+                </a>
+
+                <a class="middle-nav-item" href="aboutData">
+
+                    <div class=""><img src="client/assets/img/about.png" class="middle-nav-icon" alt=""></div>
+
+                    <div class="middle-nav-link">About us</div>
+
+                </a>
+
+            </div>
+
+            <div class="membership-container">
+
+                <div class="membership-title">
+
+                    <div class="">VIP Level</div>
+
+                    <a class="view-more" href="levelsData">View More &gt;</a>
+
+                </div>
+
+                <div id="membership-icons" data-membership-level="Bronze" class="membership-icons">
+
+                    
+
+                    <div class="membership-icons-item">
+
+                        <div onclick="bronzeBtnClick()" id="bronze-btn" class="membership-icons-item-itself membership-icons-item-itself-active"><img src="client/assets/img/bronze.png" class="vip-image" alt=""></div>
+
+                        <div onclick="silverBtnClick()" id="silver-btn" class="membership-icons-item-itself"><img src="client/assets/img/silver.png" class="vip-image" alt=""></div>
+
+                        <div onclick="goldBtnClick()" id="gold-btn" class="membership-icons-item-itself"><img src="client/assets/img/gold.png" class="vip-image" alt=""></div>
+
+                        <div onclick="diamondBtnClick()" id="diamond-btn" class="membership-icons-item-itself"><img src="client/assets/img/diamond.png" class="vip-image" alt=""></div>
+
+                    </div>
+
+                </div>
+
+                <div class="membership-icons-details">
+
+                    <div class="membership-icons-details-item" id="bronze-div" style="display: block;">
+
+                        <div class="membership-icons-details-title bronze">BRONZE</div>
+
+                        <!-- <div class="membership-icons-details-info">1 set of 3 orders</div> -->
+
+                        <div class="membership-icons-details-info">20% commission on each order</div>
+
+                    </div>
+
+                    <div class="membership-icons-details-item" id="silver-div" style="display: none;">
+
+                        <div class="membership-icons-details-title silver">SILVER</div>
+
+                        <!-- <div class="membership-icons-details-info">2 sets of orders</div>
+
+                        <div class="membership-icons-details-info">First Set: 4 orders</div>
+
+                        <div class="membership-icons-details-info">Second Set: 3 orders</div> -->
+
+                        <div class="membership-icons-details-info">25% commission on each order</div>
+
+                    </div>
+
+                    <div class="membership-icons-details-item" id="gold-div" style="display: none;">
+
+                        <div class="membership-icons-details-title gold">GOLD</div>
+
+                        <!-- <div class="membership-icons-details-info">4 sets of orders</div>
+
+                        <div class="membership-icons-details-info">First Set: 5 orders</div>
+
+                        <div class="membership-icons-details-info">Second Set: 3 orders</div>
+
+                        <div class="membership-icons-details-info">Third Set: 4 orders</div>
+
+                        <div class="membership-icons-details-info">Fourth Set: Can be adjusted as needed</div> -->
+
+                        <div class="membership-icons-details-info">30% commission on each order</div>
+
+                    </div>
+
+                    <div class="membership-icons-details-item" id="diamond-div" style="display: none;">
+
+                        <div class="membership-icons-details-title diamond">DIAMOND</div>
+
+                        <!-- <div class="membership-icons-details-info">4 sets of orders</div>
+
+                        <div class="membership-icons-details-info">First Set: 5 orders</div>
+
+                        <div class="membership-icons-details-info">Second Set: 1 order</div>
+
+                        <div class="membership-icons-details-info">Third Set: 3 orders</div>
+
+                        <div class="membership-icons-details-info">Fourth Set: 5 orders</div> -->
+
+                        <div class="membership-icons-details-info">35% commission on each order</div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="partner-nav">
+
+                <div class="membership-title">
+
+                    <div class="">Partners</div>
+
+                </div>
+
+                <div class="partners-container">
+
+                    <div class="partners-tab">
+
+                        <div class="partner-image-field"><img src="client/assets/img/the-north-face-1920-1.png" alt="" class="partner-image"></div>
+
+                        <div class="partner-image-field"><img src="client/assets/img/bikesonline-1920-1.png" alt="" class="partner-image"></div>
+
+                        <div class="partner-image-field"><img src="client/assets/img/gerber-life-1920-1.png" alt="" class="partner-image"></div>
+
+                    </div>
+
+                    <div class="partners-tab">
+
+                        <div class="partner-image-field"><img src="client/assets/img/johnson-and-johnson-1920-1.png" alt="" class="partner-image"></div>
+
+                        <div class="partner-image-field"><img src="client/assets/img/omni-hotels-1920-1.png" alt="" class="partner-image"></div>
+
+                        <div class="partner-image-field"><img src="client/assets/img/poland-spring-1920-1.png" alt="" class="partner-image"></div>
+
+                    </div>
+
+                    <div class="partners-tab">
+
+                        <div class="partner-image-field"><img src="client/assets/img/amazon-fresh-1920-1.png" alt="" class="partner-image"></div>
+
+                        <div class="partner-image-field"><img src="client/assets/img/timberland-1920-1.png" alt="" class="partner-image"></div>
+
+                        <div class="partner-image-field"><img src="client/assets/img/vans-1920-1.png" alt="" class="partner-image"></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+    </div>
+
+
+
+    
+
+
+
+<style>
+
+#gkjst5709vp41765729817752,
+
+iframe[src*="tawk.to"] {
+
+  bottom: 80px !important; /* adjust this value */
+
+}
+
+</style>
+
+<div class="footer-container">
+
+        <a class="footer-item footer-item-active" href="dashboard">
+
+            <img src="client/assets/img/home.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Home</div>
+
+        </a>
+
+        <a class="footer-item " href="recordData">
+
+            <img src="client/assets/img/record.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Record</div>
+
+        </a>
+
+        <a class="footer-item " href="startData">
+
+            <img src="client/assets/img/start.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Start</div>
+
+        </a>
+
+        <a class="footer-item " href="contactData">
+
+            <img src="client/assets/img/contact.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Contact</div>
+
+        </a>
+
+                <a class="footer-item " href="profileData">
+
+                    <img src="client/assets/img/default.png" class="header-user-icon-up" alt="">
+
+                    <div class="footer-item-title">Profile</div>
+
+        </a>
+
+</div>
+
+<script src="client/assets/js/main.js"></script>
+
+<script src="client/assets/js/home.js"></script>
+
+
+
+<!--Start of Tawk.to Script-->
+
+<script type="text/javascript">
+
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/693123d606edaa197bf29d9c/1jbjv7vjm';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
+</script>
+
+<!--End of Tawk.to Script-->
+
+
+
+<script>
+
+    $(".alert").fadeTo(2000, 500).slideUp(500, function(){
+
+    $(".alert").slideUp(500);
+
+});
+
+</script>
+
+<script src="client/assets/js/portal-bridge.js"></script>
+</body>
+
+</html>

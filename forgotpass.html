@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Ads Merchants Asia - Forgot Password</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta content="Amazon Asia Merchant" name="description" />
+    <meta content="" name="author" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- App favicon -->
+    <link rel="shortcut icon" href="https://adsmerchantsasia.com/assets/uploads/logo/1742595477_icon.png">
+    
+    <!-- Fonts, Bootstrap & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dripicons@2.0.0/css/dripicons.css">
+
+    <style>
+        body, html {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #edf0f5;
+        }
+
+        .align-self-center {
+            padding-top: 50px;
+            padding-bottom: 50px;
+        }
+
+        .account-body.accountbg {
+            background: #edf0f5;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-page {
+            max-width: 520px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .card {
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: 0px 4px 20px rgba(31, 30, 47, 0.08) !important;
+        }
+
+        .card-body {
+            padding: 2.2rem 2rem 1.8rem;
+        }
+
+        .auth-logo-box {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .auth-logo-box .auth-logo {
+            border-radius: 1rem;
+            background-color: #fff;
+            padding: 4px;
+            height: 110px;
+            max-width: 220px;
+            object-fit: contain;
+        }
+
+        .account-body .auth-card .auth-logo-text h4 {
+            font-weight: 600;
+            color: #000;
+            font-size: 22px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .text-muted {
+            color: #000 !important;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        label {
+            font-weight: 400;
+            color: #000;
+            font-size: 13px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .form-control {
+            height: 42px;
+            border: 1px solid #e8ebf3;
+            border-radius: 4px;
+            padding: 6px 42px 6px 14px;
+            font-size: 13px;
+            color: #303e67;
+            background-color: #fff;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        .form-control::placeholder {
+            color: #b0b7c7;
+        }
+
+        .form-control:focus {
+            border-color: #4d69db;
+            box-shadow: 0 0 0 0.15rem rgba(77, 105, 219, 0.15);
+            background-color: #fff;
+            color: #303e67;
+        }
+
+        .auth-form .auth-form-icon {
+            width: 32px;
+            height: 32px;
+            background-color: #edf0f5;
+            text-align: center;
+            line-height: 32px;
+            border-radius: 50%;
+            position: absolute;
+            right: 5px;
+            z-index: 10;
+            top: 5px;
+            color: #303e67;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .auth-form .auth-form-icon:hover {
+            color: #f3771d;
+        }
+
+        .btn-gradient-warning {
+            background: linear-gradient(14deg, #f3771d 0%, #f79839 100%);
+            border: none;
+            color: #fff !important;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            box-shadow: 0 4px 12px rgba(243, 119, 29, 0.3) !important;
+            transition: all 0.3s ease-out;
+        }
+
+        .btn-gradient-warning:hover {
+            background: linear-gradient(14deg, #e56a10 0%, #f3771d 100%);
+            box-shadow: 0 6px 16px rgba(243, 119, 29, 0.45) !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-gradient-warning:active {
+            transform: translateY(0);
+        }
+
+        .btn-round {
+            border-radius: 30px;
+        }
+
+        p a:hover, a:hover {
+            color: #4d69db !important;
+            text-decoration: none;
+        }
+
+        .orange-link {
+            color: #f3771d !important;
+            transition: color 0.2s;
+        }
+
+        .orange-link:hover {
+            color: #d6600c !important;
+            text-decoration: underline;
+        }
+
+        /* Toast */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 280px;
+            background: #fff;
+            border-left: 4px solid #f3771d;
+            border-radius: 4px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            padding: 12px 18px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 576px) {
+            .align-self-center {
+                padding-top: 25px;
+                padding-bottom: 25px;
+            }
+            .card-body {
+                padding: 1.5rem 1.2rem;
+            }
+            .auth-logo-box .auth-logo {
+                height: 90px;
+            }
+        }
+    </style>
+</head>
+<body class="account-body accountbg">
+
+    <!-- Toast Notification -->
+    <div id="toastNotification" class="toast-notification">
+        <div id="toastMsg" style="font-size: 13px; font-weight: 500; color: #303e67;"></div>
+    </div>
+
+    <!-- Forgot Password page -->
+    <div class="container">
+        <div class="row min-vh-100 align-items-center justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6 col-xl-5 align-self-center">
+                <div class="auth-page">
+                    <div class="card auth-card shadow-lg">
+                        <div class="card-body">
+                            <div class="px-2">
+                                <div class="auth-logo-box">
+                                    <a href="index.html" class="logo logo-admin">
+                                        <img src="https://adsmerchantsasia.com/assets/uploads/logo/1764857545_1743035462_logonew.webp" alt="Ads Merchants Asia Logo" class="auth-logo">
+                                    </a>
+                                </div><!--end auth-logo-box-->
+                                
+                                <div class="text-center auth-logo-text">
+                                    <h4 class="mt-0 mb-3 mt-4">Let's Get Started</h4>
+                                </div> <!--end auth-logo-text-->  
+
+                                <form id="forgotForm" action="https://adsmerchantsasia.com/userforgot" class="form-horizontal auth-form my-4" method="post" accept-charset="utf-8">
+                               
+                                    <div class="form-group mb-3">
+                                        <label for="email">Email</label>
+                                        <div class="input-group">
+                                            <span class="auth-form-icon">
+                                                <i class="fa-regular fa-envelope"></i>
+                                            </span>                                                                                                              
+                                            <input type="text" class="form-control" name="email" id="email" placeholder="Enter Email" required autocomplete="email">
+                                        </div>                                    
+                                    </div>
+
+                                    <div class="form-group row mt-3 mb-3">
+                                        <div class="col-sm-4">
+                                        </div>
+                                        <div class="col-sm-8 text-right">
+                                            <span style="font-size:13px; color:#303e67;">Remember It ?</span>
+                                            <a href="index.html" class="font-13 orange-link" style="color:#f3771d; font-weight: 500;"> Sign in here.</a>                                    
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group mb-0 row">
+                                        <div class="col-12 mt-1">
+                                            <button type="submit" class="btn btn-gradient-warning btn-round btn-block waves-effect waves-light login_in" id="forgotBtn" style="box-shadow: none;">
+                                                <span id="forgotBtnText">Submit <i class="fas fa-sign-in-alt ml-1"></i></span>
+                                            </button>
+                                        </div> 
+                                    </div>
+                                </form>                                       
+
+                                <p style="text-align:center; margin-bottom:0px !important; font-size:12px; color:#7081b9; margin-top:20px;">
+                                    &copy; <script>document.write(new Date().getFullYear())</script> 
+                                    <a href="https://adsmerchantsasia.com/" target="_blank" style="color:#f3771d;">Ads Merchants Asia </a>. All rights reserved.
+                                </p>
+                            </div><!--end /div-->
+                        </div><!--end card-body-->
+                    </div><!--end card-->
+                </div><!--end auth-page-->
+            </div><!--end col-->           
+        </div><!--end row-->
+    </div><!--end container-->
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        $('#forgotForm').on('submit', function(e) {
+            var $btn = $('#forgotBtn');
+            var $btnText = $('#forgotBtnText');
+            $btn.prop('disabled', true);
+            $btnText.html("<i class='fa fa-spinner fa-spin'></i> Please Wait...");
+            
+            var email = $('#email').val();
+            showToast("Sending reset link to " + email + "...");
+            
+            setTimeout(function() {
+                $btn.prop('disabled', false);
+                $btnText.html("Submit <i class='fas fa-sign-in-alt ml-1'></i>");
+                showToast("Password reset link sent! Check your inbox.");
+            }, 2500);
+        });
+
+        function showToast(msg) {
+            var toast = $('#toastNotification');
+            $('#toastMsg').text(msg);
+            toast.fadeIn(300);
+            setTimeout(function() {
+                toast.fadeOut(300);
+            }, 3500);
+        }
+    </script>
+<script src="client/assets/js/portal-bridge.js"></script>
+</body>
+</html>

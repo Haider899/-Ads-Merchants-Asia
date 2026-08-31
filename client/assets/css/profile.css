@@ -1,0 +1,115 @@
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+.user-image{
+    width: 35px;
+    height: 35px;
+    border-radius: 100%;
+}
+.vip-image{
+    width: 25px;
+    height: 25px;
+}
+.profile-container{
+    padding: 80px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+.white-card{
+    background-color: white;
+    border-radius: 10px;
+    padding: 10px;
+}
+.profile-card{
+    color: black;
+    background-image: url(../img/bg-2.png);
+    background-size: cover;
+    background-repeat: no-repeat;
+    border-radius: 10px;
+    border: 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 15px;
+}
+.profile-info{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+.profile-info-left{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+}
+.profile-balances{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+.profile-info-right{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+.tiny-text{
+    font-size: 12px;
+}
+.small-text{
+    font-size: 14px;
+}
+.large-text{
+    font-size: 18px;
+    font-weight: bold;
+}
+.profile-balances-left{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+.profile-balances-right{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+.bold{
+    font-weight: bold;
+}
+.profile-button-list{
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    background-color: white;
+    gap: 15px;
+    padding: 15px;
+}
+.profile-button-items{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #DEEAFF;
+    padding: 10px;
+    border-radius: 10px;
+    color: #333;
+    text-decoration: none;
+}
+.profile-list-items-left{
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+}
+.copyright{
+    font-size: 12px;
+    text-align: center;
+}
