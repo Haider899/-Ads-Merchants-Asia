@@ -36,15 +36,15 @@
   "users": [
     {
       "id": "usr_repofa5484",
-      "fullname": "Repofa Merchant",
+      "fullname": "Repofa Asia Merchant",
       "username": "repofa5484",
       "email": "repofa5484@prorises.com",
-      "phone": "+60198765432",
+      "phone": "+60188899900",
       "gender": "Male",
       "password_hash": "$2a$10$Y2VVvAZRCAmoHJiDr1LUfe/XLPvmlkbk68JogF5amTH2u2xKl4a/i",
       "vip_level": "Bronze",
-      "balance": 710.45,
-      "frozen_balance": 0,
+      "balance": 510.45,
+      "frozen_balance": 200,
       "today_profit": 0.45,
       "today_tasks_completed": 1,
       "total_tasks_completed": 1,
@@ -210,6 +210,21 @@
   ],
   "withdrawals": [
     {
+      "id": "wth_1788175363302",
+      "user_id": "usr_repofa5484",
+      "user_email": "repofa5484@prorises.com",
+      "amount": 200,
+      "method": "USDT",
+      "network": "TRC20",
+      "wallet_address": "0x0e2f623f31711a057188849",
+      "bank_name": "",
+      "account_holder": "",
+      "iban": "",
+      "status": "pending",
+      "admin_notes": "",
+      "created_at": "2026-08-31T11:22:43.302Z"
+    },
+    {
       "id": "wth_1788167724526",
       "user_id": "usr_repofa5484",
       "user_email": "repofa5484@prorises.com",
@@ -349,6 +364,24 @@
   ],
   "notifications": [
     {
+      "id": "notif_1788175089090_780",
+      "user_id": "usr_repofa5484",
+      "title": "Support Message 💬",
+      "message": "✅ Your request has been verified and processed successfully!",
+      "type": "info",
+      "read": true,
+      "created_at": "2026-08-31T11:18:09.090Z"
+    },
+    {
+      "id": "notif_1788175039154_515",
+      "user_id": "usr_repofa5484",
+      "title": "Support Message 💬",
+      "message": "👋 Hello! How can I assist you with your account today?",
+      "type": "info",
+      "read": true,
+      "created_at": "2026-08-31T11:17:19.154Z"
+    },
+    {
       "id": "notif_1788174966507_428",
       "user_id": "usr_1788174966466",
       "title": "Support Message 💬",
@@ -402,7 +435,7 @@
       "user_email": "repofa5484@prorises.com",
       "sender": "user",
       "text": "Hello support, I need help with my USDT TRC20 deposit.",
-      "read_by_admin": false,
+      "read_by_admin": true,
       "read_by_user": true,
       "created_at": "2026-08-31T11:16:06.238Z"
     },
@@ -424,7 +457,7 @@
       "user_email": "ali_merchant@gmail.com",
       "sender": "user",
       "text": "How many daily optimization orders in Gold VIP tier?",
-      "read_by_admin": false,
+      "read_by_admin": true,
       "read_by_user": true,
       "created_at": "2026-08-31T11:16:06.481Z"
     },
@@ -438,6 +471,61 @@
       "read_by_admin": true,
       "read_by_user": true,
       "created_at": "2026-08-31T11:16:06.503Z"
+    },
+    {
+      "id": "msg_1788175039150_999",
+      "user_id": "usr_repofa5484",
+      "user_name": "Repofa Merchant",
+      "user_email": "repofa5484@prorises.com",
+      "sender": "admin",
+      "text": "👋 Hello! How can I assist you with your account today?",
+      "read_by_admin": true,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:17:19.150Z"
+    },
+    {
+      "id": "msg_1788175067688_316",
+      "user_id": "usr_repofa5484",
+      "user_name": "Repofa Merchant",
+      "user_email": "repofa5484@prorises.com",
+      "sender": "user",
+      "text": "hello",
+      "read_by_admin": true,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:17:47.688Z"
+    },
+    {
+      "id": "msg_1788175076160_177",
+      "user_id": "usr_repofa5484",
+      "user_name": "Repofa Merchant",
+      "user_email": "repofa5484@prorises.com",
+      "sender": "user",
+      "text": "Testing",
+      "read_by_admin": true,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:17:56.160Z"
+    },
+    {
+      "id": "msg_1788175089086_201",
+      "user_id": "usr_repofa5484",
+      "user_name": "Repofa Merchant",
+      "user_email": "repofa5484@prorises.com",
+      "sender": "admin",
+      "text": "✅ Your request has been verified and processed successfully!",
+      "read_by_admin": true,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:18:09.086Z"
+    },
+    {
+      "id": "msg_1788175408981_869",
+      "user_id": "usr_repofa5484",
+      "user_name": "Repofa Merchant",
+      "user_email": "repofa5484@prorises.com",
+      "sender": "user",
+      "text": "Hello",
+      "read_by_admin": false,
+      "read_by_user": true,
+      "created_at": "2026-08-31T11:23:28.981Z"
     }
   ]
 }

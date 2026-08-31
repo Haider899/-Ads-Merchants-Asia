@@ -60,6 +60,7 @@ app.get(['/contract', '/contract.html'], servePage('contract.html'));
 app.get(['/faqs', '/faqs.html'], servePage('faqs.html'));
 app.get(['/aboutData', '/about', '/about.html', '/aboutus'], servePage('about.html'));
 app.get(['/levelsData', '/levels', '/levels.html'], servePage('levels.html'));
+app.get(['/editprofileData*', '/editprofile*', '/editprofile.html'], servePage('editprofile.html'));
 app.get(['/admin', '/admin.html'], servePage('admin.html'));
 
 // Signout route

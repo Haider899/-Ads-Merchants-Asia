@@ -105,7 +105,7 @@
     if (pathname.includes('admin')) return;
 
     // 1. Check Auth for Protected Pages
-    const isProtected = ['dashboard', 'start', 'record', 'deposit', 'withdraw', 'profile', 'contract'].some(p => pathname.includes(p));
+    const isProtected = ['dashboard', 'start', 'record', 'deposit', 'withdraw', 'profile', 'contract', 'editprofile'].some(p => pathname.includes(p));
     let currentUser = null;
 
     if (isProtected || pathname.includes('levels') || pathname.includes('license') || pathname.includes('contact')) {
@@ -134,6 +134,8 @@
       initWithdrawPage(currentUser);
     } else if (pathname.includes('record')) {
       initRecordPage(currentUser);
+    } else if (pathname.includes('editprofile')) {
+      initEditProfilePage(currentUser);
     } else if (pathname.includes('profile')) {
       initProfilePage(currentUser);
     } else if (pathname.includes('contract')) {
@@ -728,9 +730,83 @@
     }
   }
 
+  // EDIT PROFILE & SECURITY PAGE HANDLER
+  function initEditProfilePage(user) {
+    if (!user) return;
+
+    const nameInput = document.getElementById('editFullName');
+    const emailInput = document.getElementById('editEmail');
+    const phoneInput = document.getElementById('editPhone');
+    const genderSelect = document.getElementById('editGender');
+
+    if (nameInput) nameInput.value = user.fullname || user.username || '';
+    if (emailInput) emailInput.value = user.email || '';
+    if (phoneInput) phoneInput.value = user.phone || '';
+    if (genderSelect && user.gender) genderSelect.value = user.gender;
+
+    const profileForm = document.getElementById('editProfileForm');
+    if (profileForm) {
+      profileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fullname = document.getElementById('editFullName').value.trim();
+        const phone = document.getElementById('editPhone').value.trim();
+        const gender = document.getElementById('editGender').value;
+        const btn = document.getElementById('saveProfileBtn');
+
+        btn.disabled = true;
+        btn.textContent = 'Saving Profile...';
+
+        const res = await API.post('/api/user/profile', { fullname, phone, gender });
+
+        btn.disabled = false;
+        btn.textContent = 'Save Profile Changes';
+
+        if (res && res.success) {
+          showBridgeToast('Profile Updated', res.message, 'success');
+          if (res.user) populateUserData(res.user);
+        } else {
+          showBridgeToast('Update Error', (res && res.message) || 'Failed to update profile', 'error');
+        }
+      });
+    }
+
+    const passForm = document.getElementById('changePasswordForm');
+    if (passForm) {
+      passForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+        const btn = document.getElementById('savePasswordBtn');
+
+        if (newPassword !== confirmNewPassword) {
+          showBridgeToast('Validation Error', 'New passwords do not match.', 'error');
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Updating Password...';
+
+        const res = await API.post('/api/user/change-password', { currentPassword, newPassword });
+
+        btn.disabled = false;
+        btn.textContent = 'Update Password';
+
+        if (res && res.success) {
+          showBridgeToast('Password Changed', res.message, 'success');
+          passForm.reset();
+        } else {
+          showBridgeToast('Error', (res && res.message) || 'Could not change password', 'error');
+        }
+      });
+    }
+  }
+
   // NATIVE LIVE CUSTOMER SUPPORT CHAT ENGINE (NO AI - DIRECT ADMIN LINK)
   function initLiveChatWidget(user) {
     if (!user) return;
+
+    if (document.getElementById('nativeChatFloatingBtn')) return;
 
     // Inject styles
     const style = document.createElement('style');
@@ -836,7 +912,7 @@
         background: none;
         border: none;
         color: #ffffff;
-        font-size: 16px;
+        font-size: 20px;
         cursor: pointer;
         padding: 4px 6px;
         opacity: 0.85;
@@ -902,8 +978,8 @@
         border-color: #00875a;
       }
       .native-chat-send-btn {
-        width: 38px;
-        height: 38px;
+        width: 40px;
+        height: 40px;
         background: #00875a;
         color: #fff;
         border: none;
@@ -918,17 +994,19 @@
     `;
     document.head.appendChild(style);
 
-    // Create Floating Trigger Button
+    // Create Floating Trigger Button with Reliable Crisp SVG Icon
     const floatBtn = document.createElement('div');
     floatBtn.id = 'nativeChatFloatingBtn';
     floatBtn.title = 'Live Support Chat';
     floatBtn.innerHTML = `
-      <i class="fa fa-comments" style="font-size: 24px;"></i>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      </svg>
       <span id="nativeChatBadge">0</span>
     `;
     document.body.appendChild(floatBtn);
 
-    // Create Chat Window
+    // Create Chat Window with Reliable Crisp SVG Send Icon
     const chatWin = document.createElement('div');
     chatWin.id = 'nativeChatWindow';
     chatWin.innerHTML = `
@@ -945,12 +1023,15 @@
         </div>
       </div>
       <div class="native-chat-messages" id="nativeChatMsgContainer">
-        <div class="text-center text-muted py-3" style="font-size: 12px;">Connecting with live support...</div>
+        <div class="text-center text-muted py-3" style="font-size: 12px;">Loading chat history...</div>
       </div>
       <div class="native-chat-footer">
         <input type="text" id="nativeChatTextInput" class="native-chat-input" placeholder="Type here and press enter..." />
         <button id="nativeChatSendBtn" class="native-chat-send-btn" title="Send Message">
-          <i class="fa fa-paper-plane" style="font-size: 13px;"></i>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
         </button>
       </div>
     `;
@@ -958,13 +1039,14 @@
 
     let chatOpen = false;
     let pollInterval = null;
-    let cachedMessagesCount = 0;
+    let cachedMessagesCount = -1;
 
     function toggleChat(open) {
       chatOpen = open !== undefined ? open : !chatOpen;
       chatWin.style.display = chatOpen ? 'flex' : 'none';
       if (chatOpen) {
         floatBtn.style.display = 'none';
+        cachedMessagesCount = -1; // Force immediate refresh on open
         loadChatMessages();
         if (!pollInterval) pollInterval = setInterval(loadChatMessages, 3000);
         setTimeout(() => {
