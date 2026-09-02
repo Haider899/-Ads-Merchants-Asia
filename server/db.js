@@ -1,406 +1,283 @@
-const fs = require('fs');
-const path = require('path');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+require('dotenv').config();
 
-const DB_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DB_DIR, 'db.json');
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || '127.0.0.1',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || process.env.DB_PASS || '',
+  database: process.env.DB_NAME || 'ads_merchants_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR, { recursive: true });
-}
-
-const defaultAdminPassword = bcrypt.hashSync('AdminPass2026!', 10);
-const defaultUserPassword = bcrypt.hashSync('Password', 10);
-
-const initialData = {
-  settings: {
-    admin_email: 'admin@adsmerchantsasia.com',
-    admin_password_hash: defaultAdminPassword,
-    trc20_address: 'TJ8Yg9pKaV8vU3mQ2jN5xL7wE1tZ4dC6bA',
-    erc20_address: '0x88922C0A5A901F1aA719d3f1FeA6bA34B20C888A',
-    btc_address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-    telegram_support: 'https://t.me/adsmerchantsasia_support',
-    whatsapp_support: '+60112345678',
-    min_deposit: 20,
-    min_withdraw: 30,
-    daily_tasks_limit: 38,
-    vip_rates: {
-      Bronze: { commission: 0.005, min_balance: 0, max_tasks: 38 },
-      Silver: { commission: 0.008, min_balance: 500, max_tasks: 45 },
-      Gold: { commission: 0.012, min_balance: 2000, max_tasks: 55 },
-      Platinum: { commission: 0.018, min_balance: 5000, max_tasks: 65 }
-    }
-  },
-  users: [
-    {
-      id: 'usr_repofa5484',
-      fullname: 'Repofa Merchant',
-      username: 'repofa5484',
-      email: 'repofa5484@prorises.com',
-      phone: '+60198765432',
-      gender: 'Male',
-      password_hash: defaultUserPassword,
-      vip_level: 'Bronze',
-      balance: 350.45,
-      frozen_balance: 0.00,
-      today_profit: 0.45,
-      today_tasks_completed: 1,
-      total_tasks_completed: 1,
-      current_set: 1,
-      invite_code: 'ASIA-88219',
-      kyc_status: 'pending', // 'none' | 'pending' | 'approved' | 'rejected' | 'reupload_required'
-      kyc_notes: '',
-      status: 'active',
-      created_at: new Date().toISOString()
-    }
-  ],
-  kyc_submissions: [
-    {
-      id: 'kyc_init_001',
-      user_id: 'usr_repofa5484',
-      user_email: 'repofa5484@prorises.com',
-      name: 'Repofa Merchant',
-      front_id_image: 'assets/uploads/contracts/id_sample_front.png',
-      back_id_image: 'assets/uploads/contracts/id_sample_back.png',
-      signature_image: 'assets/uploads/contracts/defaultsignature.jpeg',
-      investment_amount: 5000,
-      status: 'pending',
-      rejection_reason: '',
-      created_at: new Date().toISOString()
-    }
-  ],
-  support_tickets: [
-    {
-      id: 'tkt_001',
-      user_id: 'usr_repofa5484',
-      user_email: 'repofa5484@prorises.com',
-      user_name: 'Repofa Merchant',
-      subject: 'Inquiry regarding VIP Gold Upgrade & Withdrawal Times',
-      message: 'Hello Support, I would like to confirm if VIP Gold members have instant 10-minute withdrawal approval.',
-      admin_reply: 'Hello! Yes, Gold VIP members receive priority automated blockchain withdrawal processing within 10-15 minutes.',
-      status: 'answered',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-      replied_at: new Date().toISOString()
-    }
-  ],
-  tasks: [],
-  deposits: [
-    {
-      id: 'dep_init_001',
-      user_id: 'usr_repofa5484',
-      user_email: 'repofa5484@prorises.com',
-      amount: 250.00,
-      method: 'TRC20',
-      txid: '0x77bb88cc99ddaa11ee22ff33',
-      proof_image: 'assets/uploads/contracts/id_sample_front.png',
-      status: 'approved',
-      admin_notes: 'Approved via Blockchain scan',
-      created_at: new Date().toISOString()
-    }
-  ],
-  withdrawals: [],
-  products: [
-    { name: 'Apple iPhone 16 Pro Max 256GB - Desert Titanium', price: 1199, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Sony WH-1000XM5 Wireless Noise-Canceling Headphones', price: 399, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Samsung Galaxy Tab S9 Ultra 512GB WiFi', price: 999, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Dyson V15 Detect Cordless Vacuum Cleaner', price: 749, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Nespresso Vertuo Next Coffee & Espresso Machine', price: 179, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'DJI Mini 4 Pro Fly More Combo Drone with RC 2', price: 859, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Anker Prime 20,000mAh Power Bank 200W Output', price: 129, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Logitech MX Master 3S Advanced Wireless Mouse', price: 99, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Bose QuietComfort Ultra Wireless Earbuds', price: 299, image: 'assets/uploads/logo/1742595477_icon.png' },
-    { name: 'Kindle Paperwhite Signature Edition 32GB', price: 189, image: 'assets/uploads/logo/1742595477_icon.png' }
-  ]
-};
-
-function readDb() {
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
-  }
-  try {
-    const content = fs.readFileSync(DB_FILE, 'utf-8');
-    const data = JSON.parse(content);
-    if (!data.kyc_submissions) data.kyc_submissions = initialData.kyc_submissions;
-    if (!data.support_tickets) data.support_tickets = initialData.support_tickets;
-    return data;
-  } catch (err) {
-    console.error('Error reading database file:', err);
-    return initialData;
-  }
-}
-
-function writeDb(data) {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    return true;
-  } catch (err) {
-    console.error('Error writing to database:', err);
-    return false;
-  }
+// Helper for queries
+async function query(sql, params) {
+  const [rows] = await pool.execute(sql, params);
+  return rows;
 }
 
 const db = {
-  getSettings: () => readDb().settings,
-  updateSettings: (newSettings) => {
-    const data = readDb();
-    data.settings = { ...data.settings, ...newSettings };
-    writeDb(data);
-    return data.settings;
+  getSettings: async () => {
+    const rows = await query('SELECT * FROM settings');
+    const settings = {};
+    rows.forEach(row => {
+      try {
+        // Parse JSON for vip_rates if possible
+        settings[row.setting_key] = row.setting_key === 'vip_rates' ? JSON.parse(row.setting_value) : row.setting_value;
+      } catch (e) {
+        settings[row.setting_key] = row.setting_value;
+      }
+    });
+    return settings;
   },
-  getUsers: () => readDb().users,
-  findUserById: (id) => {
-    const users = readDb().users;
-    return users.find(u => u.id === id);
+  
+  updateSettings: async (newSettings) => {
+    for (const [key, value] of Object.entries(newSettings)) {
+      const val = typeof value === 'object' ? JSON.stringify(value) : value;
+      await query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?', [key, val, val]);
+    }
+    return db.getSettings();
   },
-  findUserByIdentifier: (identifier) => {
-    const users = readDb().users;
+
+  getUsers: async () => {
+    return await query('SELECT * FROM users');
+  },
+
+  findUserById: async (id) => {
+    const rows = await query('SELECT * FROM users WHERE id = ?', [id]);
+    return rows[0] || null;
+  },
+
+  findUserByIdentifier: async (identifier) => {
     const clean = identifier.trim().toLowerCase();
-    return users.find(u => 
-      u.email.toLowerCase() === clean || 
-      u.username.toLowerCase() === clean || 
-      u.phone.replace(/[^0-9]/g, '') === clean.replace(/[^0-9]/g, '')
-    );
+    const cleanPhone = clean.replace(/[^0-9]/g, '');
+    let sql = 'SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?';
+    let params = [clean, clean];
+    
+    if (cleanPhone) {
+      sql += ' OR phone LIKE ?';
+      params.push(`%${cleanPhone}%`);
+    }
+    
+    const rows = await query(sql, params);
+    return rows[0] || null;
   },
-  createUser: (userData) => {
-    const data = readDb();
-    data.users.push(userData);
-    writeDb(data);
+
+  createUser: async (userData) => {
+    await query(`INSERT INTO users 
+      (id, fullname, username, email, phone, gender, password_hash, vip_level, balance, frozen_balance, today_profit, today_tasks_completed, total_tasks_completed, current_set, invite_code, status, created_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+      [
+        userData.id, userData.fullname, userData.username, userData.email, userData.phone, userData.gender, userData.password_hash, 
+        userData.vip_level || 'Bronze', userData.balance || 0, userData.frozen_balance || 0, userData.today_profit || 0, 
+        userData.today_tasks_completed || 0, userData.total_tasks_completed || 0, userData.current_set || 0, userData.invite_code, 
+        userData.status || 'active', userData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')
+      ]);
     return userData;
   },
-  updateUser: (id, updates) => {
-    const data = readDb();
-    const index = data.users.findIndex(u => u.id === id);
-    if (index === -1) return null;
-    data.users[index] = { ...data.users[index], ...updates };
-    writeDb(data);
-    return data.users[index];
+
+  updateUser: async (id, updates) => {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return await db.findUserById(id);
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(updates);
+    values.push(id);
+    await query(`UPDATE users SET ${setClause} WHERE id = ?`, values);
+    return await db.findUserById(id);
   },
-  resetUserPassword: (userId, newPlainPassword) => {
-    const data = readDb();
-    const index = data.users.findIndex(u => u.id === userId);
-    if (index === -1) return null;
+
+  resetUserPassword: async (userId, newPlainPassword) => {
     const hash = bcrypt.hashSync(newPlainPassword, 10);
-    data.users[index].password_hash = hash;
-    writeDb(data);
-    return data.users[index];
+    await query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId]);
+    return await db.findUserById(userId);
   },
-  getProducts: () => readDb().products,
-  getTasks: (userId) => {
-    const tasks = readDb().tasks;
-    return userId ? tasks.filter(t => t.user_id === userId) : tasks;
+
+  getProducts: async () => {
+    return await query('SELECT * FROM products');
   },
-  createTask: (taskData) => {
-    const data = readDb();
-    data.tasks.push(taskData);
-    writeDb(data);
+
+  getTasks: async (userId) => {
+    if (userId) {
+      return await query('SELECT * FROM tasks WHERE user_id = ?', [userId]);
+    }
+    return await query('SELECT * FROM tasks');
+  },
+
+  createTask: async (taskData) => {
+    await query(`INSERT INTO tasks (id, user_id, product_id, product_name, product_price, commission_rate, commission_earned, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [taskData.id, taskData.user_id, taskData.product_id, taskData.product_name, taskData.product_price, taskData.commission_rate, taskData.commission_earned, taskData.status, taskData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
     return taskData;
   },
-  updateTask: (id, updates) => {
-    const data = readDb();
-    const index = data.tasks.findIndex(t => t.id === id);
-    if (index === -1) return null;
-    data.tasks[index] = { ...data.tasks[index], ...updates };
-    writeDb(data);
-    return data.tasks[index];
+
+  updateTask: async (id, updates) => {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(updates);
+    values.push(id);
+    await query(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
   },
-  getDeposits: (userId) => {
-    const deposits = readDb().deposits;
-    return userId ? deposits.filter(d => d.user_id === userId) : deposits;
+
+  getDeposits: async (userId) => {
+    if (userId) return await query('SELECT * FROM deposits WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    return await query('SELECT * FROM deposits ORDER BY created_at DESC');
   },
-  createDeposit: (depositData) => {
-    const data = readDb();
-    data.deposits.unshift(depositData);
-    writeDb(data);
+
+  createDeposit: async (depositData) => {
+    await query(`INSERT INTO deposits (id, user_id, user_email, amount, method, txid, proof_image, status, admin_notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [depositData.id, depositData.user_id, depositData.user_email, depositData.amount, depositData.method, depositData.txid, depositData.proof_image, depositData.status || 'pending', depositData.admin_notes || '', depositData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
     return depositData;
   },
-  updateDeposit: (id, updates) => {
-    const data = readDb();
-    const index = data.deposits.findIndex(d => d.id === id);
-    if (index === -1) return null;
-    data.deposits[index] = { ...data.deposits[index], ...updates };
-    writeDb(data);
-    return data.deposits[index];
+
+  updateDeposit: async (id, updates) => {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(updates);
+    values.push(id);
+    await query(`UPDATE deposits SET ${setClause} WHERE id = ?`, values);
   },
-  getWithdrawals: (userId) => {
-    const withdrawals = readDb().withdrawals;
-    return userId ? withdrawals.filter(w => w.user_id === userId) : withdrawals;
+
+  getWithdrawals: async (userId) => {
+    if (userId) return await query('SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    return await query('SELECT * FROM withdrawals ORDER BY created_at DESC');
   },
-  createWithdrawal: (withdrawalData) => {
-    const data = readDb();
-    data.withdrawals.unshift(withdrawalData);
-    writeDb(data);
+
+  createWithdrawal: async (withdrawalData) => {
+    await query(`INSERT INTO withdrawals (id, user_id, user_email, amount, bank_name, account_name, account_number, status, admin_notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [withdrawalData.id, withdrawalData.user_id, withdrawalData.user_email, withdrawalData.amount, withdrawalData.bank_name, withdrawalData.account_name, withdrawalData.account_number, withdrawalData.status || 'pending', withdrawalData.admin_notes || '', withdrawalData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
     return withdrawalData;
   },
-  updateWithdrawal: (id, updates) => {
-    const data = readDb();
-    const index = data.withdrawals.findIndex(w => w.id === id);
-    if (index === -1) return null;
-    data.withdrawals[index] = { ...data.withdrawals[index], ...updates };
-    writeDb(data);
-    return data.withdrawals[index];
+
+  updateWithdrawal: async (id, updates) => {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(updates);
+    values.push(id);
+    await query(`UPDATE withdrawals SET ${setClause} WHERE id = ?`, values);
   },
+
   // KYC Helpers
-  getKycSubmissions: (userId) => {
-    const submissions = readDb().kyc_submissions || [];
-    return userId ? submissions.filter(k => k.user_id === userId) : submissions;
+  getKycSubmissions: async (userId) => {
+    if (userId) return await query('SELECT * FROM kyc_submissions WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    return await query('SELECT * FROM kyc_submissions ORDER BY created_at DESC');
   },
-  createKycSubmission: (kycData) => {
-    const data = readDb();
-    if (!data.kyc_submissions) data.kyc_submissions = [];
-    data.kyc_submissions.unshift(kycData);
-    writeDb(data);
+
+  createKycSubmission: async (kycData) => {
+    await query(`INSERT INTO kyc_submissions (id, user_id, user_email, name, front_id_image, back_id_image, signature_image, investment_amount, status, rejection_reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [kycData.id, kycData.user_id, kycData.user_email, kycData.name, kycData.front_id_image, kycData.back_id_image, kycData.signature_image, kycData.investment_amount, kycData.status || 'pending', kycData.rejection_reason || '', kycData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
     return kycData;
   },
-  updateKycSubmission: (id, updates) => {
-    const data = readDb();
-    if (!data.kyc_submissions) data.kyc_submissions = [];
-    const index = data.kyc_submissions.findIndex(k => k.id === id);
-    if (index === -1) return null;
-    data.kyc_submissions[index] = { ...data.kyc_submissions[index], ...updates };
-    writeDb(data);
-    return data.kyc_submissions[index];
+
+  updateKycSubmission: async (id, updates) => {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(updates);
+    values.push(id);
+    await query(`UPDATE kyc_submissions SET ${setClause} WHERE id = ?`, values);
   },
-  // Support Ticket Helpers
-  getSupportTickets: (userId) => {
-    const tickets = readDb().support_tickets || [];
-    return userId ? tickets.filter(t => t.user_id === userId) : tickets;
+
+  // Support Tickets
+  getSupportTickets: async (userId) => {
+    if (userId) return await query('SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    return await query('SELECT * FROM support_tickets ORDER BY created_at DESC');
   },
-  createSupportTicket: (ticketData) => {
-    const data = readDb();
-    if (!data.support_tickets) data.support_tickets = [];
-    data.support_tickets.unshift(ticketData);
-    writeDb(data);
+
+  createSupportTicket: async (ticketData) => {
+    await query(`INSERT INTO support_tickets (id, user_id, user_email, user_name, subject, message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [ticketData.id, ticketData.user_id, ticketData.user_email, ticketData.user_name, ticketData.subject, ticketData.message, ticketData.status || 'open', ticketData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
     return ticketData;
   },
-  updateSupportTicket: (id, updates) => {
-    const data = readDb();
-    if (!data.support_tickets) data.support_tickets = [];
-    const index = data.support_tickets.findIndex(t => t.id === id);
-    if (index === -1) return null;
-    data.support_tickets[index] = { ...data.support_tickets[index], ...updates };
-    writeDb(data);
-    return data.support_tickets[index];
+
+  updateSupportTicket: async (id, updates) => {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(updates);
+    values.push(id);
+    await query(`UPDATE support_tickets SET ${setClause} WHERE id = ?`, values);
   },
-  // Notifications Helpers
-  getNotifications: (userId, unreadOnly = false) => {
-    const data = readDb();
-    let notifs = data.notifications || [];
+
+  // Notifications
+  getNotifications: async (userId, unreadOnly = false) => {
+    let sql = 'SELECT * FROM notifications';
+    let params = [];
+    let conditions = [];
+    
     if (userId) {
-      notifs = notifs.filter(n => n.user_id === userId);
+      conditions.push('user_id = ?');
+      params.push(userId);
     }
     if (unreadOnly) {
-      notifs = notifs.filter(n => !n.read);
+      conditions.push('is_read = FALSE');
     }
-    return notifs;
+    
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+    sql += ' ORDER BY created_at DESC';
+    
+    return await query(sql, params);
   },
-  createNotification: (notifData) => {
-    const data = readDb();
-    if (!data.notifications) data.notifications = [];
-    const notification = {
-      id: 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      user_id: notifData.user_id,
-      title: notifData.title,
-      message: notifData.message,
-      type: notifData.type || 'info', // 'success' | 'warning' | 'error' | 'info'
-      read: false,
-      created_at: new Date().toISOString()
-    };
-    data.notifications.unshift(notification);
-    writeDb(data);
-    return notification;
+
+  createNotification: async (notifData) => {
+    const id = 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    await query(`INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, notifData.user_id, notifData.title, notifData.message, notifData.type || 'info', false, new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+    return { id, ...notifData };
   },
-  markNotificationsRead: (userId) => {
-    const data = readDb();
-    if (!data.notifications) data.notifications = [];
-    data.notifications.forEach(n => {
-      if (n.user_id === userId) {
-        n.read = true;
-      }
-    });
-    writeDb(data);
+
+  markNotificationsRead: async (userId) => {
+    await query('UPDATE notifications SET is_read = TRUE WHERE user_id = ?', [userId]);
     return true;
   },
-  // Live Customer Support Chat Helpers
-  getChatMessages: (userId) => {
-    const data = readDb();
-    const messages = data.chat_messages || [];
-    return messages.filter(m => m.user_id === userId).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  },
-  createChatMessage: ({ userId, sender, text, userName, userEmail }) => {
-    const data = readDb();
-    if (!data.chat_messages) data.chat_messages = [];
-    const message = {
-      id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      user_id: userId,
-      user_name: userName || 'User',
-      user_email: userEmail || '',
-      sender: sender || 'user', // 'user' | 'admin'
-      text: text.trim(),
-      read_by_admin: sender === 'admin',
-      read_by_user: sender === 'user',
-      created_at: new Date().toISOString()
-    };
-    data.chat_messages.push(message);
-    writeDb(data);
-    return message;
-  },
-  getChatConversations: () => {
-    const data = readDb();
-    const messages = data.chat_messages || [];
-    const users = data.users || [];
-    const conversationMap = {};
 
-    messages.forEach(m => {
-      if (!conversationMap[m.user_id]) {
-        const user = users.find(u => u.id === m.user_id);
-        conversationMap[m.user_id] = {
-          user_id: m.user_id,
-          user_name: user ? (user.fullname || user.username) : m.user_name,
-          user_email: user ? user.email : m.user_email,
-          vip_level: user ? user.vip_level : 'Bronze',
-          balance: user ? user.balance : 0,
-          last_message: m.text,
-          last_message_at: m.created_at,
-          last_sender: m.sender,
-          unread_admin_count: 0,
-          total_messages: 0
-        };
-      }
-
-      conversationMap[m.user_id].total_messages += 1;
-      if (new Date(m.created_at) >= new Date(conversationMap[m.user_id].last_message_at)) {
-        conversationMap[m.user_id].last_message = m.text;
-        conversationMap[m.user_id].last_message_at = m.created_at;
-        conversationMap[m.user_id].last_sender = m.sender;
-      }
-      if (m.sender === 'user' && !m.read_by_admin) {
-        conversationMap[m.user_id].unread_admin_count += 1;
-      }
-    });
-
-    return Object.values(conversationMap).sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+  // Chat Messages
+  getChatMessages: async (userId) => {
+    return await query('SELECT * FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC', [userId]);
   },
-  markChatReadByAdmin: (userId) => {
-    const data = readDb();
-    if (!data.chat_messages) data.chat_messages = [];
-    data.chat_messages.forEach(m => {
-      if (m.user_id === userId && m.sender === 'user') {
-        m.read_by_admin = true;
-      }
-    });
-    writeDb(data);
+
+  createChatMessage: async ({ userId, sender, text, userName, userEmail }) => {
+    const id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    const readByAdmin = sender === 'admin';
+    const readByUser = sender === 'user';
+    await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, userId, userName || 'User', userEmail || '', sender || 'user', text.trim(), readByAdmin, readByUser, new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+    return { id, user_id: userId, sender, text };
+  },
+
+  getChatConversations: async () => {
+    // A simplified query to get the latest message for each user and count unread messages
+    const sql = `
+      SELECT 
+        c.user_id, 
+        u.fullname as user_name, 
+        u.email as user_email, 
+        u.vip_level, 
+        u.balance,
+        c.message_text as last_message, 
+        c.created_at as last_message_at, 
+        c.sender as last_sender,
+        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE) as unread_admin_count
+      FROM chat_messages c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.created_at = (SELECT MAX(created_at) FROM chat_messages WHERE user_id = c.user_id)
+      ORDER BY c.created_at DESC
+    `;
+    return await query(sql);
+  },
+
+  markChatReadByAdmin: async (userId) => {
+    await query(`UPDATE chat_messages SET read_by_admin = TRUE WHERE user_id = ? AND sender = 'user'`, [userId]);
     return true;
   },
-  markChatReadByUser: (userId) => {
-    const data = readDb();
-    if (!data.chat_messages) data.chat_messages = [];
-    data.chat_messages.forEach(m => {
-      if (m.user_id === userId && m.sender === 'admin') {
-        m.read_by_user = true;
-      }
-    });
-    writeDb(data);
+
+  markChatReadByUser: async (userId) => {
+    await query(`UPDATE chat_messages SET read_by_user = TRUE WHERE user_id = ? AND sender = 'admin'`, [userId]);
     return true;
   }
 };
