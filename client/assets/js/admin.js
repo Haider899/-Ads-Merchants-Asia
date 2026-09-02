@@ -150,6 +150,7 @@
   window.loadAllData = async function() {
     loadMetrics();
     loadUsers();
+    loadStaff();
     loadKycs();
     loadDeposits();
     loadWithdrawals();
@@ -939,7 +940,96 @@
     }
   };
 
-  // Bind send event handlers
+  // STAFF & SUB-ADMIN MANAGEMENT
+  window.loadStaff = async function() {
+    const tbody = document.getElementById('staffTableBody');
+    if (!tbody) return;
+
+    const res = await AdminAPI.get('/api/admin/staff');
+    if (res && res.success && res.staff) {
+      if (res.staff.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No sub-admin accounts registered yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = res.staff.map(s => {
+        const isSuper = s.role === 'super_admin';
+        const roleBadge = isSuper 
+          ? `<span class="badge badge-primary px-2 py-1" style="font-weight:700;">Super Admin</span>`
+          : (s.role === 'support' 
+              ? `<span class="badge badge-info px-2 py-1" style="font-weight:700;">Support Operator</span>`
+              : (s.role === 'finance'
+                  ? `<span class="badge badge-success px-2 py-1" style="font-weight:700;">Finance Officer</span>`
+                  : `<span class="badge badge-warning text-dark px-2 py-1" style="font-weight:700;">Sub-Admin</span>`));
+
+        const statusBadge = s.status === 'active'
+          ? `<span class="badge badge-success px-2 py-1" style="font-weight:700;">ACTIVE</span>`
+          : `<span class="badge badge-danger px-2 py-1" style="font-weight:700;">SUSPENDED</span>`;
+
+        return `
+          <tr>
+            <td>
+              <div style="font-weight: 700; color: #1e293b;">${escapeHtml(s.fullname)}</div>
+              <small class="text-muted">ID: ${s.id}</small>
+            </td>
+            <td>
+              <span style="font-family: monospace; font-weight: 600; color: #0284c7;">${escapeHtml(s.email)}</span>
+            </td>
+            <td>${roleBadge}</td>
+            <td>${statusBadge}</td>
+            <td><small class="text-muted">${new Date(s.created_at).toLocaleString()}</small></td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary mr-1" onclick="openEditStaffModal('${s.id}', '${escapeHtml(s.fullname)}', '${s.role}', '${s.status}')">
+                <i class="fa fa-edit"></i> Edit
+              </button>
+              ${!isSuper ? `
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteStaff('${s.id}', '${escapeHtml(s.fullname)}')">
+                  <i class="fa fa-trash"></i>
+                </button>
+              ` : `<span class="text-muted small" style="font-weight:600;">(Protected)</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Failed to load staff accounts.</td></tr>`;
+    }
+  };
+
+  window.openEditStaffModal = function(id, fullname, role, status) {
+    document.getElementById('editStaffId').value = id;
+    document.getElementById('editStaffFullName').value = fullname;
+    document.getElementById('editStaffRole').value = role;
+    document.getElementById('editStaffStatus').value = status;
+    document.getElementById('editStaffNewPassword').value = '';
+    $('#editStaffModal').modal('show');
+  };
+
+  window.deleteStaff = async function(id, fullname) {
+    if (window.Swal) {
+      const result = await Swal.fire({
+        title: 'Revoke Admin Access?',
+        text: `Are you sure you want to permanently delete sub-admin "${fullname}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Yes, Delete Account'
+      });
+      if (!result.isConfirmed) return;
+    } else {
+      if (!confirm(`Are you sure you want to delete sub-admin "${fullname}"?`)) return;
+    }
+
+    const res = await AdminAPI.post('/api/admin/staff/delete', { id });
+    if (res && res.success) {
+      showAdminToast('Sub-Admin Deleted', res.message, 'success');
+      loadStaff();
+    } else {
+      showAdminToast('Delete Error', (res && res.message) || 'Could not delete staff account', 'error');
+    }
+  };
+
+  // Bind send and staff event handlers
   document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('adminSendReplyBtn');
     if (sendBtn) {
@@ -951,6 +1041,50 @@
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           sendAdminReply();
+        }
+      });
+    }
+
+    // Create Staff Form Handler
+    const createStaffForm = document.getElementById('createStaffForm');
+    if (createStaffForm) {
+      createStaffForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fullname = document.getElementById('staffFullName').value.trim();
+        const email = document.getElementById('staffEmail').value.trim();
+        const password = document.getElementById('staffPassword').value;
+        const role = document.getElementById('staffRole').value;
+
+        const res = await AdminAPI.post('/api/admin/staff/create', { fullname, email, password, role });
+        if (res && res.success) {
+          $('#createStaffModal').modal('hide');
+          createStaffForm.reset();
+          showAdminToast('Sub-Admin Created', res.message, 'success');
+          loadStaff();
+        } else {
+          showAdminToast('Creation Failed', (res && res.message) || 'Error creating sub-admin', 'error');
+        }
+      });
+    }
+
+    // Edit Staff Form Handler
+    const editStaffForm = document.getElementById('editStaffForm');
+    if (editStaffForm) {
+      editStaffForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('editStaffId').value;
+        const fullname = document.getElementById('editStaffFullName').value.trim();
+        const role = document.getElementById('editStaffRole').value;
+        const status = document.getElementById('editStaffStatus').value;
+        const newPassword = document.getElementById('editStaffNewPassword').value;
+
+        const res = await AdminAPI.post('/api/admin/staff/update', { id, fullname, role, status, newPassword });
+        if (res && res.success) {
+          $('#editStaffModal').modal('hide');
+          showAdminToast('Staff Updated', res.message, 'success');
+          loadStaff();
+        } else {
+          showAdminToast('Update Failed', (res && res.message) || 'Error updating staff', 'error');
         }
       });
     }

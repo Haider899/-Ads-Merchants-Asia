@@ -7,30 +7,96 @@ const { adminAuthMiddleware, JWT_SECRET } = require('../middleware/auth');
 
 // POST /api/admin/login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const settings = await db.getSettings();
+  try {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Please enter admin email and password' });
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Please enter admin email and password' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Check in admins table
+    let admin = await db.findAdminByEmail(cleanEmail);
+
+    // 2. Fallback check in settings table
+    const settings = await db.getSettings();
+
+    if (!admin && settings.admin_email && cleanEmail === settings.admin_email.toLowerCase()) {
+      admin = {
+        id: 'adm_super_settings',
+        fullname: 'Super Admin',
+        email: settings.admin_email,
+        password_hash: settings.admin_password_hash,
+        role: 'super_admin',
+        status: 'active'
+      };
+    }
+
+    // 3. Fallback direct match for super admin requested credentials
+    if (!admin && cleanEmail === 'haiderusama707@gmail.com') {
+      const defaultSuperHash = '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi'; // MerchantsAsia#2026
+      admin = {
+        id: 'adm_super_01',
+        fullname: 'Haider Usama (Super Admin)',
+        email: 'haiderusama707@gmail.com',
+        password_hash: defaultSuperHash,
+        role: 'super_admin',
+        status: 'active'
+      };
+      await db.createAdmin({
+        id: admin.id,
+        fullname: admin.fullname,
+        email: admin.email,
+        password_hash: admin.password_hash,
+        role: admin.role,
+        status: admin.status,
+        created_at: new Date().toISOString()
+      }).catch(() => {});
+    }
+
+    if (!admin) {
+      return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
+    }
+
+    if (admin.status === 'suspended' || admin.status === 'banned') {
+      return res.status(403).json({ success: false, message: 'Your administrator account has been suspended.' });
+    }
+
+    const isMatch = bcrypt.compareSync(password, admin.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
+    }
+
+    const adminToken = jwt.sign(
+      { 
+        isAdmin: true, 
+        id: admin.id, 
+        email: admin.email, 
+        fullname: admin.fullname, 
+        role: admin.role || 'super_admin' 
+      }, 
+      JWT_SECRET, 
+      { expiresIn: '7d' }
+    );
+
+    res.cookie('admin_token', adminToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
+
+    res.json({
+      success: true,
+      message: `Welcome back, ${admin.fullname || 'Administrator'}!`,
+      token: adminToken,
+      admin: {
+        id: admin.id,
+        fullname: admin.fullname,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+  } catch (err) {
+    console.error('Admin Login Error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error during authentication' });
   }
-
-  if (email.trim().toLowerCase() !== settings.admin_email.toLowerCase()) {
-    return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
-  }
-
-  const isMatch = bcrypt.compareSync(password, settings.admin_password_hash);
-  if (!isMatch) {
-    return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
-  }
-
-  const adminToken = jwt.sign({ isAdmin: true, email: settings.admin_email }, JWT_SECRET, { expiresIn: '7d' });
-  res.cookie('admin_token', adminToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
-
-  res.json({
-    success: true,
-    message: 'Admin login successful',
-    token: adminToken
-  });
 });
 
 // POST /api/admin/logout
@@ -475,6 +541,122 @@ router.post('/settings', adminAuthMiddleware, async (req, res) => {
     message: 'System settings updated successfully',
     settings: safe
   });
+});
+
+// --- STAFF & SUB-ADMIN MANAGEMENT ROUTES ---
+
+// GET /api/admin/staff - List all admins and sub-admins
+router.get('/staff', adminAuthMiddleware, async (req, res) => {
+  try {
+    const staff = await db.getAdmins();
+    res.json({ success: true, staff });
+  } catch (err) {
+    console.error('Fetch Staff Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching staff accounts' });
+  }
+});
+
+// POST /api/admin/staff/create - Create a new sub-admin
+router.post('/staff/create', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { fullname, email, password, role } = req.body;
+
+    if (!fullname || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Please provide Name, Email, and Password.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+    }
+
+    const existing = await db.findAdminByEmail(email);
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'An admin with this email address already exists.' });
+    }
+
+    const newStaff = {
+      id: 'adm_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      fullname: fullname.trim(),
+      email: email.trim().toLowerCase(),
+      password_hash: bcrypt.hashSync(password, 10),
+      role: role || 'sub_admin',
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+
+    await db.createAdmin(newStaff);
+
+    res.json({
+      success: true,
+      message: `Sub-Admin "${fullname}" created successfully!`,
+      staff: {
+        id: newStaff.id,
+        fullname: newStaff.fullname,
+        email: newStaff.email,
+        role: newStaff.role,
+        status: newStaff.status,
+        created_at: newStaff.created_at
+      }
+    });
+  } catch (err) {
+    console.error('Create Staff Error:', err);
+    res.status(500).json({ success: false, message: 'Error creating sub-admin account' });
+  }
+});
+
+// POST /api/admin/staff/update - Update staff role, status, or password
+router.post('/staff/update', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { id, fullname, role, status, newPassword } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Staff ID is required.' });
+    }
+
+    const updates = {};
+    if (fullname) updates.fullname = fullname.trim();
+    if (role) updates.role = role;
+    if (status) updates.status = status;
+    if (newPassword && newPassword.length >= 6) {
+      updates.password_hash = bcrypt.hashSync(newPassword, 10);
+    }
+
+    await db.updateAdmin(id, updates);
+
+    res.json({
+      success: true,
+      message: 'Staff account updated successfully'
+    });
+  } catch (err) {
+    console.error('Update Staff Error:', err);
+    res.status(500).json({ success: false, message: 'Error updating staff account' });
+  }
+});
+
+// POST /api/admin/staff/delete - Delete sub-admin
+router.post('/staff/delete', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Staff ID is required.' });
+    }
+
+    // Protect primary super admin from deletion
+    if (id === 'adm_super_01' || id === 'adm_super_settings') {
+      return res.status(400).json({ success: false, message: 'Master Super Admin account cannot be deleted.' });
+    }
+
+    await db.deleteAdmin(id);
+
+    res.json({
+      success: true,
+      message: 'Sub-Admin account removed successfully.'
+    });
+  } catch (err) {
+    console.error('Delete Staff Error:', err);
+    res.status(500).json({ success: false, message: 'Error deleting staff account' });
+  }
 });
 
 module.exports = router;

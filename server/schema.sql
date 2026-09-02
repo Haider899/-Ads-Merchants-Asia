@@ -126,10 +126,24 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS admins (
+  id VARCHAR(50) PRIMARY KEY,
+  fullname VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'sub_admin',
+  status VARCHAR(50) DEFAULT 'active',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed Super Admin
+INSERT IGNORE INTO admins (id, fullname, email, password_hash, role, status) VALUES 
+('adm_super_01', 'Haider Usama (Super Admin)', 'haiderusama707@gmail.com', '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi', 'super_admin', 'active');
+
 -- Seed Settings
 INSERT IGNORE INTO settings (setting_key, setting_value) VALUES 
-('admin_email', 'admin@adsmerchantsasia.com'),
-('admin_password_hash', '$2a$10$wT.fG.W5aUqWJ./xY.yA0u2V0YJ9Y/F8Z7Z.P7U9rG2UqWJ./xY.y'),
+('admin_email', 'haiderusama707@gmail.com'),
+('admin_password_hash', '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi'),
 ('trc20_address', 'TJ8Yg9pKaV8vU3mQ2jN5xL7wE1tZ4dC6bA'),
 ('erc20_address', '0x88922C0A5A901F1aA719d3f1FeA6bA34B20C888A'),
 ('btc_address', 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),

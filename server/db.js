@@ -283,6 +283,60 @@ const db = {
   markChatReadByUser: async (userId) => {
     await query(`UPDATE chat_messages SET read_by_user = TRUE WHERE user_id = ? AND sender = 'admin'`, [userId]);
     return true;
+  },
+
+  // STAFF & SUB-ADMIN MANAGEMENT
+  ensureAdminsTable: async () => {
+    await query(`CREATE TABLE IF NOT EXISTS admins (
+      id VARCHAR(50) PRIMARY KEY,
+      fullname VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(50) DEFAULT 'sub_admin',
+      status VARCHAR(50) DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    // Seed default super admin if not present
+    await query(`INSERT IGNORE INTO admins (id, fullname, email, password_hash, role, status) VALUES 
+      ('adm_super_01', 'Haider Usama (Super Admin)', 'haiderusama707@gmail.com', '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi', 'super_admin', 'active')
+    `);
+  },
+
+  getAdmins: async () => {
+    await db.ensureAdminsTable();
+    return await query('SELECT id, fullname, email, role, status, created_at FROM admins ORDER BY created_at DESC');
+  },
+
+  findAdminByEmail: async (email) => {
+    if (!email) return null;
+    await db.ensureAdminsTable();
+    const rows = await query('SELECT * FROM admins WHERE LOWER(email) = ?', [email.trim().toLowerCase()]);
+    return rows[0] || null;
+  },
+
+  createAdmin: async (adminData) => {
+    await db.ensureAdminsTable();
+    await query(`INSERT INTO admins (id, fullname, email, password_hash, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [adminData.id, adminData.fullname, adminData.email.trim().toLowerCase(), adminData.password_hash, adminData.role || 'sub_admin', adminData.status || 'active', formatMySQLDate(adminData.created_at)]
+    );
+    return adminData;
+  },
+
+  updateAdmin: async (id, updates) => {
+    await db.ensureAdminsTable();
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return null;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(updates);
+    values.push(id);
+    await query(`UPDATE admins SET ${setClause} WHERE id = ?`, values);
+    return true;
+  },
+
+  deleteAdmin: async (id) => {
+    await db.ensureAdminsTable();
+    await query('DELETE FROM admins WHERE id = ?', [id]);
+    return true;
   }
 };
 

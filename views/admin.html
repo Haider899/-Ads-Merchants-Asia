@@ -268,7 +268,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background-color: #eaf2f8;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -282,7 +282,7 @@
             max-width: 440px;
             width: 100%;
             padding: 44px 34px 36px 34px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
             text-align: center;
             position: relative;
         }
@@ -402,7 +402,7 @@
             <form id="adminLoginForm">
                 <div class="admin-pill-group">
                     <label>Admin Email</label>
-                    <input type="email" id="adminEmail" class="admin-pill-input" placeholder="admin@ads-merchants-asia.com" required />
+                    <input type="email" id="adminEmail" class="admin-pill-input" placeholder="haiderusama707@gmail.com" value="haiderusama707@gmail.com" required />
                     <i class="fa fa-envelope admin-input-icon"></i>
                 </div>
 
@@ -446,35 +446,35 @@
         <!-- Stats Grid -->
         <div class="stat-grid">
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(67, 97, 238, 0.1); color: var(--primary);">
+                <div class="stat-icon" style="background: rgba(0, 123, 255, 0.1); color: var(--primary);">
                     <i class="fa fa-users"></i>
                 </div>
                 <div class="stat-label">Total Registered Users</div>
                 <div class="stat-val" id="statUsers">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(46, 196, 182, 0.1); color: var(--success);">
+                <div class="stat-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
                     <i class="fa fa-wallet"></i>
                 </div>
                 <div class="stat-label">Total User Balance</div>
                 <div class="stat-val" id="statUserBalance">$0.00</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(255, 159, 28, 0.1); color: var(--warning);">
+                <div class="stat-icon" style="background: rgba(255, 193, 7, 0.1); color: var(--warning);">
                     <i class="fa fa-id-card"></i>
                 </div>
                 <div class="stat-label">Pending KYC Verifications</div>
                 <div class="stat-val" id="statPendingKycs" style="color: var(--warning);">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(46, 196, 182, 0.1); color: var(--success);">
+                <div class="stat-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
                     <i class="fa fa-arrow-circle-down"></i>
                 </div>
                 <div class="stat-label">Pending Deposits</div>
                 <div class="stat-val" id="statPendingDeposits" style="color: var(--success);">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(231, 29, 54, 0.1); color: var(--danger);">
+                <div class="stat-icon" style="background: rgba(220, 53, 69, 0.1); color: var(--danger);">
                     <i class="fa fa-arrow-circle-up"></i>
                 </div>
                 <div class="stat-label">Pending Withdrawals</div>
@@ -485,6 +485,7 @@
         <!-- Navigation Tabs -->
         <div class="admin-tabs">
             <button class="admin-tab-btn active" data-tab="tabUsers"><i class="fa fa-users"></i> Users & Balances</button>
+            <button class="admin-tab-btn" data-tab="tabStaff"><i class="fa fa-user-shield"></i> Sub-Admins & Staff</button>
             <button class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge badge-danger ml-1" style="display:none; font-size:10.5px; border-radius:10px; padding:2px 6px;">0</span></button>
             <button class="admin-tab-btn" data-tab="tabKyc"><i class="fa fa-id-card"></i> KYC / Documents Review <span id="adminKycUnreadBadge" class="badge badge-warning text-dark ml-1" style="display:none; font-size:10.5px; font-weight:800; border-radius:10px; padding:2px 6px;">0</span></button>
             <button class="admin-tab-btn" data-tab="tabDeposits"><i class="fa fa-receipt"></i> Deposits & Receipts <span id="adminDepositUnreadBadge" class="badge badge-success ml-1" style="display:none; font-size:10.5px; font-weight:800; border-radius:10px; padding:2px 6px;">0</span></button>
@@ -516,6 +517,36 @@
                         </thead>
                         <tbody id="usersTableBody">
                             <tr><td colspan="9" class="text-center py-4 text-muted">Loading user accounts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Staff & Sub-Admins Management -->
+        <div id="tabStaff" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-user-shield text-warning"></i> Administrator Staff & Sub-Admins</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary font-weight-bold mr-2" onclick="loadStaff()"><i class="fa fa-sync-alt mr-1"></i> Refresh</button>
+                        <button class="btn btn-sm btn-warning font-weight-bold text-dark" data-toggle="modal" data-target="#createStaffModal"><i class="fa fa-plus-circle mr-1"></i> Create New Sub-Admin</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table admin-table">
+                        <thead>
+                            <tr>
+                                <th>Administrator</th>
+                                <th>Email / Login</th>
+                                <th>Assigned Role</th>
+                                <th>Account Status</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffTableBody">
+                            <tr><td colspan="6" class="text-center py-4 text-muted">Loading staff accounts...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -811,6 +842,90 @@
                         </div>
                         <button type="submit" class="btn btn-warning btn-block py-2 font-weight-bold" style="border-radius: 8px;">
                             Set New Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Staff / Sub-Admin Modal -->
+    <div class="modal fade" id="createStaffModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold"><i class="fa fa-user-plus text-warning mr-2"></i> Create New Sub-Admin</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="createStaffForm">
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Full Name</label>
+                            <input type="text" id="staffFullName" class="form-control" placeholder="e.g. Support Manager" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Admin Email Address</label>
+                            <input type="email" id="staffEmail" class="form-control" placeholder="staff@ads-merchants-asia.com" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Initial Password</label>
+                            <input type="text" id="staffPassword" class="form-control" placeholder="Minimum 6 characters" required minlength="6" />
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Assigned Role & Permissions</label>
+                            <select id="staffRole" class="form-control">
+                                <option value="sub_admin">Sub-Admin (Full Management Access)</option>
+                                <option value="support">Support Operator (Chat & KYC Review)</option>
+                                <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
+                                <option value="super_admin">Super Administrator (Master Access)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-warning btn-block py-2 font-weight-bold text-dark" style="border-radius: 8px;">
+                            Create Sub-Admin Account
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Staff / Sub-Admin Modal -->
+    <div class="modal fade" id="editStaffModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold"><i class="fa fa-user-edit text-primary mr-2"></i> Edit Sub-Admin Account</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="editStaffForm">
+                        <input type="hidden" id="editStaffId" />
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Full Name</label>
+                            <input type="text" id="editStaffFullName" class="form-control" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Assigned Role</label>
+                            <select id="editStaffRole" class="form-control">
+                                <option value="sub_admin">Sub-Admin (Full Management Access)</option>
+                                <option value="support">Support Operator (Chat & KYC Review)</option>
+                                <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
+                                <option value="super_admin">Super Administrator (Master Access)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Account Status</label>
+                            <select id="editStaffStatus" class="form-control">
+                                <option value="active">Active (Permitted to Login)</option>
+                                <option value="suspended">Suspended / Revoked Access</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold" style="font-size: 13px;">Change Password <small class="text-muted">(Leave blank to keep unchanged)</small></label>
+                            <input type="text" id="editStaffNewPassword" class="form-control" placeholder="New password (optional)" minlength="6" />
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block py-2 font-weight-bold" style="border-radius: 8px;">
+                            Save Sub-Admin Changes
                         </button>
                     </form>
                 </div>
