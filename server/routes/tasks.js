@@ -127,19 +127,63 @@ router.post('/submit', authMiddleware, async (req, res) => {
   });
 });
 
-// GET /api/tasks/records - List all user tasks
+// GET /api/tasks/records - List all user records (tasks, deposits, withdrawals)
 router.get('/records', authMiddleware, async (req, res) => {
-  const statusFilter = req.query.status; // 'all', 'pending', 'completed'
-  let tasks = await db.getTasks(req.user.id);
+  try {
+    const statusFilter = req.query.status;
+    const userTasks = await db.getTasks(req.user.id);
+    const userDeposits = await db.getDeposits(req.user.id);
+    const userWithdrawals = await db.getWithdrawals(req.user.id);
 
-  if (statusFilter && statusFilter !== 'all') {
-    tasks = tasks.filter(t => t.status === statusFilter);
+    const formattedTasks = userTasks.map(t => ({
+      id: t.id,
+      type: 'task',
+      title: t.product_name,
+      order_num: t.order_num,
+      amount: `+$${parseFloat(t.commission_amount || 0).toFixed(2)}`,
+      status: t.status,
+      created_at: t.created_at
+    }));
+
+    const formattedDeposits = userDeposits.map(d => ({
+      id: d.id,
+      type: 'deposit',
+      title: `Deposit (${d.method || 'TRC20'})`,
+      order_num: d.id.slice(-4),
+      amount: `+$${parseFloat(d.amount || 0).toFixed(2)}`,
+      status: d.status,
+      created_at: d.created_at
+    }));
+
+    const formattedWithdrawals = userWithdrawals.map(w => ({
+      id: w.id,
+      type: 'withdrawal',
+      title: `Withdrawal (${w.bank_name || 'USDT'})`,
+      order_num: w.id.slice(-4),
+      amount: `-$${parseFloat(w.amount || 0).toFixed(2)}`,
+      status: w.status,
+      created_at: w.created_at
+    }));
+
+    let allRecords = [...formattedTasks, ...formattedDeposits, ...formattedWithdrawals];
+    allRecords.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    if (statusFilter && statusFilter !== 'all') {
+      if (statusFilter === 'pending') {
+        allRecords = allRecords.filter(r => r.status === 'pending');
+      } else if (statusFilter === 'completed') {
+        allRecords = allRecords.filter(r => r.status === 'completed' || r.status === 'approved');
+      }
+    }
+
+    res.json({
+      success: true,
+      tasks: allRecords
+    });
+  } catch (err) {
+    console.error('Records fetch error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching records' });
   }
-
-  res.json({
-    success: true,
-    tasks
-  });
 });
 
 module.exports = router;

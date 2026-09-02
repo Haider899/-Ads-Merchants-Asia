@@ -168,12 +168,18 @@
   function populateUserData(user) {
     if (!user) return;
 
-    document.querySelectorAll('.user-username, .username-display, #usernameDisplay, .user-name-text, .usernamee').forEach(el => {
-      el.textContent = user.username || user.fullname;
+    const displayName = user.username || user.fullname || 'User';
+
+    document.querySelectorAll('.user-username').forEach(el => {
+      el.innerHTML = `<span class="usernamee" style="margin-right: 4px;">Welcome</span> <span class="user-name-text" style="font-weight: 700;">${displayName}</span>`;
+    });
+
+    document.querySelectorAll('.username-display, #usernameDisplay, .profile-name').forEach(el => {
+      el.textContent = displayName;
     });
 
     document.querySelectorAll('.user-fullname, #userFullName').forEach(el => {
-      el.textContent = user.fullname;
+      el.textContent = user.fullname || displayName;
     });
 
     document.querySelectorAll('.user-balance, #userBalance, .balance-amount, .deposit-card-value, .withdraw-card-value').forEach(el => {
@@ -589,8 +595,8 @@
 
     if (!container || !tasksRes || !tasksRes.tasks) return;
 
-    function renderTasks(tasks) {
-      if (tasks.length === 0) {
+    function renderTasks(records) {
+      if (records.length === 0) {
         container.innerHTML = `
           <div style="text-align: center; padding: 40px 20px; color: #888;">
             <i class="fa fa-inbox" style="font-size: 38px; margin-bottom: 10px; opacity: 0.5;"></i>
@@ -600,25 +606,37 @@
         return;
       }
 
-      container.innerHTML = tasks.map(t => `
-        <div style="background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; gap: 12px; align-items: center;">
-            <div style="width: 44px; height: 44px; background: #f0f7ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #007bff; font-weight: 700;">
-              #${t.order_num || 1}
+      container.innerHTML = records.map(r => {
+        const isDeposit = r.type === 'deposit';
+        const isWithdrawal = r.type === 'withdrawal';
+        const iconBg = isDeposit ? '#e8f5e9' : (isWithdrawal ? '#fff3e0' : '#f0f7ff');
+        const iconColor = isDeposit ? '#2e7d32' : (isWithdrawal ? '#e65100' : '#007bff');
+        const iconText = isDeposit ? 'DEP' : (isWithdrawal ? 'WTH' : `#${r.order_num || 1}`);
+
+        const isCompleted = r.status === 'completed' || r.status === 'approved';
+        const isPending = r.status === 'pending';
+        const statusColor = isCompleted ? '#28a745' : (isPending ? '#ff9800' : '#dc3545');
+
+        return `
+          <div style="background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <div style="width: 44px; height: 44px; background: ${iconBg}; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: ${iconColor}; font-weight: 700; font-size: 13px;">
+                ${iconText}
+              </div>
+              <div>
+                <div style="font-weight: 600; font-size: 14px; color: #222; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.title}</div>
+                <div style="font-size: 12px; color: #888;">${new Date(r.created_at).toLocaleString()}</div>
+              </div>
             </div>
-            <div>
-              <div style="font-weight: 600; font-size: 14px; color: #222; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.product_name}</div>
-              <div style="font-size: 12px; color: #888;">${new Date(t.created_at).toLocaleString()}</div>
+            <div style="text-align: right;">
+              <div style="font-weight: 700; color: ${isWithdrawal ? '#e53935' : '#28a745'}; font-size: 15px;">${r.amount}</div>
+              <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: ${statusColor};">
+                ${r.status}
+              </div>
             </div>
           </div>
-          <div style="text-align: right;">
-            <div style="font-weight: 700; color: #28a745; font-size: 15px;">+$${parseFloat(t.commission_amount).toFixed(2)}</div>
-            <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: ${t.status === 'completed' ? '#28a745' : '#ff9800'};">
-              ${t.status}
-            </div>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     renderTasks(tasksRes.tasks);
@@ -630,7 +648,7 @@
 
         if (index === 0) renderTasks(tasksRes.tasks);
         else if (index === 1) renderTasks(tasksRes.tasks.filter(t => t.status === 'pending'));
-        else if (index === 2) renderTasks(tasksRes.tasks.filter(t => t.status === 'completed'));
+        else if (index === 2) renderTasks(tasksRes.tasks.filter(t => t.status === 'completed' || t.status === 'approved'));
       });
     });
   }
