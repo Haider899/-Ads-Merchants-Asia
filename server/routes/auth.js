@@ -45,7 +45,7 @@ router.post('/login', async (req, res) => {
 router.post('/register', async (req, res) => {
   const { fullname, phone, email, password, gender, referral_code } = req.body;
 
-  if (!fullname || !phone || !email || !password) {
+  if (!fullname || !email || !password) {
     return res.status(400).json({ success: false, message: 'All required fields must be filled' });
   }
 

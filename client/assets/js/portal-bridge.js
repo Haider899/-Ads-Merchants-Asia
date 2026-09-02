@@ -273,9 +273,14 @@
       const referralInput = document.getElementById('signupReferral') || document.querySelector('input[name="referral"]');
       const submitBtn = form.querySelector('button[type="submit"]');
 
-      if (!nameInput || !phoneInput || !emailInput || !passInput) return;
+      if (!nameInput || !emailInput || !passInput) return;
 
-      if (!nameInput.value.trim() || !phoneInput.value.trim() || !emailInput.value.trim() || !passInput.value) {
+      const nameVal = nameInput.value.trim();
+      const phoneVal = phoneInput ? phoneInput.value.trim() : '0000000000'; // Dummy if missing
+      const emailVal = emailInput.value.trim();
+      const passVal = passInput.value;
+
+      if (!nameVal || !emailVal || !passVal) {
         showBridgeToast('Validation Error', 'Please complete all required fields.', 'error');
         return;
       }
