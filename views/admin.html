@@ -6,14 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="shortcut icon" href="assets/uploads/logo/1742595477_icon.png">
     
-    <!-- Google Fonts & Icons -->
+    <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-    <!-- SweetAlert2 CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
     <style>
         :root {
@@ -21,19 +18,25 @@
             --primary-dark: #0056b3;
             --accent: #ff9900;
             --accent-hover: #e68a00;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
             --dark: #0f172a;
-            --light-bg: #f8fafc;
+            --light-bg: #eaf2f8;
             --card-bg: #ffffff;
             --border: #e2e8f0;
             --text-main: #1e293b;
             --text-muted: #64748b;
         }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--light-bg);
             color: var(--text-main);
             margin: 0;
@@ -41,7 +44,120 @@
             min-height: 100vh;
         }
 
-        /* Top Header */
+        /* Full Screen Admin Login Overlay */
+        #adminLoginModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #eaf2f8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            padding: 20px;
+        }
+
+        .admin-auth-card {
+            background: #ffffff;
+            border-radius: 28px;
+            max-width: 440px;
+            width: 100%;
+            padding: 44px 34px 36px 34px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            position: relative;
+        }
+
+        .admin-logo-badge {
+            position: absolute;
+            top: -38px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffffff;
+            padding: 10px 22px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-logo-badge img {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .admin-pill-group {
+            position: relative;
+            margin-bottom: 18px;
+            text-align: left;
+        }
+
+        .admin-pill-group label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 6px;
+            display: block;
+            padding-left: 6px;
+        }
+
+        .admin-pill-input {
+            width: 100%;
+            border-radius: 50px !important;
+            padding: 14px 44px 14px 20px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            background-color: #f8fafc !important;
+            font-size: 14px !important;
+            color: #1e293b !important;
+            outline: none !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .admin-pill-input:focus {
+            border-color: #ff9900 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 0 4px rgba(255, 153, 0, 0.15) !important;
+        }
+
+        .admin-input-icon {
+            position: absolute;
+            right: 18px;
+            bottom: 15px;
+            color: #94a3b8;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .admin-submit-btn {
+            width: 100%;
+            border-radius: 50px;
+            padding: 14px;
+            font-weight: 800;
+            font-size: 15.5px;
+            background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%);
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 153, 0, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .admin-submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 153, 0, 0.45);
+        }
+
+        /* Header */
         .admin-header {
             background: #ffffff;
             border-bottom: 1px solid var(--border);
@@ -167,6 +283,11 @@
             white-space: nowrap;
         }
 
+        .admin-tab-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
         .admin-tab-btn.active {
             background: var(--accent);
             color: #ffffff;
@@ -199,12 +320,20 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            color: #0f172a;
         }
 
         /* Tables */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
         .admin-table {
             width: 100%;
+            border-collapse: collapse;
             margin-bottom: 0;
+            text-align: left;
         }
 
         .admin-table th {
@@ -215,8 +344,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             padding: 14px 18px;
-            border-top: none;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1.5px solid var(--border);
         }
 
         .admin-table td {
@@ -224,163 +352,337 @@
             vertical-align: middle;
             border-bottom: 1px solid var(--border);
             font-size: 13.5px;
+            background: #ffffff;
         }
 
+        .admin-table tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        /* Status Badges */
         .badge-status {
             font-weight: 700;
             font-size: 11px;
             padding: 4px 10px;
             border-radius: 20px;
             text-transform: uppercase;
+            display: inline-block;
         }
 
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .badge-rejected { background: #f8d7da; color: #721c24; }
-        .badge-reupload_required { background: #ffeaa7; color: #d63031; }
+        .badge-pending { background: #fef3c7; color: #b45309; }
+        .badge-approved { background: #d1fae5; color: #065f46; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-reupload_required { background: #ffedd5; color: #9a3412; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-banned { background: #fee2e2; color: #991b1b; }
+        .badge-suspended { background: #fee2e2; color: #991b1b; }
 
+        .badge-primary { background: #e0f2fe; color: #0369a1; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-info { background: #e0f2fe; color: #0284c7; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-success { background: #dcfce7; color: #15803d; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-warning { background: #fef3c7; color: #b45309; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-danger { background: #fee2e2; color: #b91c1c; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+
+        /* Action Buttons */
         .btn-action {
-            padding: 6px 12px;
+            padding: 7px 14px;
             font-size: 12px;
             font-weight: 700;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             border: none;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+            text-decoration: none;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .btn-action:active {
+            transform: translateY(0);
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-refresh {
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            color: #334155;
+            padding: 7px 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             transition: all 0.2s ease;
         }
 
-        .btn-approve { background: #28a745; color: #fff; }
-        .btn-approve:hover { background: #218838; color: #fff; }
+        .btn-refresh:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
 
-        .btn-reject { background: #dc3545; color: #fff; }
-        .btn-reject:hover { background: #c82333; color: #fff; }
+        .btn-primary-custom {
+            background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%);
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 153, 0, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
 
-        .btn-edit { background: #007bff; color: #fff; }
-        .btn-edit:hover { background: #0056b3; color: #fff; }
+        .btn-primary-custom:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(255, 153, 0, 0.4);
+        }
 
-        /* Full Screen Admin Login Overlay */
-        #adminLoginModal {
+        .btn-logout {
+            background: #ffffff;
+            border: 1.5px solid #fecaca;
+            color: #dc2626;
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-logout:hover {
+            background: #fee2e2;
+            border-color: #f87171;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: #1e293b;
+            background: #f8fafc;
+            outline: none;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            border-color: #ff9900;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.15);
+        }
+
+        .form-control[readonly] {
+            background: #e2e8f0;
+            cursor: not-allowed;
+            color: #64748b;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        /* Custom Modal System (Pure CSS & JS - 100% Guaranteed Display & Hide) */
+        .admin-modal-backdrop {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: #eaf2f8;
-            display: flex;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 999999;
             padding: 20px;
+            animation: fadeIn 0.2s ease-out;
         }
 
-        .admin-auth-card {
+        .admin-modal-backdrop.active {
+            display: flex !important;
+        }
+
+        .admin-modal-dialog {
             background: #ffffff;
-            border-radius: 28px;
-            max-width: 440px;
+            border-radius: 20px;
+            max-width: 540px;
             width: 100%;
-            padding: 44px 34px 36px 34px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
-            text-align: center;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
             position: relative;
+            animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .admin-logo-badge {
-            position: absolute;
-            top: -38px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #ffffff;
-            padding: 10px 22px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            border: 1px solid rgba(0,0,0,0.06);
+        .admin-modal-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #e2e8f0;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
+            background: #f8fafc;
+            border-radius: 20px 20px 0 0;
         }
 
-        .admin-logo-badge img {
-            height: 38px;
-            width: auto;
-            object-fit: contain;
-        }
-
-        .admin-pill-group {
-            position: relative;
-            margin-bottom: 18px;
-            text-align: left;
-        }
-
-        .admin-pill-group label {
-            font-size: 13px;
-            font-weight: 700;
-            color: #334155;
-            margin-bottom: 6px;
-            display: block;
-            padding-left: 6px;
-        }
-
-        .admin-pill-input {
-            width: 100%;
-            border-radius: 50px !important;
-            padding: 14px 44px 14px 20px !important;
-            border: 1.5px solid #e2e8f0 !important;
-            background-color: #f8fafc !important;
-            font-size: 14px !important;
-            color: #1e293b !important;
-            outline: none !important;
-            transition: all 0.2s ease !important;
-            box-sizing: border-box;
-        }
-
-        .admin-pill-input:focus {
-            border-color: #ff9900 !important;
-            background-color: #ffffff !important;
-            box-shadow: 0 0 0 4px rgba(255, 153, 0, 0.15) !important;
-        }
-
-        .admin-input-icon {
-            position: absolute;
-            right: 18px;
-            bottom: 15px;
-            color: #94a3b8;
-            font-size: 16px;
-            pointer-events: none;
-        }
-
-        .admin-submit-btn {
-            width: 100%;
-            border-radius: 50px;
-            padding: 14px;
+        .admin-modal-title {
+            font-size: 16.5px;
             font-weight: 800;
-            font-size: 15.5px;
-            background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%);
-            color: #ffffff;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 6px 20px rgba(255, 153, 0, 0.35);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            margin-top: 10px;
+            color: #0f172a;
+            margin: 0;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 8px;
         }
 
-        .admin-submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(255, 153, 0, 0.45);
+        .admin-modal-close {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            line-height: 1;
         }
 
-        .admin-submit-btn:active {
-            transform: translateY(0);
+        .admin-modal-close:hover {
+            color: #0f172a;
+            background: #e2e8f0;
+        }
+
+        .admin-modal-body {
+            padding: 24px;
+        }
+
+        /* Toast Container */
+        #adminToastContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .admin-toast {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 14px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+            border-left: 5px solid;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            max-width: 420px;
+            pointer-events: auto;
+            animation: slideInRight 0.25s ease-out;
+            font-size: 13.5px;
+        }
+
+        .admin-toast-success { border-left-color: #10b981; }
+        .admin-toast-error { border-left-color: #ef4444; }
+        .admin-toast-warning { border-left-color: #f59e0b; }
+        .admin-toast-info { border-left-color: #3b82f6; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.92) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
         }
     </style>
 </head>
 <body>
+
+    <!-- Toast Notifications Container -->
+    <div id="adminToastContainer"></div>
+
+    <!-- Built-in Global Action Dialog (Approve, Reject, Delete confirmation without external library dependencies) -->
+    <div id="adminActionDialogBackdrop" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 460px;">
+            <div class="admin-modal-body" style="text-align: center; padding: 32px 24px;">
+                <div id="dialogIconContainer" style="width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 26px;">
+                    <i id="dialogIcon" class="fa fa-question"></i>
+                </div>
+                <h4 id="dialogTitle" style="font-weight: 800; color: #0f172a; margin-bottom: 8px; font-size: 19px;">Confirm Action</h4>
+                <p id="dialogMessage" style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin-bottom: 20px;">Are you sure you want to proceed?</p>
+                <div id="dialogInputWrapper" style="display: none; margin-bottom: 20px; text-align: left;">
+                    <label id="dialogInputLabel" style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Rejection Note:</label>
+                    <input type="text" id="dialogInputField" class="form-control" placeholder="Enter details..." />
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" id="dialogCancelBtn" class="btn-action" style="background: #f1f5f9; color: #475569; padding: 10px 20px; font-size: 13.5px;">Cancel</button>
+                    <button type="button" id="dialogConfirmBtn" class="btn-action btn-approve" style="padding: 10px 24px; font-size: 13.5px;">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Admin Login Overlay -->
     <div id="adminLoginModal" style="display: none;">
@@ -424,7 +726,7 @@
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Top Header -->
     <header class="admin-header">
         <a href="/admin" class="admin-brand">
             <img src="client/assets/img/amazon.png" alt="Logo" onerror="this.src='assets/uploads/logo/1742595477_icon.png'">
@@ -432,8 +734,8 @@
             <span class="badge-admin">Authority Master</span>
         </a>
         <div style="display: flex; align-items: center; gap: 14px;">
-            <button id="adminLogoutBtn" class="btn btn-sm btn-light" style="border-radius: 6px; font-weight: 700; color: #e71d36;">
-                <i class="fa fa-power-off mr-1"></i> Logout
+            <button id="adminLogoutBtn" class="btn-logout">
+                <i class="fa fa-power-off"></i> Logout
             </button>
         </div>
     </header>
@@ -450,28 +752,28 @@
                 <div class="stat-val" id="statUsers">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
+                <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
                     <i class="fa fa-wallet"></i>
                 </div>
                 <div class="stat-label">Total User Balance</div>
                 <div class="stat-val" id="statUserBalance">$0.00</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(255, 193, 7, 0.1); color: var(--warning);">
+                <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
                     <i class="fa fa-id-card"></i>
                 </div>
                 <div class="stat-label">Pending KYC Verifications</div>
                 <div class="stat-val" id="statPendingKycs" style="color: var(--warning);">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
+                <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
                     <i class="fa fa-arrow-circle-down"></i>
                 </div>
                 <div class="stat-label">Pending Deposits</div>
                 <div class="stat-val" id="statPendingDeposits" style="color: var(--success);">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(220, 53, 69, 0.1); color: var(--danger);">
+                <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
                     <i class="fa fa-arrow-circle-up"></i>
                 </div>
                 <div class="stat-label">Pending Withdrawals</div>
@@ -483,10 +785,10 @@
         <div class="admin-tabs">
             <button class="admin-tab-btn active" data-tab="tabUsers"><i class="fa fa-users"></i> Users & Balances</button>
             <button class="admin-tab-btn" data-tab="tabStaff"><i class="fa fa-user-shield"></i> Sub-Admins & Staff</button>
-            <button class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge badge-danger ml-1" style="display:none; font-size:10.5px; border-radius:10px; padding:2px 6px;">0</span></button>
-            <button class="admin-tab-btn" data-tab="tabKyc"><i class="fa fa-id-card"></i> KYC / Documents Review <span id="adminKycUnreadBadge" class="badge badge-warning text-dark ml-1" style="display:none; font-size:10.5px; font-weight:800; border-radius:10px; padding:2px 6px;">0</span></button>
-            <button class="admin-tab-btn" data-tab="tabDeposits"><i class="fa fa-receipt"></i> Deposits & Receipts <span id="adminDepositUnreadBadge" class="badge badge-success ml-1" style="display:none; font-size:10.5px; font-weight:800; border-radius:10px; padding:2px 6px;">0</span></button>
-            <button class="admin-tab-btn" data-tab="tabWithdrawals"><i class="fa fa-money-bill-wave"></i> Withdrawals & Payouts <span id="adminWithdrawUnreadBadge" class="badge badge-danger ml-1" style="display:none; font-size:10.5px; font-weight:800; border-radius:10px; padding:2px 6px;">0</span></button>
+            <button class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
+            <button class="admin-tab-btn" data-tab="tabKyc"><i class="fa fa-id-card"></i> KYC / Documents Review <span id="adminKycUnreadBadge" class="badge-status badge-warning ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
+            <button class="admin-tab-btn" data-tab="tabDeposits"><i class="fa fa-receipt"></i> Deposits & Receipts <span id="adminDepositUnreadBadge" class="badge-status badge-success ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
+            <button class="admin-tab-btn" data-tab="tabWithdrawals"><i class="fa fa-money-bill-wave"></i> Withdrawals & Payouts <span id="adminWithdrawUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
             <button class="admin-tab-btn" data-tab="tabSettings"><i class="fa fa-cog"></i> Crypto Wallets & Settings</button>
         </div>
 
@@ -494,11 +796,11 @@
         <div id="tabUsers" class="admin-tab-content">
             <div class="panel-card">
                 <div class="panel-card-header">
-                    <h5 class="panel-card-title"><i class="fa fa-users text-primary"></i> Registered Platform Users</h5>
-                    <button class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="loadUsers()"><i class="fa fa-sync-alt mr-1"></i> Refresh</button>
+                    <h5 class="panel-card-title"><i class="fa fa-users" style="color: var(--primary);"></i> Registered Platform Users</h5>
+                    <button class="btn-refresh" onclick="loadUsers()"><i class="fa fa-sync-alt"></i> Refresh</button>
                 </div>
                 <div class="table-responsive">
-                    <table class="table admin-table">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>User Profile</th>
@@ -513,7 +815,7 @@
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
-                            <tr><td colspan="9" class="text-center py-4 text-muted">Loading user accounts...</td></tr>
+                            <tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">Loading user accounts...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -524,14 +826,14 @@
         <div id="tabStaff" class="admin-tab-content" style="display: none;">
             <div class="panel-card">
                 <div class="panel-card-header">
-                    <h5 class="panel-card-title"><i class="fa fa-user-shield text-warning"></i> Administrator Staff & Sub-Admins</h5>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary font-weight-bold mr-2" onclick="loadStaff()"><i class="fa fa-sync-alt mr-1"></i> Refresh</button>
-                        <button class="btn btn-sm btn-warning font-weight-bold text-dark" data-toggle="modal" data-target="#createStaffModal"><i class="fa fa-plus-circle mr-1"></i> Create New Sub-Admin</button>
+                    <h5 class="panel-card-title"><i class="fa fa-user-shield" style="color: var(--warning);"></i> Administrator Staff & Sub-Admins</h5>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-refresh" onclick="loadStaff()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                        <button class="btn-primary-custom" onclick="AdminUI.openModal('createStaffModal')"><i class="fa fa-plus-circle"></i> Create New Sub-Admin</button>
                     </div>
                 </div>
                 <div class="table-responsive">
-                    <table class="table admin-table">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>Administrator</th>
@@ -543,30 +845,28 @@
                             </tr>
                         </thead>
                         <tbody id="staffTableBody">
-                            <tr><td colspan="6" class="text-center py-4 text-muted">Loading staff accounts...</td></tr>
+                            <tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">Loading staff accounts...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- Tab: Live Customer Chat & Tickets -->
+        <!-- Tab 3: Live Customer Chat & Tickets -->
         <div id="tabChat" class="admin-tab-content" style="display: none;">
-            <div class="panel-card" style="margin-bottom: 20px;">
+            <div class="panel-card">
                 <div class="panel-card-header">
-                    <h5 class="panel-card-title"><i class="fa fa-comments text-success"></i> Real-Time Customer Support & Chat Center</h5>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="loadChatConversations()"><i class="fa fa-sync-alt mr-1"></i> Refresh Inbox</button>
-                    </div>
+                    <h5 class="panel-card-title"><i class="fa fa-comments" style="color: var(--success);"></i> Real-Time Customer Support & Chat Center</h5>
+                    <button class="btn-refresh" onclick="loadChatConversations()"><i class="fa fa-sync-alt"></i> Refresh Inbox</button>
                 </div>
                 <div style="display: grid; grid-template-columns: 360px 1fr; min-height: 600px; background: #ffffff;">
                     <!-- Left Pane: Conversations List -->
                     <div style="border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; background: #f8fafc;">
                         <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #ffffff;">
-                            <input type="text" id="chatSearchUser" class="form-control form-control-sm" placeholder="Search user by name or email..." style="border-radius: 6px;" oninput="filterChatUsers(this.value)" />
+                            <input type="text" id="chatSearchUser" class="form-control" placeholder="Search user by name or email..." oninput="filterChatUsers(this.value)" />
                         </div>
                         <div id="adminConversationsList" style="flex: 1; overflow-y: auto; max-height: 540px;">
-                            <div class="text-center text-muted py-4" style="font-size: 13px;">Loading conversations...</div>
+                            <div style="text-align: center; color: #64748b; padding: 24px; font-size: 13px;">Loading conversations...</div>
                         </div>
                     </div>
 
@@ -574,7 +874,7 @@
                     <div id="adminChatActiveRoom" style="display: flex; flex-direction: column; background: #ffffff;">
                         <div id="adminChatNoSelection" style="margin: auto; text-align: center; color: #64748b; padding: 40px;">
                             <i class="fa fa-comments" style="font-size: 54px; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
-                            <h5 style="font-weight: 700; color: #1e293b;">Select a Customer Conversation</h5>
+                            <h5 style="font-weight: 700; color: #1e293b; font-size: 17px;">Select a Customer Conversation</h5>
                             <p style="font-size: 13px; color: #64748b;">Choose any user thread from the left to view live messages and reply directly.</p>
                         </div>
                         <div id="adminChatMainContent" style="display: none; flex-direction: column; height: 100%;">
@@ -590,28 +890,27 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <span id="adminChatSelectedVip" class="badge badge-primary" style="padding: 6px 10px;">Bronze VIP</span>
-                                    <span id="adminChatSelectedBalance" class="badge badge-success" style="padding: 6px 10px;">$0.00</span>
+                                    <span id="adminChatSelectedVip" class="badge-status badge-primary">Bronze VIP</span>
+                                    <span id="adminChatSelectedBalance" class="badge-status badge-success">$0.00</span>
                                 </div>
                             </div>
 
                             <!-- Room Messages -->
                             <div id="adminChatMessagesContainer" style="flex: 1; padding: 20px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; height: 380px; max-height: 380px;">
-                                <!-- Message bubbles -->
                             </div>
 
                             <!-- Quick Canned Responses -->
                             <div style="padding: 8px 16px; background: #f1f5f9; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap;">
-                                <button type="button" class="btn btn-sm btn-light border py-1 px-2" style="font-size: 11.5px; border-radius: 20px;" onclick="applyQuickReply('👋 Hello! How can I assist you with your account today?')">👋 Greeting</button>
-                                <button type="button" class="btn btn-sm btn-light border py-1 px-2" style="font-size: 11.5px; border-radius: 20px;" onclick="applyQuickReply('💳 Please provide your deposit TxID or upload the receipt in the Deposit screen.')">💳 Deposit Help</button>
-                                <button type="button" class="btn btn-sm btn-light border py-1 px-2" style="font-size: 11.5px; border-radius: 20px;" onclick="applyQuickReply('✅ Your request has been verified and processed successfully!')">✅ Processed</button>
-                                <button type="button" class="btn btn-sm btn-light border py-1 px-2" style="font-size: 11.5px; border-radius: 20px;" onclick="applyQuickReply('⏳ Please allow 10-15 minutes for blockchain network confirmation.')">⏳ Processing</button>
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('👋 Hello! How can I assist you with your account today?')">👋 Greeting</button>
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('💳 Please provide your deposit TxID or upload the receipt in the Deposit screen.')">💳 Deposit Help</button>
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('✅ Your request has been verified and processed successfully!')">✅ Processed</button>
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('⏳ Please allow 10-15 minutes for blockchain network confirmation.')">⏳ Processing</button>
                             </div>
 
                             <!-- Room Input -->
                             <div style="padding: 14px 16px; border-top: 1px solid #e2e8f0; background: #ffffff; display: flex; gap: 10px; align-items: center;">
-                                <input type="text" id="adminReplyInput" class="form-control" placeholder="Type your response to the user here... (Press Enter to send)" style="border-radius: 8px; font-size: 13.5px;" />
-                                <button type="button" id="adminSendReplyBtn" class="btn btn-success font-weight-bold px-4" style="border-radius: 8px; display: flex; align-items: center; gap: 6px;">
+                                <input type="text" id="adminReplyInput" class="form-control" placeholder="Type your response to the user here... (Press Enter to send)" />
+                                <button type="button" id="adminSendReplyBtn" class="btn-action btn-approve" style="padding: 11px 22px; font-size: 14px;">
                                     <i class="fa fa-paper-plane"></i> <span>Send</span>
                                 </button>
                             </div>
@@ -621,15 +920,15 @@
             </div>
         </div>
 
-        <!-- Tab 2: KYC Review -->
+        <!-- Tab 4: KYC Review -->
         <div id="tabKyc" class="admin-tab-content" style="display: none;">
             <div class="panel-card">
                 <div class="panel-card-header">
-                    <h5 class="panel-card-title"><i class="fa fa-id-card text-warning"></i> Identity Verification & Merchant Contracts</h5>
-                    <button class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="loadKycs()"><i class="fa fa-sync-alt mr-1"></i> Refresh</button>
+                    <h5 class="panel-card-title"><i class="fa fa-id-card" style="color: var(--warning);"></i> Identity Verification & Merchant Contracts</h5>
+                    <button class="btn-refresh" onclick="loadKycs()"><i class="fa fa-sync-alt"></i> Refresh</button>
                 </div>
                 <div class="table-responsive">
-                    <table class="table admin-table">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>Applicant Details</th>
@@ -642,22 +941,22 @@
                             </tr>
                         </thead>
                         <tbody id="kycTableBody">
-                            <tr><td colspan="7" class="text-center py-4 text-muted">Loading KYC submissions...</td></tr>
+                            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">Loading KYC submissions...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- Tab 3: Deposits & Receipts -->
+        <!-- Tab 5: Deposits & Receipts -->
         <div id="tabDeposits" class="admin-tab-content" style="display: none;">
             <div class="panel-card">
                 <div class="panel-card-header">
-                    <h5 class="panel-card-title"><i class="fa fa-receipt text-success"></i> Deposit Requests & Proof Receipts</h5>
-                    <button class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="loadDeposits()"><i class="fa fa-sync-alt mr-1"></i> Refresh</button>
+                    <h5 class="panel-card-title"><i class="fa fa-receipt" style="color: var(--success);"></i> Deposit Requests & Proof Receipts</h5>
+                    <button class="btn-refresh" onclick="loadDeposits()"><i class="fa fa-sync-alt"></i> Refresh</button>
                 </div>
                 <div class="table-responsive">
-                    <table class="table admin-table">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>Date & ID</th>
@@ -670,22 +969,22 @@
                             </tr>
                         </thead>
                         <tbody id="depositsTableBody">
-                            <tr><td colspan="7" class="text-center py-4 text-muted">Loading deposit requests...</td></tr>
+                            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">Loading deposit requests...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- Tab 4: Withdrawals & Payouts -->
+        <!-- Tab 6: Withdrawals & Payouts -->
         <div id="tabWithdrawals" class="admin-tab-content" style="display: none;">
             <div class="panel-card">
                 <div class="panel-card-header">
-                    <h5 class="panel-card-title"><i class="fa fa-money-bill-wave text-danger"></i> Member Withdrawal Requests</h5>
-                    <button class="btn btn-sm btn-outline-secondary font-weight-bold" onclick="loadWithdrawals()"><i class="fa fa-sync-alt mr-1"></i> Refresh</button>
+                    <h5 class="panel-card-title"><i class="fa fa-money-bill-wave" style="color: var(--danger);"></i> Member Withdrawal Requests</h5>
+                    <button class="btn-refresh" onclick="loadWithdrawals()"><i class="fa fa-sync-alt"></i> Refresh</button>
                 </div>
                 <div class="table-responsive">
-                    <table class="table admin-table">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>Date & ID</th>
@@ -697,59 +996,59 @@
                             </tr>
                         </thead>
                         <tbody id="withdrawalsTableBody">
-                            <tr><td colspan="6" class="text-center py-4 text-muted">Loading withdrawal requests...</td></tr>
+                            <tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">Loading withdrawal requests...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- Tab 5: Settings -->
+        <!-- Tab 7: Settings -->
         <div id="tabSettings" class="admin-tab-content" style="display: none;">
             <div class="panel-card">
                 <div class="panel-card-header">
-                    <h5 class="panel-card-title"><i class="fa fa-wallet text-warning"></i> Crypto Deposit Wallet Addresses & System Rules</h5>
+                    <h5 class="panel-card-title"><i class="fa fa-wallet" style="color: var(--warning);"></i> Crypto Deposit Wallet Addresses & System Rules</h5>
                 </div>
                 <div style="padding: 24px;">
                     <form id="systemSettingsForm">
-                        <div class="row">
-                            <div class="col-md-6 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">USDT (TRC20) Receiving Address</label>
+                        <div class="form-row">
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>USDT (TRC20) Receiving Address</label>
                                 <input type="text" id="setTrc20" class="form-control" placeholder="TJ8Yg9pKaV8vU3mQ2jN5xL7wE1tZ4dC6bA" />
-                                <small class="text-muted">Displayed on user Deposit screen for TRC20 network</small>
+                                <small style="font-size: 11.5px; color: #64748b;">Displayed on user Deposit screen for TRC20 network</small>
                             </div>
-                            <div class="col-md-6 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">USDT (ERC20) Receiving Address</label>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>USDT (ERC20) Receiving Address</label>
                                 <input type="text" id="setErc20" class="form-control" placeholder="0x88922C0A5A901F1aA719d3f1FeA6bA34B20C888A" />
-                                <small class="text-muted">Displayed on user Deposit screen for ERC20 network</small>
+                                <small style="font-size: 11.5px; color: #64748b;">Displayed on user Deposit screen for ERC20 network</small>
                             </div>
-                            <div class="col-md-6 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">Bitcoin (BTC) Receiving Address</label>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Bitcoin (BTC) Receiving Address</label>
                                 <input type="text" id="setBtc" class="form-control" placeholder="bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" />
                             </div>
-                            <div class="col-md-3 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">Minimum Deposit ($)</label>
+                            <div class="form-group">
+                                <label>Minimum Deposit ($)</label>
                                 <input type="number" id="setMinDeposit" class="form-control" value="20" />
                             </div>
-                            <div class="col-md-3 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">Minimum Withdrawal ($)</label>
+                            <div class="form-group">
+                                <label>Minimum Withdrawal ($)</label>
                                 <input type="number" id="setMinWithdraw" class="form-control" value="30" />
                             </div>
-                            <div class="col-md-6 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">Telegram Support URL</label>
+                            <div class="form-group">
+                                <label>Telegram Support URL</label>
                                 <input type="text" id="setTelegram" class="form-control" placeholder="https://t.me/adsmerchantsasia_support" />
                             </div>
-                            <div class="col-md-6 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">WhatsApp Support Number</label>
+                            <div class="form-group">
+                                <label>WhatsApp Support Number</label>
                                 <input type="text" id="setWhatsapp" class="form-control" placeholder="+60112345678" />
                             </div>
-                            <div class="col-md-6 form-group">
-                                <label style="font-weight: 700; font-size: 13px;">Update Master Admin Password <small class="text-muted">(Optional)</small></label>
-                                <input type="password" id="setAdminPassword" class="form-control" placeholder="Enter new password if changing" />
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Update Master Admin Password <small style="color: #64748b;">(Optional - leave blank if unchanged)</small></label>
+                                <input type="password" id="setAdminPassword" class="form-control" placeholder="Enter new master password" />
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary px-4 py-2 font-weight-bold" style="border-radius: 8px;">
-                            Save Wallet & System Settings
+                        <button type="submit" class="btn-primary-custom" style="margin-top: 10px;">
+                            <i class="fa fa-save"></i> Save Wallet & System Settings
                         </button>
                     </form>
                 </div>
@@ -759,182 +1058,200 @@
     </div>
 
     <!-- Edit User Modal -->
-    <div class="modal fade" id="editUserModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-                <div class="modal-header">
-                    <h5 class="modal-title font-weight-bold">Edit Member Account & Balance</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="editUserForm">
-                        <input type="hidden" id="editUserId" />
+    <div id="editUserModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-user-edit" style="color: var(--primary);"></i> Edit Member Account & Balance</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('editUserModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId" />
+                    <div class="form-group">
+                        <label>User Account</label>
+                        <input type="text" id="editUserEmail" class="form-control" readonly />
+                    </div>
+                    <div class="form-group">
+                        <label>VIP Tier</label>
+                        <select id="editUserVip" class="form-control">
+                            <option value="Bronze">Bronze VIP (0.50% yield - 38 orders)</option>
+                            <option value="Silver">Silver VIP (0.80% yield - 45 orders)</option>
+                            <option value="Gold">Gold VIP (1.20% yield - 55 orders)</option>
+                            <option value="Platinum">Platinum VIP (1.80% yield - 65 orders)</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">User Account</label>
-                            <input type="text" id="editUserEmail" class="form-control" readonly />
-                        </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">VIP Tier</label>
-                            <select id="editUserVip" class="form-control">
-                                <option value="Bronze">Bronze VIP (0.50% yield - 38 orders)</option>
-                                <option value="Silver">Silver VIP (0.80% yield - 45 orders)</option>
-                                <option value="Gold">Gold VIP (1.20% yield - 55 orders)</option>
-                                <option value="Platinum">Platinum VIP (1.80% yield - 65 orders)</option>
-                            </select>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 form-group">
-                                <label class="font-weight-bold" style="font-size: 13px;">Working Balance ($)</label>
-                                <input type="number" step="0.01" id="editUserBalance" class="form-control" />
-                            </div>
-                            <div class="col-md-6 form-group">
-                                <label class="font-weight-bold" style="font-size: 13px;">Frozen Balance ($)</label>
-                                <input type="number" step="0.01" id="editUserFrozenBalance" class="form-control" />
-                            </div>
+                            <label>Working Balance ($)</label>
+                            <input type="number" step="0.01" id="editUserBalance" class="form-control" />
                         </div>
                         <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Quick Add Balance ($) <small class="text-muted">(Optional)</small></label>
-                            <input type="number" step="0.01" id="editUserAddBalance" class="form-control" placeholder="e.g. 50.00" />
+                            <label>Frozen Balance ($)</label>
+                            <input type="number" step="0.01" id="editUserFrozenBalance" class="form-control" />
                         </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Account Status</label>
-                            <select id="editUserStatus" class="form-control">
-                                <option value="active">Active (Normal)</option>
-                                <option value="banned">Suspended / Banned</option>
-                            </select>
-                        </div>
-                        <div class="form-check mb-3">
-                            <input type="checkbox" class="form-check-input" id="editUserResetTasks">
-                            <label class="form-check-label font-weight-bold" for="editUserResetTasks" style="font-size: 13px;">
-                                Reset Today Completed Tasks Count to 0 (Allow full new round of orders)
-                            </label>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-block py-2 font-weight-bold" style="border-radius: 8px;">
-                            Save Changes
-                        </button>
-                    </form>
-                </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quick Add Balance ($) <small style="color: #64748b;">(Optional)</small></label>
+                        <input type="number" step="0.01" id="editUserAddBalance" class="form-control" placeholder="e.g. 50.00" />
+                    </div>
+                    <div class="form-group">
+                        <label>Account Status</label>
+                        <select id="editUserStatus" class="form-control">
+                            <option value="active">Active (Normal Access)</option>
+                            <option value="banned">Suspended / Banned</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 18px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="editUserResetTasks" style="width: 16px; height: 16px;" />
+                        <label for="editUserResetTasks" style="font-size: 13px; font-weight: 700; color: #334155; margin: 0; cursor: pointer;">
+                            Reset Today Completed Tasks Count to 0 (Allow full new round of orders)
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-action btn-edit" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-save"></i> Save Changes
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
     <!-- Password Reset Modal -->
-    <div class="modal fade" id="resetPasswordModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-                <div class="modal-header">
-                    <h5 class="modal-title font-weight-bold"><i class="fa fa-key text-warning mr-2"></i> Reset User Password</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="resetPasswordForm">
-                        <input type="hidden" id="resetPassUserId" />
-                        <p class="text-muted" style="font-size: 13px;">
-                            Resetting password for: <strong id="resetPassUserName" class="text-dark"></strong>
-                        </p>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">New Password</label>
-                            <input type="text" id="newDirectPassword" class="form-control" placeholder="Enter new user password" required minlength="6" />
-                            <small class="text-muted">Minimum 6 characters</small>
-                        </div>
-                        <button type="submit" class="btn btn-warning btn-block py-2 font-weight-bold" style="border-radius: 8px;">
-                            Set New Password
-                        </button>
-                    </form>
-                </div>
+    <div id="resetPasswordModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 480px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-key" style="color: var(--warning);"></i> Reset User Password</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('resetPasswordModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="resetPasswordForm">
+                    <input type="hidden" id="resetPassUserId" />
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
+                        Resetting password for: <strong id="resetPassUserName" style="color: #0f172a;"></strong>
+                    </p>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="text" id="newDirectPassword" class="form-control" placeholder="Enter new user password" required minlength="6" />
+                        <small style="font-size: 11.5px; color: #64748b;">Minimum 6 characters</small>
+                    </div>
+                    <button type="submit" class="btn-action btn-approve" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-check"></i> Set New Password
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
     <!-- Create Staff / Sub-Admin Modal -->
-    <div class="modal fade" id="createStaffModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-                <div class="modal-header">
-                    <h5 class="modal-title font-weight-bold"><i class="fa fa-user-plus text-warning mr-2"></i> Create New Sub-Admin</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="createStaffForm">
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Full Name</label>
-                            <input type="text" id="staffFullName" class="form-control" placeholder="e.g. Support Manager" required />
-                        </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Admin Email Address</label>
-                            <input type="email" id="staffEmail" class="form-control" placeholder="staff@ads-merchants-asia.com" required />
-                        </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Initial Password</label>
-                            <input type="text" id="staffPassword" class="form-control" placeholder="Minimum 6 characters" required minlength="6" />
-                        </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Assigned Role & Permissions</label>
-                            <select id="staffRole" class="form-control">
-                                <option value="sub_admin">Sub-Admin (Full Management Access)</option>
-                                <option value="support">Support Operator (Chat & KYC Review)</option>
-                                <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
-                                <option value="super_admin">Super Administrator (Master Access)</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-warning btn-block py-2 font-weight-bold text-dark" style="border-radius: 8px;">
-                            Create Sub-Admin Account
-                        </button>
-                    </form>
-                </div>
+    <div id="createStaffModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-user-plus" style="color: var(--warning);"></i> Create New Sub-Admin</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('createStaffModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="createStaffForm">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="staffFullName" class="form-control" placeholder="e.g. Support Manager" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Admin Email Address</label>
+                        <input type="email" id="staffEmail" class="form-control" placeholder="staff@ads-merchants-asia.com" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Password</label>
+                        <input type="text" id="staffPassword" class="form-control" placeholder="Minimum 6 characters" required minlength="6" />
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Role & Permissions</label>
+                        <select id="staffRole" class="form-control">
+                            <option value="sub_admin">Sub-Admin (Full Management Access)</option>
+                            <option value="support">Support Operator (Chat & KYC Review)</option>
+                            <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
+                            <option value="super_admin">Super Administrator (Master Access)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary-custom" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-plus-circle"></i> Create Sub-Admin Account
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
     <!-- Edit Staff / Sub-Admin Modal -->
-    <div class="modal fade" id="editStaffModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-                <div class="modal-header">
-                    <h5 class="modal-title font-weight-bold"><i class="fa fa-user-edit text-primary mr-2"></i> Edit Sub-Admin Account</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="editStaffForm">
-                        <input type="hidden" id="editStaffId" />
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Full Name</label>
-                            <input type="text" id="editStaffFullName" class="form-control" required />
-                        </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Assigned Role</label>
-                            <select id="editStaffRole" class="form-control">
-                                <option value="sub_admin">Sub-Admin (Full Management Access)</option>
-                                <option value="support">Support Operator (Chat & KYC Review)</option>
-                                <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
-                                <option value="super_admin">Super Administrator (Master Access)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Account Status</label>
-                            <select id="editStaffStatus" class="form-control">
-                                <option value="active">Active (Permitted to Login)</option>
-                                <option value="suspended">Suspended / Revoked Access</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="font-weight-bold" style="font-size: 13px;">Change Password <small class="text-muted">(Leave blank to keep unchanged)</small></label>
-                            <input type="text" id="editStaffNewPassword" class="form-control" placeholder="New password (optional)" minlength="6" />
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-block py-2 font-weight-bold" style="border-radius: 8px;">
-                            Save Sub-Admin Changes
-                        </button>
-                    </form>
-                </div>
+    <div id="editStaffModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-user-edit" style="color: var(--primary);"></i> Edit Sub-Admin Account</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('editStaffModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="editStaffForm">
+                    <input type="hidden" id="editStaffId" />
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="editStaffFullName" class="form-control" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Role</label>
+                        <select id="editStaffRole" class="form-control">
+                            <option value="sub_admin">Sub-Admin (Full Management Access)</option>
+                            <option value="support">Support Operator (Chat & KYC Review)</option>
+                            <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
+                            <option value="super_admin">Super Administrator (Master Access)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Account Status</label>
+                        <select id="editStaffStatus" class="form-control">
+                            <option value="active">Active (Permitted to Login)</option>
+                            <option value="suspended">Suspended / Revoked Access</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Change Password <small style="color: #64748b;">(Leave blank to keep unchanged)</small></label>
+                        <input type="text" id="editStaffNewPassword" class="form-control" placeholder="New password (optional)" minlength="6" />
+                    </div>
+                    <button type="submit" class="btn-action btn-edit" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-save"></i> Save Sub-Admin Changes
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- SweetAlert2 CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Dedicated High-Resolution Receipt & Proof Modal -->
+    <div id="receiptInspectorModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 680px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-receipt" style="color: var(--primary);"></i> Payment Receipt & Proof Inspector</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('receiptInspectorModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body" id="receiptInspectorBody">
+                <!-- Injected dynamically by admin.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Image Viewer Modal -->
+    <div id="imageViewerModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 640px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title" id="imageViewerTitle"><i class="fa fa-image" style="color: var(--primary);"></i> Image Viewer</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('imageViewerModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body" style="text-align: center;">
+                <div style="background: #f1f5f9; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px;">
+                    <img id="imageViewerImg" src="" style="max-height: 380px; max-width: 100%; border-radius: 8px; object-fit: contain;" alt="Preview" />
+                </div>
+                <a id="imageViewerLink" href="#" target="_blank" class="btn-refresh" style="text-decoration: none;">
+                    <i class="fa fa-external-link-alt"></i> Open Original Resolution
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Dedicated Admin Script -->
     <script src="client/assets/js/admin.js"></script>
 </body>
