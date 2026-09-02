@@ -17,11 +17,13 @@
 
     <style>
         :root {
-            --primary: #4361ee;
-            --primary-dark: #3a0ca3;
-            --success: #2ec4b6;
-            --warning: #ff9f1c;
-            --danger: #e71d36;
+            --primary: #007bff;
+            --primary-dark: #0056b3;
+            --accent: #ff9900;
+            --accent-hover: #e68a00;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
             --dark: #0f172a;
             --light-bg: #f8fafc;
             --card-bg: #ffffff;
@@ -50,6 +52,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
         }
 
         .admin-brand {
@@ -69,13 +72,11 @@
             font-weight: 800;
             font-size: 19px;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #0f172a;
         }
 
         .badge-admin {
-            background: rgba(67, 97, 238, 0.1);
+            background: rgba(0, 123, 255, 0.1);
             color: var(--primary);
             font-weight: 700;
             font-size: 11px;
@@ -167,9 +168,9 @@
         }
 
         .admin-tab-btn.active {
-            background: var(--primary);
+            background: var(--accent);
             color: #ffffff;
-            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.25);
+            box-shadow: 0 4px 12px rgba(255, 153, 0, 0.3);
         }
 
         /* Panel Cards */
@@ -251,38 +252,131 @@
             transition: all 0.2s ease;
         }
 
-        .btn-approve { background: #2ec4b6; color: #fff; }
-        .btn-approve:hover { background: #26a69a; color: #fff; }
+        .btn-approve { background: #28a745; color: #fff; }
+        .btn-approve:hover { background: #218838; color: #fff; }
 
-        .btn-reject { background: #e71d36; color: #fff; }
-        .btn-reject:hover { background: #c5162b; color: #fff; }
+        .btn-reject { background: #dc3545; color: #fff; }
+        .btn-reject:hover { background: #c82333; color: #fff; }
 
-        .btn-edit { background: #4361ee; color: #fff; }
-        .btn-edit:hover { background: #3a0ca3; color: #fff; }
+        .btn-edit { background: #007bff; color: #fff; }
+        .btn-edit:hover { background: #0056b3; color: #fff; }
 
-        /* Login Modal */
+        /* Full Screen Admin Login Overlay */
         #adminLoginModal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(15, 23, 42, 0.92);
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 999999;
-            backdrop-filter: blur(8px);
+            padding: 20px;
         }
 
-        .login-box {
+        .admin-auth-card {
             background: #ffffff;
-            border-radius: 20px;
-            max-width: 420px;
+            border-radius: 28px;
+            max-width: 440px;
             width: 100%;
-            padding: 36px 32px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            padding: 44px 34px 36px 34px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
             text-align: center;
+            position: relative;
+        }
+
+        .admin-logo-badge {
+            position: absolute;
+            top: -38px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffffff;
+            padding: 10px 22px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-logo-badge img {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .admin-pill-group {
+            position: relative;
+            margin-bottom: 18px;
+            text-align: left;
+        }
+
+        .admin-pill-group label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 6px;
+            display: block;
+            padding-left: 6px;
+        }
+
+        .admin-pill-input {
+            width: 100%;
+            border-radius: 50px !important;
+            padding: 14px 44px 14px 20px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            background-color: #f8fafc !important;
+            font-size: 14px !important;
+            color: #1e293b !important;
+            outline: none !important;
+            transition: all 0.2s ease !important;
+            box-sizing: border-box;
+        }
+
+        .admin-pill-input:focus {
+            border-color: #ff9900 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 0 4px rgba(255, 153, 0, 0.15) !important;
+        }
+
+        .admin-input-icon {
+            position: absolute;
+            right: 18px;
+            bottom: 15px;
+            color: #94a3b8;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .admin-submit-btn {
+            width: 100%;
+            border-radius: 50px;
+            padding: 14px;
+            font-weight: 800;
+            font-size: 15.5px;
+            background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%);
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 153, 0, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .admin-submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 153, 0, 0.45);
+        }
+
+        .admin-submit-btn:active {
+            transform: translateY(0);
         }
     </style>
 </head>
@@ -290,37 +384,56 @@
 
     <!-- Admin Login Overlay -->
     <div id="adminLoginModal" style="display: none;">
-        <div class="login-box">
-            <img src="assets/uploads/logo/1742595477_icon.png" style="height: 60px; margin-bottom: 16px; border-radius: 10px;" />
-            <h4 style="font-weight: 800; margin-bottom: 6px; color: #0f172a;">Master Admin Sign In</h4>
-            <p style="font-size: 13px; color: #64748b; margin-bottom: 24px;">Ads Merchants Asia Authority Center</p>
+        <div class="admin-auth-card">
+            <!-- Floating Logo Badge -->
+            <div class="admin-logo-badge">
+                <img src="client/assets/img/amazon.png" alt="Amazon Asia" onerror="this.src='assets/uploads/logo/1742595477_icon.png'" />
+            </div>
 
+            <!-- Welcome Header Note -->
+            <div style="margin-top: 14px; margin-bottom: 22px;">
+                <h3 style="font-weight: 800; color: #0f172a; margin-bottom: 6px; font-size: 22px; letter-spacing: -0.5px;">Admin Control Center</h3>
+                <p style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin-bottom: 0;">
+                    Welcome Administrator! Please sign in with your master credentials to access merchant controls and management tools.
+                </p>
+            </div>
+
+            <!-- Admin Authentication Form -->
             <form id="adminLoginForm">
-                <div class="form-group text-left">
-                    <label style="font-size: 12px; font-weight: 700; color: #475569;">Admin Email</label>
-                    <input type="email" id="adminEmail" class="form-control" value="admin@ads-merchants-asia.com" required style="border-radius: 8px; font-size: 14px;" />
+                <div class="admin-pill-group">
+                    <label>Admin Email</label>
+                    <input type="email" id="adminEmail" class="admin-pill-input" placeholder="admin@ads-merchants-asia.com" required />
+                    <i class="fa fa-envelope admin-input-icon"></i>
                 </div>
-                <div class="form-group text-left">
-                    <label style="font-size: 12px; font-weight: 700; color: #475569;">Password</label>
-                    <input type="password" id="adminPassword" class="form-control" value="AdminPass2026!" required style="border-radius: 8px; font-size: 14px;" />
+
+                <div class="admin-pill-group">
+                    <label>Master Password</label>
+                    <input type="password" id="adminPassword" class="admin-pill-input" placeholder="••••••••••••" required />
+                    <i class="fa fa-lock admin-input-icon"></i>
                 </div>
-                <button type="submit" id="adminLoginBtn" class="btn btn-primary btn-block" style="border-radius: 8px; padding: 12px; font-weight: 700; background: #4361ee; border: none; margin-top: 20px;">
-                    Unlock Control Center
+
+                <button type="submit" id="adminLoginBtn" class="admin-submit-btn">
+                    <span>Sign In to Admin Portal</span>
+                    <i class="fa fa-arrow-right"></i>
                 </button>
             </form>
+
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8; font-weight: 600;">
+                <i class="fa fa-shield-alt text-success mr-1"></i> 256-Bit SSL Encrypted Admin Session
+            </div>
         </div>
     </div>
 
     <!-- Header -->
     <header class="admin-header">
         <a href="/admin" class="admin-brand">
-            <img src="assets/uploads/logo/1742595477_icon.png" alt="Logo">
+            <img src="client/assets/img/amazon.png" alt="Logo" onerror="this.src='assets/uploads/logo/1742595477_icon.png'">
             <span>Ads Merchants Asia</span>
             <span class="badge-admin">Authority Master</span>
         </a>
         <div style="display: flex; align-items: center; gap: 14px;">
-            <a href="/dashboard" target="_blank" class="btn btn-sm btn-outline-primary" style="border-radius: 6px; font-weight: 700;">
-                <i class="fa fa-external-link-alt mr-1"></i> View Member Dashboard
+            <a href="https://ads-merchants-asia.com" target="_blank" class="btn btn-sm btn-outline-primary" style="border-radius: 6px; font-weight: 700;">
+                <i class="fa fa-external-link-alt mr-1"></i> View Member Portal
             </a>
             <button id="adminLogoutBtn" class="btn btn-sm btn-light" style="border-radius: 6px; font-weight: 700; color: #e71d36;">
                 <i class="fa fa-power-off mr-1"></i> Logout

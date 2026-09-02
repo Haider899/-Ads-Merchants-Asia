@@ -20,7 +20,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Serve static assets
-app.use(express.static(path.join(__dirname, 'views'))); // Serve static files from views (if any direct hits)
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/client', express.static(path.join(__dirname, 'client')));
 app.use('/css', express.static(path.join(__dirname, 'css')));
