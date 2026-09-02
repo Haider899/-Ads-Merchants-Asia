@@ -107,45 +107,56 @@ router.post('/logout', async (req, res) => {
 
 // GET /api/admin/metrics
 router.get('/metrics', adminAuthMiddleware, async (req, res) => {
-  const users = await db.getUsers();
-  const deposits = await db.getDeposits();
-  const withdrawals = await db.getWithdrawals();
-  const kycs = await db.getKycSubmissions();
-  const tickets = await db.getSupportTickets();
-  const tasks = await db.getTasks();
+  try {
+    const users = await db.getUsers();
+    const deposits = await db.getDeposits();
+    const withdrawals = await db.getWithdrawals();
+    const kycs = await db.getKycSubmissions();
+    const tickets = await db.getSupportTickets();
+    const tasks = await db.getTasks();
 
-  const totalUserBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
-  const totalDeposits = deposits.filter(d => d.status === 'approved').reduce((sum, d) => sum + (d.amount || 0), 0);
-  const totalWithdrawals = withdrawals.filter(w => w.status === 'approved').reduce((sum, w) => sum + (w.amount || 0), 0);
-  const pendingDeposits = deposits.filter(d => d.status === 'pending').length;
-  const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length;
-  const pendingKycs = kycs.filter(k => k.status === 'pending').length;
-  const openTickets = tickets.filter(t => t.status === 'open').length;
+    const totalUserBalance = users.reduce((sum, u) => sum + (parseFloat(u.balance) || 0), 0);
+    const totalDeposits = deposits.filter(d => (d.status || '').toLowerCase() === 'approved').reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    const totalWithdrawals = withdrawals.filter(w => (w.status || '').toLowerCase() === 'approved').reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+    const pendingDeposits = deposits.filter(d => (d.status || '').toLowerCase() === 'pending').length;
+    const pendingWithdrawals = withdrawals.filter(w => (w.status || '').toLowerCase() === 'pending').length;
+    const pendingKycs = kycs.filter(k => (k.status || '').toLowerCase() === 'pending').length;
+    const openTickets = tickets.filter(t => (t.status || '').toLowerCase() === 'open').length;
 
-  res.json({
-    success: true,
-    metrics: {
-      totalUsers: users.length,
-      totalUserBalance: totalUserBalance.toFixed(2),
-      totalDeposits: totalDeposits.toFixed(2),
-      totalWithdrawals: totalWithdrawals.toFixed(2),
-      pendingDeposits,
-      pendingWithdrawals,
-      pendingKycs,
-      openTickets,
-      totalTasksCompleted: tasks.filter(t => t.status === 'completed').length
-    }
-  });
+    res.json({
+      success: true,
+      metrics: {
+        totalUsers: users.length,
+        totalUserBalance: totalUserBalance.toFixed(2),
+        totalDeposits: totalDeposits.toFixed(2),
+        totalWithdrawals: totalWithdrawals.toFixed(2),
+        pendingDeposits,
+        pendingWithdrawals,
+        pendingKycs,
+        openTickets,
+        totalTasksCompleted: tasks.filter(t => t.status === 'completed').length
+      }
+    });
+  } catch (err) {
+    console.error('Admin Metrics Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching metrics' });
+  }
 });
 
 // GET /api/admin/users
 router.get('/users', adminAuthMiddleware, async (req, res) => {
-  const users = await db.getUsers().map(u => {
-    const safe = { ...u };
-    delete safe.password_hash;
-    return safe;
-  });
-  res.json({ success: true, users });
+  try {
+    const usersList = await db.getUsers();
+    const users = usersList.map(u => {
+      const safe = { ...u };
+      delete safe.password_hash;
+      return safe;
+    });
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Admin Users Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching users' });
+  }
 });
 
 // POST /api/admin/users/update
@@ -285,132 +296,151 @@ router.get('/deposits', adminAuthMiddleware, async (req, res) => {
 
 // POST /api/admin/deposits/action
 router.post('/deposits/action', adminAuthMiddleware, async (req, res) => {
-  const { depositId, action, notes } = req.body;
-  const deposits = await db.getDeposits();
-  const deposit = deposits.find(d => d.id === depositId);
+  try {
+    const { depositId, action, notes } = req.body;
+    const deposits = await db.getDeposits();
+    const deposit = deposits.find(d => d.id === depositId);
 
-  if (!deposit) {
-    return res.status(404).json({ success: false, message: 'Deposit request not found' });
+    if (!deposit) {
+      return res.status(404).json({ success: false, message: 'Deposit request not found' });
+    }
+
+    const user = await db.findUserById(deposit.user_id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Associated user not found' });
+    }
+
+    const currentBalance = parseFloat(user.balance) || 0;
+    const depositAmount = parseFloat(deposit.amount) || 0;
+
+    if (action === 'approve') {
+      const newBalance = parseFloat((currentBalance + depositAmount).toFixed(2));
+      await db.updateUser(user.id, { balance: newBalance });
+      await db.updateDeposit(depositId, {
+        status: 'approved',
+        admin_notes: notes || 'Verified on blockchain',
+        approved_at: new Date().toISOString()
+      });
+
+      await db.createNotification({
+        user_id: user.id,
+        title: 'Deposit Approved! 💳',
+        message: `Your deposit of $${depositAmount.toFixed(2)} (${deposit.method}) has been approved and credited to your working balance!`,
+        type: 'success'
+      });
+
+      return res.json({
+        success: true,
+        message: `Deposit of $${depositAmount.toFixed(2)} approved. User balance credited to $${newBalance.toFixed(2)}.`
+      });
+    } else if (action === 'reject') {
+      await db.updateDeposit(depositId, {
+        status: 'rejected',
+        admin_notes: notes || 'Invalid transaction hash / receipt',
+        rejected_at: new Date().toISOString()
+      });
+
+      await db.createNotification({
+        user_id: user.id,
+        title: 'Deposit Rejected ⚠️',
+        message: `Your deposit request of $${depositAmount.toFixed(2)} was rejected. Reason: ` + (notes || 'Invalid transaction receipt.'),
+        type: 'error'
+      });
+
+      return res.json({
+        success: true,
+        message: `Deposit of $${depositAmount.toFixed(2)} marked as rejected.`
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Invalid action' });
+  } catch (err) {
+    console.error('Deposit Action Error:', err);
+    res.status(500).json({ success: false, message: 'Error processing deposit action: ' + err.message });
   }
-
-  const user = await db.findUserById(deposit.user_id);
-  if (!user) {
-    return res.status(404).json({ success: false, message: 'Associated user not found' });
-  }
-
-  if (action === 'approve') {
-    const newBalance = parseFloat((user.balance + deposit.amount).toFixed(2));
-    await db.updateUser(user.id, { balance: newBalance });
-    await db.updateDeposit(depositId, {
-      status: 'approved',
-      admin_notes: notes || 'Verified on blockchain',
-      approved_at: new Date().toISOString()
-    });
-
-    await db.createNotification({
-      user_id: user.id,
-      title: 'Deposit Approved! 💳',
-      message: `Your deposit of $${deposit.amount.toFixed(2)} (${deposit.method}) has been approved and credited to your working balance!`,
-      type: 'success'
-    });
-
-    return res.json({
-      success: true,
-      message: `Deposit of $${deposit.amount.toFixed(2)} approved. User balance credited to $${newBalance.toFixed(2)}.`
-    });
-  } else if (action === 'reject') {
-    await db.updateDeposit(depositId, {
-      status: 'rejected',
-      admin_notes: notes || 'Invalid transaction hash / receipt',
-      rejected_at: new Date().toISOString()
-    });
-
-    await db.createNotification({
-      user_id: user.id,
-      title: 'Deposit Rejected ⚠️',
-      message: `Your deposit request of $${deposit.amount.toFixed(2)} was rejected. Reason: ` + (notes || 'Invalid transaction receipt.'),
-      type: 'error'
-    });
-
-    return res.json({
-      success: true,
-      message: `Deposit of $${deposit.amount.toFixed(2)} marked as rejected.`
-    });
-  }
-
-  return res.status(400).json({ success: false, message: 'Invalid action' });
 });
 
 // GET /api/admin/withdrawals
 router.get('/withdrawals', adminAuthMiddleware, async (req, res) => {
-  const withdrawals = await db.getWithdrawals();
-  res.json({ success: true, withdrawals });
+  try {
+    const withdrawals = await db.getWithdrawals();
+    res.json({ success: true, withdrawals });
+  } catch (err) {
+    console.error('Fetch Withdrawals Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching withdrawals' });
+  }
 });
 
 // POST /api/admin/withdrawals/action
 router.post('/withdrawals/action', adminAuthMiddleware, async (req, res) => {
-  const { withdrawalId, action, notes } = req.body;
-  const withdrawals = await db.getWithdrawals();
-  const withdrawal = withdrawals.find(w => w.id === withdrawalId);
+  try {
+    const { withdrawalId, action, notes } = req.body;
+    const withdrawals = await db.getWithdrawals();
+    const withdrawal = withdrawals.find(w => w.id === withdrawalId);
 
-  if (!withdrawal) {
-    return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    }
+
+    const user = await db.findUserById(withdrawal.user_id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Associated user not found' });
+    }
+
+    const withdrawAmount = parseFloat(withdrawal.amount) || 0;
+    const currentFrozen = parseFloat(user.frozen_balance) || 0;
+    const currentBalance = parseFloat(user.balance) || 0;
+
+    if (action === 'approve') {
+      const newFrozen = parseFloat(Math.max(0, currentFrozen - withdrawAmount).toFixed(2));
+      await db.updateUser(user.id, { frozen_balance: newFrozen });
+      await db.updateWithdrawal(withdrawalId, {
+        status: 'approved',
+        admin_notes: notes || 'Payout transferred to destination address',
+        approved_at: new Date().toISOString()
+      });
+
+      await db.createNotification({
+        user_id: user.id,
+        title: 'Withdrawal Paid! 💸',
+        message: `Your withdrawal of $${withdrawAmount.toFixed(2)} has been successfully approved and payout dispatched!`,
+        type: 'success'
+      });
+
+      return res.json({
+        success: true,
+        message: `Withdrawal of $${withdrawAmount.toFixed(2)} approved and marked as paid.`
+      });
+    } else if (action === 'reject') {
+      // Refund frozen balance back to working balance
+      const newFrozen = parseFloat(Math.max(0, currentFrozen - withdrawAmount).toFixed(2));
+      const newBalance = parseFloat((currentBalance + withdrawAmount).toFixed(2));
+      await db.updateUser(user.id, { balance: newBalance, frozen_balance: newFrozen });
+
+      await db.updateWithdrawal(withdrawalId, {
+        status: 'rejected',
+        admin_notes: notes || 'Withdrawal request rejected by admin',
+        rejected_at: new Date().toISOString()
+      });
+
+      await db.createNotification({
+        user_id: user.id,
+        title: 'Withdrawal Rejected ⚠️',
+        message: `Your withdrawal request of $${withdrawAmount.toFixed(2)} was rejected. Funds have been returned to your working balance. Reason: ` + (notes || 'Address verification failed.'),
+        type: 'warning'
+      });
+
+      return res.json({
+        success: true,
+        message: `Withdrawal of $${withdrawAmount.toFixed(2)} rejected. $${withdrawAmount.toFixed(2)} refunded to user balance.`
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Invalid action' });
+  } catch (err) {
+    console.error('Withdrawal Action Error:', err);
+    res.status(500).json({ success: false, message: 'Error processing withdrawal action: ' + err.message });
   }
-
-  const user = await db.findUserById(withdrawal.user_id);
-  if (!user) {
-    return res.status(404).json({ success: false, message: 'Associated user not found' });
-  }
-
-  if (action === 'approve') {
-    const newFrozen = parseFloat(Math.max(0, user.frozen_balance - withdrawal.amount).toFixed(2));
-    await db.updateUser(user.id, { frozen_balance: newFrozen });
-    await db.updateWithdrawal(withdrawalId, {
-      status: 'approved',
-      admin_notes: notes || 'Payout transferred to destination address',
-      approved_at: new Date().toISOString()
-    });
-
-    await db.createNotification({
-      user_id: user.id,
-      title: 'Withdrawal Paid! 💸',
-      message: `Your withdrawal of $${withdrawal.amount.toFixed(2)} has been successfully approved and payout dispatched!`,
-      type: 'success'
-    });
-
-    return res.json({
-      success: true,
-      message: `Withdrawal of $${withdrawal.amount.toFixed(2)} marked as approved/paid.`
-    });
-  } else if (action === 'reject') {
-    const newFrozen = parseFloat(Math.max(0, user.frozen_balance - withdrawal.amount).toFixed(2));
-    const newBalance = parseFloat((user.balance + withdrawal.amount).toFixed(2));
-
-    await db.updateUser(user.id, {
-      balance: newBalance,
-      frozen_balance: newFrozen
-    });
-
-    await db.updateWithdrawal(withdrawalId, {
-      status: 'rejected',
-      admin_notes: notes || 'Rejected and refunded to account balance',
-      rejected_at: new Date().toISOString()
-    });
-
-    await db.createNotification({
-      user_id: user.id,
-      title: 'Withdrawal Refunded ⚠️',
-      message: `Your withdrawal request of $${withdrawal.amount.toFixed(2)} was rejected and $${withdrawal.amount.toFixed(2)} has been refunded back to your working balance. Note: ` + (notes || 'Details unverified.'),
-      type: 'warning'
-    });
-
-    return res.json({
-      success: true,
-      message: `Withdrawal rejected. $${withdrawal.amount.toFixed(2)} refunded to user balance.`
-    });
-  }
-
-  return res.status(400).json({ success: false, message: 'Invalid action' });
 });
 
 // GET /api/admin/tickets - Support query tickets

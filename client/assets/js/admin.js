@@ -214,23 +214,24 @@
       tbody.innerHTML = state.users.map(u => `
         <tr>
           <td>
-            <div class="font-weight-bold">${u.fullname || u.username}</div>
+            <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(u.fullname || u.username || 'User')}</div>
+            <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(u.username || 'user')}</div>
             <small class="text-muted">ID: ${u.id}</small>
           </td>
           <td>
-            <div>${u.email}</div>
-            <small class="text-muted">${u.phone || 'No phone'}</small>
+            <div style="font-weight: 600; color: #334155;">${escapeHtml(u.email)}</div>
+            <small class="text-muted"><i class="fa fa-phone mr-1"></i>${escapeHtml(u.phone || 'No phone')}</small>
           </td>
-          <td><span class="badge badge-primary" style="padding: 5px 8px;">${u.vip_level} VIP</span></td>
-          <td class="font-weight-bold text-success">$${parseFloat(u.balance).toFixed(2)}</td>
-          <td class="text-muted">$${parseFloat(u.frozen_balance || 0).toFixed(2)}</td>
+          <td><span class="badge badge-primary" style="padding: 5px 8px; font-weight: 700;">${u.vip_level} VIP</span></td>
+          <td class="font-weight-bold text-success" style="font-size: 14.5px;">$${parseFloat(u.balance).toFixed(2)}</td>
+          <td class="text-muted font-weight-bold">$${parseFloat(u.frozen_balance || 0).toFixed(2)}</td>
           <td class="text-info font-weight-bold">+$${parseFloat(u.today_profit || 0).toFixed(2)}</td>
           <td>
-            <span class="badge ${u.kyc_status === 'approved' ? 'badge-success' : (u.kyc_status === 'pending' ? 'badge-warning' : 'badge-secondary')}">
-              ${u.kyc_status || 'none'}
+            <span class="badge ${u.kyc_status === 'approved' ? 'badge-success' : (u.kyc_status === 'pending' ? 'badge-warning' : 'badge-secondary')}" style="font-weight: 700;">
+              ${(u.kyc_status || 'none').toUpperCase()}
             </span>
           </td>
-          <td><span class="badge ${u.status === 'active' ? 'badge-success' : 'badge-danger'}">${u.status}</span></td>
+          <td><span class="badge ${u.status === 'active' ? 'badge-success' : 'badge-danger'}" style="font-weight: 700;">${(u.status || 'active').toUpperCase()}</span></td>
           <td>
             <div class="btn-group">
               <button class="btn-action btn-edit mr-1" onclick="openEditUserModal('${u.id}')">
@@ -243,6 +244,8 @@
           </td>
         </tr>
       `).join('');
+    } else {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger">Failed to load user accounts.</td></tr>`;
     }
   };
 
@@ -250,7 +253,7 @@
     const user = state.users.find(u => u.id === userId);
     if (!user) return;
     document.getElementById('editUserId').value = user.id;
-    document.getElementById('editUserEmail').value = `${user.fullname} (${user.email})`;
+    document.getElementById('editUserEmail').value = `${user.fullname} (@${user.username}) - ${user.email}`;
     document.getElementById('editUserVip').value = user.vip_level;
     document.getElementById('editUserBalance').value = user.balance;
     document.getElementById('editUserFrozenBalance').value = user.frozen_balance || 0;
@@ -264,7 +267,7 @@
     const user = state.users.find(u => u.id === userId);
     if (!user) return;
     document.getElementById('resetPassUserId').value = user.id;
-    document.getElementById('resetPassUserName').textContent = `${user.fullname} (${user.email})`;
+    document.getElementById('resetPassUserName').textContent = `${user.fullname} (@${user.username}) [${user.email}]`;
     document.getElementById('newDirectPassword').value = '';
     $('#resetPasswordModal').modal('show');
   };
@@ -282,8 +285,9 @@
       tbody.innerHTML = state.kycs.map(k => `
         <tr>
           <td>
-            <div class="font-weight-bold">${k.name}</div>
-            <small class="text-muted">${k.user_email}</small>
+            <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(k.name || k.fullname || 'Applicant')}</div>
+            ${k.username ? `<div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(k.username)}</div>` : ''}
+            <small class="text-muted">${escapeHtml(k.user_email)}</small>
           </td>
           <td>
             <button class="btn btn-sm btn-outline-primary font-weight-bold py-1 px-2" style="font-size: 12px; border-radius: 6px;" onclick="zoomKycDoc('${k.id}', 'front')">
@@ -326,13 +330,13 @@
 
     if (type === 'front') {
       src = kyc.front_id_image || 'assets/uploads/contracts/id_sample_front.png';
-      title = `Front Side of ID Card - ${kyc.name}`;
+      title = `Front Side of ID Card - ${kyc.name || kyc.fullname}`;
     } else if (type === 'back') {
       src = kyc.back_id_image || 'assets/uploads/contracts/id_sample_back.png';
-      title = `Back Side of ID Card - ${kyc.name}`;
+      title = `Back Side of ID Card - ${kyc.name || kyc.fullname}`;
     } else {
       src = kyc.signature_image || 'assets/uploads/contracts/defaultsignature.jpeg';
-      title = `Applicant Signature - ${kyc.name}`;
+      title = `Applicant Signature - ${kyc.name || kyc.fullname}`;
     }
 
     zoomImage(src, title);
@@ -341,7 +345,7 @@
   // SweetAlert2 KYC Confirmation
   window.confirmKycAction = async function(kycId, action) {
     const kyc = state.kycs.find(k => k.id === kycId);
-    const applicantName = kyc ? kyc.name : 'User';
+    const applicantName = kyc ? (kyc.name || kyc.fullname) : 'User';
 
     if (action === 'approve') {
       const result = await Swal.fire({
@@ -434,12 +438,16 @@
       tbody.innerHTML = state.deposits.map(d => `
         <tr>
           <td>
-            <div class="font-weight-bold">${d.id}</div>
+            <div class="font-weight-bold" style="font-family: monospace; font-size: 12px; color: #475569;">${d.id}</div>
             <small class="text-muted">${new Date(d.created_at).toLocaleString()}</small>
           </td>
-          <td>${d.user_email}</td>
-          <td class="font-weight-bold text-success">$${parseFloat(d.amount).toFixed(2)}</td>
-          <td><span class="badge badge-info">${d.method}</span></td>
+          <td>
+            <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(d.fullname || d.username || 'Merchant User')}</div>
+            <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(d.username || 'user')}</div>
+            <div style="font-size: 11.5px; color: #64748b;">${escapeHtml(d.user_email)}</div>
+          </td>
+          <td class="font-weight-bold text-success" style="font-size: 15px;">+$${parseFloat(d.amount).toFixed(2)}</td>
+          <td><span class="badge badge-info" style="padding: 4px 8px; font-weight: 700;">${d.method}</span></td>
           <td>
             <div class="d-flex align-items-center gap-2">
               <code style="font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; display: inline-block;">${d.txid}</code>
@@ -490,8 +498,8 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#f8fafc;padding:16px;border-radius:12px;margin-bottom:20px;font-size:13.5px;">
             <div><span class="text-muted">Deposit ID:</span> <strong>${dep.id}</strong></div>
-            <div><span class="text-muted">User Account:</span> <strong>${dep.user_email}</strong></div>
-            <div><span class="text-muted">Deposit Amount:</span> <strong style="color:#2ec4b6;font-size:16px;">$${parseFloat(dep.amount).toFixed(2)}</strong></div>
+            <div><span class="text-muted">User Account:</span> <strong>${escapeHtml(dep.fullname || dep.username || 'User')} (${dep.user_email})</strong></div>
+            <div><span class="text-muted">Deposit Amount:</span> <strong style="color:#2ec4b6;font-size:16px;">+$${parseFloat(dep.amount).toFixed(2)}</strong></div>
             <div><span class="text-muted">Payment Method:</span> <span class="badge badge-info">${dep.method}</span></div>
             <div style="grid-column: span 2;">
               <span class="text-muted">Blockchain TxHash:</span>
@@ -588,11 +596,15 @@
       tbody.innerHTML = state.withdrawals.map(w => `
         <tr>
           <td>
-            <div class="font-weight-bold">${w.id}</div>
+            <div class="font-weight-bold" style="font-family: monospace; font-size: 12px; color: #475569;">${w.id}</div>
             <small class="text-muted">${new Date(w.created_at).toLocaleString()}</small>
           </td>
-          <td>${w.user_email}</td>
-          <td class="font-weight-bold text-danger">$${parseFloat(w.amount).toFixed(2)}</td>
+          <td>
+            <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(w.fullname || w.username || 'Merchant User')}</div>
+            <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(w.username || 'user')}</div>
+            <div style="font-size: 11.5px; color: #64748b;">${escapeHtml(w.user_email)}</div>
+          </td>
+          <td class="font-weight-bold text-danger" style="font-size: 15px;">-$${parseFloat(w.amount).toFixed(2)}</td>
           <td>
             <div><strong style="font-size: 13px;">${w.method} (${w.network || 'TRC20'})</strong></div>
             <code style="font-size: 11px;">${w.wallet_address || (w.bank_name + ' - ' + w.iban)}</code>

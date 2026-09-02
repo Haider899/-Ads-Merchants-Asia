@@ -125,8 +125,17 @@ const db = {
   },
 
   getDeposits: async (userId) => {
-    if (userId) return await query('SELECT * FROM deposits WHERE user_id = ? ORDER BY created_at DESC', [userId]);
-    return await query('SELECT * FROM deposits ORDER BY created_at DESC');
+    let sql = `
+      SELECT d.*, u.username, u.fullname, u.phone 
+      FROM deposits d 
+      LEFT JOIN users u ON d.user_id = u.id
+    `;
+    if (userId) {
+      sql += ` WHERE d.user_id = ? ORDER BY d.created_at DESC`;
+      return await query(sql, [userId]);
+    }
+    sql += ` ORDER BY d.created_at DESC`;
+    return await query(sql);
   },
 
   createDeposit: async (depositData) => {
@@ -145,8 +154,17 @@ const db = {
   },
 
   getWithdrawals: async (userId) => {
-    if (userId) return await query('SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC', [userId]);
-    return await query('SELECT * FROM withdrawals ORDER BY created_at DESC');
+    let sql = `
+      SELECT w.*, u.username, u.fullname, u.phone 
+      FROM withdrawals w 
+      LEFT JOIN users u ON w.user_id = u.id
+    `;
+    if (userId) {
+      sql += ` WHERE w.user_id = ? ORDER BY w.created_at DESC`;
+      return await query(sql, [userId]);
+    }
+    sql += ` ORDER BY w.created_at DESC`;
+    return await query(sql);
   },
 
   createWithdrawal: async (withdrawalData) => {
@@ -166,8 +184,17 @@ const db = {
 
   // KYC Helpers
   getKycSubmissions: async (userId) => {
-    if (userId) return await query('SELECT * FROM kyc_submissions WHERE user_id = ? ORDER BY created_at DESC', [userId]);
-    return await query('SELECT * FROM kyc_submissions ORDER BY created_at DESC');
+    let sql = `
+      SELECT k.*, u.username, u.fullname, u.phone 
+      FROM kyc_submissions k 
+      LEFT JOIN users u ON k.user_id = u.id
+    `;
+    if (userId) {
+      sql += ` WHERE k.user_id = ? ORDER BY k.created_at DESC`;
+      return await query(sql, [userId]);
+    }
+    sql += ` ORDER BY k.created_at DESC`;
+    return await query(sql);
   },
 
   createKycSubmission: async (kycData) => {

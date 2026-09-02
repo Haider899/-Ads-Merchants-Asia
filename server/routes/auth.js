@@ -78,7 +78,7 @@ router.post('/register', async (req, res) => {
       gender: gender || 'Male',
       password_hash,
       vip_level: 'Bronze',
-      balance: 50.00, // Welcome trial bonus
+      balance: 0.00,
       frozen_balance: 0.00,
       today_profit: 0.00,
       today_tasks_completed: 0,
@@ -99,7 +99,7 @@ router.post('/register', async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Registration successful! Welcome bonus of $50.00 credited.',
+      message: 'Registration successful! Account activated.',
       token,
       user: safeUser
     });
