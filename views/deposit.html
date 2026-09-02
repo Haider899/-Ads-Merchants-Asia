@@ -796,21 +796,21 @@
 
                         <div class="input-group">
 
-                            <div class="deposit-receipt-upload" id="receiptUploadBox" onclick="document.getElementById('depositReceiptInput').click()" style="border: 2px dashed #f3771d; border-radius: 14px; background: #fffaf5; padding: 22px 16px; text-align: center; cursor: pointer; margin-bottom: 18px; width: 100%; transition: all 0.2s ease;">
-                                <div id="receiptUploadPlaceholder">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#f3771d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 10px; display: block;">
+                            <div class="deposit-receipt-upload" id="receiptUploadBox" onclick="document.getElementById('depositReceiptInput').click()" style="border: 2px dashed #007bff; border-radius: 12px; background: #f8fafc; padding: 20px 14px; text-align: center; cursor: pointer; margin-bottom: 15px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                <div id="receiptUploadPlaceholder" style="width: 100%; text-align: center;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px; display: block;">
                                         <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
                                         <path d="M12 12v9"></path>
                                         <path d="m16 16-4-4-4 4"></path>
                                     </svg>
-                                    <div style="font-weight: 700; font-size: 14px; color: #1e293b; margin-bottom: 4px;">Upload Payment Receipt / Transfer Screenshot *</div>
-                                    <div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">Supports JPG, PNG, WEBP (Max 10MB)</div>
-                                    <div style="display: inline-block; background: linear-gradient(90deg, #f7941d 0%, #f15a24 100%); color: #ffffff; font-weight: 600; font-size: 12px; padding: 7px 22px; border-radius: 30px; box-shadow: 0 3px 10px rgba(243, 119, 29, 0.3);">Browse Image</div>
+                                    <div style="font-weight: 700; font-size: 14px; color: #1e293b; margin-bottom: 3px;">Upload Payment Receipt / Transfer Screenshot *</div>
+                                    <div style="font-size: 11.5px; color: #64748b; margin-bottom: 10px;">Supports JPG, PNG, WEBP (Max 10MB)</div>
+                                    <span style="display: inline-block; background-color: #007bff; color: #ffffff; font-weight: 600; font-size: 12px; padding: 6px 20px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,123,255,0.25);">Browse Image</span>
                                 </div>
-                                <div id="receiptPreviewContainer" style="display: none;">
-                                    <img id="receiptPreviewImg" src="" style="max-height: 150px; max-width: 100%; border-radius: 10px; object-fit: contain; box-shadow: 0 3px 10px rgba(0,0,0,0.1); margin-bottom: 10px;" />
+                                <div id="receiptPreviewContainer" style="display: none; width: 100%; text-align: center;">
+                                    <img id="receiptPreviewImg" src="" style="max-height: 140px; max-width: 100%; border-radius: 8px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 8px;" />
                                     <div>
-                                        <span style="display: inline-block; background: #ffffff; color: #f3771d; border: 1.5px solid #f3771d; font-size: 12px; font-weight: 600; padding: 5px 18px; border-radius: 20px;">Change Receipt</span>
+                                        <span style="display: inline-block; background: #ffffff; color: #007bff; border: 1px solid #007bff; font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 6px;">Change Receipt</span>
                                     </div>
                                 </div>
                             </div>
