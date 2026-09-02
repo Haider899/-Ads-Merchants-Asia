@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+require('dotenv').config();
 
-const JWT_SECRET = 'ads_merchants_asia_super_secret_jwt_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'ads_merchants_asia_super_secret_jwt_key_2026';
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const token = req.cookies.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
   
   if (!token) {
@@ -12,7 +13,7 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = db.findUserById(decoded.id);
+    const user = await db.findUserById(decoded.id);
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
