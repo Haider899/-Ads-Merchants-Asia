@@ -291,10 +291,10 @@
       }
 
       const payload = {
-        fullname: nameInput.value.trim(),
-        phone: phoneInput.value.trim(),
-        email: emailInput.value.trim(),
-        password: passInput.value,
+        fullname: nameVal,
+        phone: phoneVal,
+        email: emailVal,
+        password: passVal,
         gender: genderSelect ? genderSelect.value : 'Male',
         referral_code: referralInput ? referralInput.value.trim() : ''
       };
