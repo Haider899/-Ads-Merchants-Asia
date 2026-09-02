@@ -31,7 +31,7 @@
           },
           body: JSON.stringify(data)
         });
-        if (res.status === 401 && !window.location.pathname.includes('login') && !window.location.pathname.includes('register') && !window.location.pathname.includes('admin')) {
+        if (res.status === 401 && !window.location.pathname.includes('login') && !window.location.pathname.includes('register') && window.location.pathname !== '/' && window.location.pathname !== '/index.html' && !window.location.pathname.includes('admin')) {
           window.location.href = '/login';
           return null;
         }
@@ -115,14 +115,14 @@
         populateUserData(currentUser);
         checkUserNotifications();
         setInterval(checkUserNotifications, 15000); // Check every 15s
-      } else if (isProtected && !pathname.includes('login') && !pathname.includes('register')) {
+      } else if (isProtected && !pathname.includes('login') && !pathname.includes('register') && pathname !== '/' && pathname !== '/index.html') {
         window.location.href = '/login';
         return;
       }
     }
 
     // 2. Page Specific Handlers
-    if (pathname.includes('login')) {
+    if (pathname === '/' || pathname === '/index.html' || pathname.includes('login')) {
       initLoginPage();
     } else if (pathname.includes('register')) {
       initRegisterPage();
@@ -208,21 +208,10 @@
     const form = document.getElementById('loginForm') || document.querySelector('form');
     if (!form) return;
 
-    const demoBtn = document.getElementById('quickFillDemo');
-    if (demoBtn) {
-      demoBtn.addEventListener('click', () => {
-        const idInput = document.getElementById('loginIdentifier') || document.querySelector('input[type="text"], input[type="email"]');
-        const passInput = document.getElementById('loginPassword') || document.querySelector('input[type="password"]');
-        if (idInput) idInput.value = 'repofa5484@prorises.com';
-        if (passInput) passInput.value = 'Password';
-        showBridgeToast('Demo Account Filled', 'Credentials loaded: repofa5484@prorises.com / Password', 'info');
-      });
-    }
-
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const identifierInput = document.getElementById('loginIdentifier') || document.querySelector('input[type="text"], input[type="email"]');
-      const passwordInput = document.getElementById('loginPassword') || document.querySelector('input[type="password"]');
+      const identifierInput = document.getElementById('loginIdentifier') || document.querySelector('input[name="username"], input[name="email"], input[type="text"], input[type="email"]');
+      const passwordInput = document.getElementById('loginPassword') || document.querySelector('input[name="password"], input[type="password"]');
       const submitBtn = form.querySelector('button[type="submit"]');
 
       if (!identifierInput || !passwordInput) return;
@@ -235,84 +224,110 @@
         return;
       }
 
+      const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Log In';
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Logging In...';
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Logging In...';
       }
 
-      const res = await API.post('/api/auth/login', { identifier, password });
+      try {
+        const res = await API.post('/api/auth/login', { identifier, password });
 
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Log In';
-      }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
 
-      if (res && res.success) {
-        showBridgeToast('Login Successful', `Welcome back, ${res.user.fullname || res.user.username}!`, 'success');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 600);
-      } else {
-        showBridgeToast('Login Failed', (res && res.message) || 'Invalid login credentials', 'error');
+        if (res && res.success) {
+          showBridgeToast('Login Successful', `Welcome back, ${res.user.fullname || res.user.username}!`, 'success');
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 500);
+        } else {
+          showBridgeToast('Login Failed', (res && res.message) || 'Invalid login credentials', 'error');
+        }
+      } catch (err) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
+        showBridgeToast('Login Error', err.message || 'An error occurred during login', 'error');
       }
     });
   }
 
   // REGISTER PAGE HANDLER
   function initRegisterPage() {
-    const form = document.getElementById('signupForm') || document.querySelector('form');
+    const form = document.getElementById('signupForm') || document.getElementById('registerForm') || document.querySelector('form');
     if (!form) return;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const nameInput = document.getElementById('signupName') || document.querySelector('input[name="fullname"], input[placeholder*="Name"]');
+      const nameInput = document.getElementById('fullname') || document.getElementById('signupName') || document.querySelector('input[name="fullname"]');
+      const usernameInput = document.getElementById('username') || document.querySelector('input[name="username"]');
       const phoneInput = document.getElementById('signupPhone') || document.querySelector('input[name="phone"], input[type="tel"]');
-      const emailInput = document.getElementById('signupEmail') || document.querySelector('input[name="email"], input[type="email"]');
-      const passInput = document.getElementById('signupPassword') || document.querySelector('input[name="password"]');
+      const emailInput = document.getElementById('email') || document.getElementById('signupEmail') || document.querySelector('input[name="email"], input[type="email"]');
+      const passInput = document.getElementById('userpassword') || document.getElementById('signupPassword') || document.querySelector('input[name="password"]');
+      const confirmPassInput = document.getElementById('confirmpassword') || document.querySelector('input[name="confirmpassword"]');
       const genderSelect = document.getElementById('signupGender') || document.querySelector('select[name="gender"]');
       const referralInput = document.getElementById('signupReferral') || document.querySelector('input[name="referral"]');
       const submitBtn = form.querySelector('button[type="submit"]');
 
-      if (!nameInput || !emailInput || !passInput) return;
-
-      const nameVal = nameInput.value.trim();
-      const phoneVal = phoneInput ? phoneInput.value.trim() : '0000000000'; // Dummy if missing
-      const emailVal = emailInput.value.trim();
-      const passVal = passInput.value;
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+      const usernameVal = usernameInput ? usernameInput.value.trim() : '';
+      const phoneVal = phoneInput ? phoneInput.value.trim() : '';
+      const emailVal = emailInput ? emailInput.value.trim() : '';
+      const passVal = passInput ? passInput.value : '';
+      const confirmPassVal = confirmPassInput ? confirmPassInput.value : '';
 
       if (!nameVal || !emailVal || !passVal) {
         showBridgeToast('Validation Error', 'Please complete all required fields.', 'error');
         return;
       }
 
+      if (confirmPassVal && passVal !== confirmPassVal) {
+        showBridgeToast('Validation Error', 'Passwords do not match.', 'error');
+        return;
+      }
+
+      const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Sign Up';
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Creating Account...';
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating Account...';
       }
 
-      const payload = {
-        fullname: nameVal,
-        phone: phoneVal,
-        email: emailVal,
-        password: passVal,
-        gender: genderSelect ? genderSelect.value : 'Male',
-        referral_code: referralInput ? referralInput.value.trim() : ''
-      };
+      try {
+        const payload = {
+          fullname: nameVal,
+          username: usernameVal,
+          phone: phoneVal,
+          email: emailVal,
+          password: passVal,
+          gender: genderSelect ? genderSelect.value : 'Male',
+          referral_code: referralInput ? referralInput.value.trim() : ''
+        };
 
-      const res = await API.post('/api/auth/register', payload);
+        const res = await API.post('/api/auth/register', payload);
 
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign Up';
-      }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
 
-      if (res && res.success) {
-        showBridgeToast('Welcome Bonus Credited!', res.message, 'success');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 800);
-      } else {
-        showBridgeToast('Registration Failed', (res && res.message) || 'Could not complete registration', 'error');
+        if (res && res.success) {
+          showBridgeToast('Welcome!', res.message, 'success');
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 600);
+        } else {
+          showBridgeToast('Registration Failed', (res && res.message) || 'Could not complete registration', 'error');
+        }
+      } catch (err) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
+        showBridgeToast('Registration Error', err.message || 'An error occurred during registration', 'error');
       }
     });
   }

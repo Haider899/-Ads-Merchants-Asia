@@ -5,365 +5,337 @@
     <title>Ads Merchants Asia - Log In</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta content="Amazon Asia Merchant" name="description" />
-    <meta content="" name="author" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     
-    <!-- App favicon -->
-    <link rel="shortcut icon" href="https://adsmerchantsasia.com/assets/uploads/logo/1742595477_icon.png">
-    
-    <!-- Google Fonts Poppins & Bootstrap & Icons -->
+    <!-- Google Fonts Poppins & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dripicons@2.0.0/css/dripicons.css">
 
     <style>
-        body, html {
-            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            background-color: #edf0f5;
         }
 
-        .align-self-center {
-            padding-top: 50px;
-            padding-bottom: 50px;
-        }
-
-        .account-body.accountbg {
-            background: #edf0f5;
-            width: 100%;
+        body, html {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f3f8;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 40px 15px;
         }
 
-        .auth-page {
-            max-width: 520px;
-            margin: 0 auto;
+        .auth-container {
             width: 100%;
+            max-width: 460px;
+            margin: auto;
         }
 
-        .card {
-            background-color: #fff;
-            color: #000;
-            border: none;
-            border-radius: 0.5rem;
-            box-shadow: 0px 4px 20px rgba(31, 30, 47, 0.08) !important;
-        }
-
-        .card-body {
-            padding: 2.2rem 2rem 1.8rem;
-        }
-
-        .auth-logo-box {
+        .auth-card {
+            background: #ffffff;
+            border-radius: 28px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+            padding: 0 34px 28px;
+            position: relative;
             text-align: center;
-            margin-bottom: 10px;
         }
 
-        .auth-logo-box .auth-logo {
-            border-radius: 1rem;
-            background-color: #fff;
-            padding: 4px;
-            height: 110px;
-            max-width: 220px;
+        /* Top Floating Logo Badge */
+        .logo-badge-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+            position: relative;
+            top: -38px;
+            margin-bottom: -18px;
+        }
+
+        .logo-badge {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            padding: 10px 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-badge img {
+            height: 70px;
+            max-width: 170px;
             object-fit: contain;
         }
 
-        .account-body .auth-card .auth-logo-text h4 {
-            font-weight: 600;
-            color: #000;
+        .auth-title {
             font-size: 22px;
-            font-family: 'Poppins', sans-serif;
-        }
-
-        .text-muted {
-            color: #000 !important;
-            font-size: 13.5px;
-            line-height: 1.5;
-        }
-
-        label {
-            font-weight: 400;
-            color: #000;
-            font-size: 13px;
+            font-weight: 700;
+            color: #111111;
             margin-bottom: 6px;
-            display: block;
         }
 
-        .input-group {
-            position: relative;
-        }
-
-        .form-control {
-            height: 42px;
-            border: 1px solid #e8ebf3;
-            border-radius: 4px;
-            padding: 6px 42px 6px 14px;
+        .auth-subtitle {
             font-size: 13px;
-            color: #303e67;
-            background-color: #fff;
-            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            color: #333333;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            padding: 0 10px;
         }
 
-        .form-control::placeholder {
-            color: #b0b7c7;
+        .form-group {
+            margin-bottom: 18px;
+            text-align: left;
         }
 
-        .form-control:focus {
-            border-color: #4d69db;
-            box-shadow: 0 0 0 0.15rem rgba(77, 105, 219, 0.15);
-            background-color: #fff;
-            color: #303e67;
+        .form-group label {
+            display: block;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: #333333;
+            margin-bottom: 6px;
         }
 
-        .auth-form .auth-form-icon {
-            width: 32px;
-            height: 32px;
-            background-color: #edf0f5;
-            text-align: center;
-            line-height: 32px;
-            border-radius: 50%;
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-control-pill {
+            width: 100%;
+            height: 48px;
+            border-radius: 50px;
+            border: 1px solid #dbe2ea;
+            background-color: #ffffff;
+            padding: 10px 46px 10px 20px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #333333;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-control-pill::placeholder {
+            color: #9aa5b5;
+        }
+
+        .form-control-pill:focus {
+            border-color: #f3771d;
+            box-shadow: 0 0 0 3px rgba(243, 119, 29, 0.15);
+            background-color: #ffffff;
+        }
+
+        .input-icon-right {
             position: absolute;
-            right: 5px;
-            z-index: 10;
-            top: 5px;
-            color: #303e67;
+            right: 18px;
+            color: #555555;
+            font-size: 16px;
             cursor: pointer;
+            user-select: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        .auth-form .auth-form-icon:hover {
-            color: #f3771d;
-        }
-
-        .btn-gradient-warning {
-            background: linear-gradient(14deg, #f3771d 0%, #f79839 100%);
-            border: none;
-            color: #fff !important;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 10px 20px;
-            box-shadow: 0 4px 12px rgba(243, 119, 29, 0.3) !important;
-            transition: all 0.3s ease-out;
-        }
-
-        .btn-gradient-warning:hover {
-            background: linear-gradient(14deg, #e56a10 0%, #f3771d 100%);
-            box-shadow: 0 6px 16px rgba(243, 119, 29, 0.45) !important;
-            transform: translateY(-1px);
-        }
-
-        .btn-gradient-warning:active {
-            transform: translateY(0);
-        }
-
-        .btn-round {
-            border-radius: 30px;
-        }
-
-        p a:hover, a:hover {
-            color: #4d69db !important;
-            text-decoration: none;
-        }
-
-        .orange-link {
-            color: #f3771d !important;
             transition: color 0.2s;
         }
 
-        .orange-link:hover {
-            color: #d6600c !important;
+        .input-icon-right:hover {
+            color: #f3771d;
+        }
+
+        .forgot-pass-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+            margin-bottom: 22px;
+        }
+
+        .forgot-pass-link {
+            color: #f3771d;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: opacity 0.2s;
+        }
+
+        .forgot-pass-link:hover {
+            opacity: 0.85;
             text-decoration: underline;
         }
 
-        /* Loading Spinner Animation */
-        .fa-spin {
-            animation: fa-spin 1s infinite linear;
+        .btn-submit-pill {
+            width: 100%;
+            height: 48px;
+            border-radius: 50px;
+            background: linear-gradient(90deg, #f7941d 0%, #f15a24 100%);
+            border: none;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 5px 18px rgba(243, 119, 29, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
         }
 
-        @keyframes fa-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .btn-submit-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 7px 22px rgba(243, 119, 29, 0.45);
         }
 
-        /* Alert styling */
-        .toast-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            min-width: 280px;
-            background: #fff;
-            border-left: 4px solid #f3771d;
-            border-radius: 4px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-            padding: 12px 18px;
-            display: none;
-            animation: fadeIn 0.3s ease;
+        .btn-submit-pill:active {
+            transform: translateY(0);
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .btn-submit-pill:disabled {
+            opacity: 0.75;
+            cursor: not-allowed;
+            transform: none;
         }
 
-        @media (max-width: 576px) {
-            .align-self-center {
-                padding-top: 25px;
-                padding-bottom: 25px;
+        .switch-auth-row {
+            margin-top: 22px;
+            font-size: 13.5px;
+            color: #333333;
+        }
+
+        .switch-auth-link {
+            color: #f3771d;
+            font-weight: 600;
+            text-decoration: none;
+            margin-left: 4px;
+        }
+
+        .switch-auth-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            margin-top: 18px;
+            font-size: 12px;
+            color: #7081b9;
+        }
+
+        .footer-copyright .brand-name {
+            color: #f3771d;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .auth-card {
+                padding: 0 20px 24px;
+                border-radius: 20px;
             }
-            .card-body {
-                padding: 1.5rem 1.2rem;
+            .logo-badge {
+                padding: 8px 18px;
             }
-            .auth-logo-box .auth-logo {
-                height: 90px;
+            .logo-badge img {
+                height: 56px;
             }
         }
     </style>
 </head>
-<body class="account-body accountbg">
+<body>
 
-    <!-- Toast Notification for Demo / Alerts -->
-    <div id="toastNotification" class="toast-notification">
-        <div id="toastMsg" style="font-size: 13px; font-weight: 500; color: #303e67;"></div>
+    <div class="auth-container">
+        <div class="auth-card">
+            
+            <!-- Top Floating Logo Badge -->
+            <div class="logo-badge-wrapper">
+                <div class="logo-badge">
+                    <img src="assets/uploads/logo/1764857545_1743035462_logonew.webp" onerror="this.src='client/assets/img/logo.png'" alt="Amazon Asia Logo">
+                </div>
+            </div>
+
+            <!-- Header Titles -->
+            <h2 class="auth-title">Let's Get Started</h2>
+            <p class="auth-subtitle">
+                Sign up or Login Today to shop and earn cash!<br>Withdrawal to bank account. (Limited to one mobile number)
+            </p>
+
+            <!-- Login Form -->
+            <form id="loginForm" method="POST" onsubmit="return false;">
+                
+                <!-- Email / Username Input -->
+                <div class="form-group">
+                    <label for="loginIdentifier">Email</label>
+                    <div class="input-wrapper">
+                        <input type="text" class="form-control-pill" name="username" id="loginIdentifier" placeholder="Enter Email" required autocomplete="username">
+                        <span class="input-icon-right">
+                            <i class="fa-regular fa-user"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Password Input -->
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" class="form-control-pill" name="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password">
+                        <span class="input-icon-right" id="togglePasswordBtn" title="Show/Hide Password">
+                            <i class="fa-regular fa-eye" id="togglePasswordIcon"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Forgot Password -->
+                <div class="forgot-pass-row">
+                    <a href="forgotpass.html" class="forgot-pass-link">
+                        <i class="fa-solid fa-lock"></i> Forgot Password?
+                    </a>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit-pill" id="loginBtn">
+                    <span>Log In</span> <i class="fas fa-sign-in-alt"></i>
+                </button>
+
+            </form>
+
+            <!-- Switch to Sign Up -->
+            <div class="switch-auth-row">
+                Don't Have Account <a href="register.html" class="switch-auth-link">Sign Up here</a>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer-copyright">
+                &copy; <script>document.write(new Date().getFullYear())</script> <span class="brand-name">Ads Merchants Asia</span> . All rights reserved.
+            </div>
+
+        </div>
     </div>
 
-    <!-- Log In page -->
-    <div class="container">
-        <div class="row min-vh-100 align-items-center justify-content-center">
-            <div class="col-12 col-md-8 col-lg-6 col-xl-5 align-self-center">
-                <div class="auth-page">
-                    <div class="card auth-card shadow-lg">
-                        <div class="card-body">
-                            <div class="px-2">
-                                <div class="auth-logo-box">
-                                    <a href="index.html" class="logo logo-admin">
-                                        <img src="https://adsmerchantsasia.com/assets/uploads/logo/1764857545_1743035462_logonew.webp" alt="Ads Merchants Asia Logo" class="auth-logo">
-                                    </a>
-                                </div><!--end auth-logo-box-->
-                                
-                                <div class="text-center auth-logo-text">
-                                    <h4 class="mt-0 mb-2 mt-4">Let's Get Started</h4>
-                                    <p class="text-muted mb-0" style="font-family:Poppins,sans-serif">
-                                        Sign up or Login Today to shop and earn cash! Withdrawal to bank account. (Limited to one mobile number)
-                                    </p>  
-                                </div> <!--end auth-logo-text-->  
-
-                                <form id="loginForm" action="https://adsmerchantsasia.com/dologin" class="form-horizontal auth-form my-4" method="post" accept-charset="utf-8">
-                               
-                                    <div class="form-group mb-3">
-                                        <label for="username">Email</label>
-                                        <div class="input-group">
-                                            <span class="auth-form-icon">
-                                                <i class="fa-regular fa-user"></i>
-                                            </span>                                                                                                              
-                                            <input type="text" class="form-control" name="username" id="username" placeholder="Enter Email" required autocomplete="username">
-                                        </div>                                    
-                                    </div><!--end form-group--> 
-                
-                                    <div class="form-group mb-2">
-                                        <label for="userpassword">Password</label>                                            
-                                        <div class="input-group"> 
-                                            <span class="auth-form-icon toggle-password" id="togglePasswordBtn" title="Show/Hide Password"> 
-                                                <i class="fa-regular fa-eye" id="togglePasswordIcon"></i>
-                                            </span>                                                       
-                                            <input type="password" class="form-control" name="password" id="userpassword" placeholder="Enter password" required autocomplete="current-password">
-                                        </div>                               
-                                    </div><!--end form-group--> 
-        
-                                    <div class="form-group row mt-3 mb-3">
-                                        <div class="col-sm-6">
-                                        </div>
-                                        
-                                        <div class="col-sm-6 text-right">
-                                            <a href="forgotpass.html" class="font-13 orange-link" style="color:#f3771d; font-size:13px;">
-                                                <i class="fa-solid fa-lock" style="font-size:11px;"></i> Forgot Password?
-                                            </a>
-                                        </div>
-                                    </div>
-        
-                                    <div class="form-group mb-0 row">
-                                        <div class="col-12 mt-1">
-                                            <button type="submit" class="btn btn-gradient-warning btn-round btn-block waves-effect waves-light login_in" id="loginBtn" style="box-shadow: none;">
-                                                <span id="btnText">Log In <i class="fas fa-sign-in-alt ml-1"></i></span>
-                                            </button>
-                                        </div> 
-                                    </div>
-                                </form>
-
-                                <div class="col-sm-12 text-center mb-3 mt-3">  
-                                    Don't Have Account
-                                    <a href="register.html" class="text-muted font-13"> 
-                                        <span style="color:#f3771d; font-weight: 500;">Sign Up here</span>
-                                    </a>                                    
-                                </div>
-
-                                <p style="text-align:center; margin-bottom:0px !important; font-size:12px; color:#7081b9;">
-                                    &copy; <script>document.write(new Date().getFullYear())</script> 
-                                    <a href="https://adsmerchantsasia.com/" target="_blank" style="color:#f3771d;">Ads Merchants Asia </a>. All rights reserved.
-                                </p>
-                            </div><!--end /div-->
-                        </div><!--end card-body-->
-                    </div><!--end card-->
-                </div><!--end auth-page-->
-            </div><!--end col-->           
-        </div><!--end row-->
-    </div><!--end container-->
-
     <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
-        // Password Visibility Toggle
-        $(document).on('click', '.toggle-password', function() {
-            var input = $("#userpassword");
-            var icon = $("#togglePasswordIcon");
-            if (input.attr('type') === 'password') {
-                input.attr('type', 'text');
-                icon.removeClass("fa-eye").addClass("fa-eye-slash");
-            } else {
-                input.attr('type', 'password');
-                icon.removeClass("fa-eye-slash").addClass("fa-eye");
-            }
-        });
+        // Password visibility toggle
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passInput = document.getElementById('loginPassword');
+        const passIcon = document.getElementById('togglePasswordIcon');
 
-        // Interactive Form Loading State
-        $('#loginForm').on('submit', function(e) {
-            e.preventDefault();
-            var $btn = $('#loginBtn');
-            var $btnText = $('#btnText');
-            $btn.prop('disabled', true);
-            $btnText.html("<i class='fa fa-spinner fa-spin'></i> Please Wait...");
-            
-            var email = $('#username').val();
-            showToast("Authenticating " + email + "...");
-            
-            setTimeout(function() {
-                showToast("Login successful! Redirecting to dashboard...");
-                setTimeout(function() {
-                    window.location.href = "dashboard";
-                }, 600);
-            }, 800);
-        });
-
-        function showToast(msg) {
-            var toast = $('#toastNotification');
-            $('#toastMsg').text(msg);
-            toast.fadeIn(300);
-            setTimeout(function() {
-                toast.fadeOut(300);
-            }, 3500);
+        if (toggleBtn && passInput && passIcon) {
+            toggleBtn.addEventListener('click', function() {
+                if (passInput.type === 'password') {
+                    passInput.type = 'text';
+                    passIcon.classList.remove('fa-eye');
+                    passIcon.classList.add('fa-eye-slash');
+                } else {
+                    passInput.type = 'password';
+                    passIcon.classList.remove('fa-eye-slash');
+                    passIcon.classList.add('fa-eye');
+                }
+            });
         }
     </script>
-<script src="client/assets/js/portal-bridge.js"></script>
+    <script src="client/assets/js/portal-bridge.js"></script>
 </body>
 </html>

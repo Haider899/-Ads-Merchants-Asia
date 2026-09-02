@@ -7,44 +7,49 @@ const { authMiddleware, JWT_SECRET } = require('../middleware/auth');
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
-  const { identifier, password } = req.body;
-  if (!identifier || !password) {
-    return res.status(400).json({ success: false, message: 'Please provide email/username and password' });
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ success: false, message: 'Please provide email/username and password' });
+    }
+
+    const user = await db.findUserByIdentifier(identifier);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials. Please check your login details.' });
+    }
+
+    if (user.status === 'banned') {
+      return res.status(403).json({ success: false, message: 'Account is suspended. Please contact customer service.' });
+    }
+
+    const isMatch = bcrypt.compareSync(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid password. Please try again.' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
+
+    // Safe user object
+    const safeUser = { ...user };
+    delete safeUser.password_hash;
+
+    return res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: safeUser
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
   }
-
-  const user = await db.findUserByIdentifier(identifier);
-  if (!user) {
-    return res.status(401).json({ success: false, message: 'Invalid credentials. Please check your login details.' });
-  }
-
-  if (user.status === 'banned') {
-    return res.status(403).json({ success: false, message: 'Account is suspended. Please contact customer service.' });
-  }
-
-  const isMatch = bcrypt.compareSync(password, user.password_hash);
-  if (!isMatch) {
-    return res.status(401).json({ success: false, message: 'Invalid password. Please try again.' });
-  }
-
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-  res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
-
-  // Safe user object
-  const safeUser = { ...user };
-  delete safeUser.password_hash;
-
-  return res.json({
-    success: true,
-    message: 'Login successful',
-    token,
-    user: safeUser
-  });
 });
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { fullname, phone, email, password, gender, referral_code } = req.body;
+    const { fullname, username: customUsername, phone, email, password, gender, referral_code } = req.body;
 
     if (!fullname || !email || !password) {
       return res.status(400).json({ success: false, message: 'All required fields must be filled' });
@@ -56,7 +61,11 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'An account with this email or phone number already exists.' });
     }
 
-    const username = email.split('@')[0] + Math.floor(100 + Math.random() * 900);
+    let username = customUsername ? customUsername.trim() : (email.split('@')[0] + Math.floor(100 + Math.random() * 900));
+    const existingUserByUsername = await db.findUserByIdentifier(username);
+    if (existingUserByUsername) {
+      username = username + Math.floor(10 + Math.random() * 90);
+    }
     const password_hash = bcrypt.hashSync(password, 10);
     const invite_code = 'ASIA-' + Math.floor(10000 + Math.random() * 90000);
 

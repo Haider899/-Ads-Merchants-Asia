@@ -51,17 +51,9 @@ const db = {
   },
 
   findUserByIdentifier: async (identifier) => {
-    const clean = identifier.trim().toLowerCase();
-    const cleanPhone = clean.replace(/[^0-9]/g, '');
-    let sql = 'SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?';
-    let params = [clean, clean];
-    
-    if (cleanPhone) {
-      sql += ' OR phone LIKE ?';
-      params.push(`%${cleanPhone}%`);
-    }
-    
-    const rows = await query(sql, params);
+    if (!identifier) return null;
+    const clean = String(identifier).trim().toLowerCase();
+    const rows = await query('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? OR (phone != "" AND phone IS NOT NULL AND phone = ?)', [clean, clean, clean]);
     return rows[0] || null;
   },
 
