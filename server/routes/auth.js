@@ -43,56 +43,61 @@ router.post('/login', async (req, res) => {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { fullname, phone, email, password, gender, referral_code } = req.body;
+  try {
+    const { fullname, phone, email, password, gender, referral_code } = req.body;
 
-  if (!fullname || !email || !password) {
-    return res.status(400).json({ success: false, message: 'All required fields must be filled' });
+    if (!fullname || !email || !password) {
+      return res.status(400).json({ success: false, message: 'All required fields must be filled' });
+    }
+
+    // Check if existing user
+    const existing = await db.findUserByIdentifier(email) || (phone ? await db.findUserByIdentifier(phone) : null);
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'An account with this email or phone number already exists.' });
+    }
+
+    const username = email.split('@')[0] + Math.floor(100 + Math.random() * 900);
+    const password_hash = bcrypt.hashSync(password, 10);
+    const invite_code = 'ASIA-' + Math.floor(10000 + Math.random() * 90000);
+
+    const newUser = {
+      id: 'usr_' + Date.now(),
+      fullname: fullname.trim(),
+      username,
+      email: email.trim().toLowerCase(),
+      phone: phone ? phone.trim() : '0000000000',
+      gender: gender || 'Male',
+      password_hash,
+      vip_level: 'Bronze',
+      balance: 50.00, // Welcome trial bonus
+      frozen_balance: 0.00,
+      today_profit: 0.00,
+      today_tasks_completed: 0,
+      total_tasks_completed: 0,
+      current_set: 0,
+      invite_code,
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+
+    await db.createUser(newUser);
+
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
+
+    const safeUser = { ...newUser };
+    delete safeUser.password_hash;
+
+    return res.json({
+      success: true,
+      message: 'Registration successful! Welcome bonus of $50.00 credited.',
+      token,
+      user: safeUser
+    });
+  } catch (error) {
+    console.error('Registration Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error during registration: ' + error.message });
   }
-
-  // Check if existing user
-  const existing = await db.findUserByIdentifier(email) || await db.findUserByIdentifier(phone);
-  if (existing) {
-    return res.status(400).json({ success: false, message: 'An account with this email or phone number already exists.' });
-  }
-
-  const username = email.split('@')[0] + Math.floor(100 + Math.random() * 900);
-  const password_hash = bcrypt.hashSync(password, 10);
-  const invite_code = 'ASIA-' + Math.floor(10000 + Math.random() * 90000);
-
-  const newUser = {
-    id: 'usr_' + Date.now(),
-    fullname: fullname.trim(),
-    username,
-    email: email.trim().toLowerCase(),
-    phone: phone.trim(),
-    gender: gender || 'Male',
-    password_hash,
-    vip_level: 'Bronze',
-    balance: 50.00, // Welcome trial bonus
-    frozen_balance: 0.00,
-    today_profit: 0.00,
-    today_tasks_completed: 0,
-    total_tasks_completed: 0,
-    current_set: 0,
-    invite_code,
-    status: 'active',
-    created_at: new Date().toISOString()
-  };
-
-  await db.createUser(newUser);
-
-  const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
-  res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
-
-  const safeUser = { ...newUser };
-  delete safeUser.password_hash;
-
-  return res.json({
-    success: true,
-    message: 'Registration successful! Welcome bonus of $50.00 credited.',
-    token,
-    user: safeUser
-  });
 });
 
 // GET /api/auth/me
