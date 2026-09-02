@@ -336,24 +336,7 @@
             }
         });
 
-        // Interactive Form Loading State
-        $('#loginForm').on('submit', function(e) {
-            e.preventDefault();
-            var $btn = $('#loginBtn');
-            var $btnText = $('#btnText');
-            $btn.prop('disabled', true);
-            $btnText.html("<i class='fa fa-spinner fa-spin'></i> Please Wait...");
-            
-            var email = $('#username').val();
-            showToast("Authenticating " + email + "...");
-            
-            setTimeout(function() {
-                showToast("Login successful! Redirecting to dashboard...");
-                setTimeout(function() {
-                    window.location.href = "dashboard";
-                }, 600);
-            }, 800);
-        });
+
 
         function showToast(msg) {
             var toast = $('#toastNotification');

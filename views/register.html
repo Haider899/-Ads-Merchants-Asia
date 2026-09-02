@@ -406,30 +406,7 @@
             }
         });
 
-        // Register form handler
-        $('#registerForm').on('submit', function(e) {
-            e.preventDefault();
-            var pass = $('#userpassword').val();
-            var confPass = $('#confirmpassword').val();
 
-            if (pass !== confPass) {
-                showToast("Passwords do not match. Please verify.");
-                return false;
-            }
-
-            var $btn = $('#registerBtn');
-            var $btnText = $('#regBtnText');
-            $btn.prop('disabled', true);
-            $btnText.html("<i class='fa fa-spinner fa-spin'></i> Please Wait...");
-            showToast("Creating merchant account...");
-
-            setTimeout(function() {
-                showToast("Account created successfully! Redirecting to dashboard...");
-                setTimeout(function() {
-                    window.location.href = "dashboard";
-                }, 600);
-            }, 900);
-        });
 
         function showToast(msg) {
             var toast = $('#toastNotification');
