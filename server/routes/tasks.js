@@ -4,12 +4,12 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 // GET /api/tasks/status - Get current user task statistics
-router.get('/status', authMiddleware, (req, res) => {
-  const user = db.findUserById(req.user.id);
-  const settings = db.getSettings();
+router.get('/status', authMiddleware, async (req, res) => {
+  const user = await db.findUserById(req.user.id);
+  const settings = await db.getSettings();
   const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.005, max_tasks: 38 };
 
-  const userTasks = db.getTasks(user.id);
+  const userTasks = await db.getTasks(user.id);
 
   res.json({
     success: true,
@@ -27,9 +27,9 @@ router.get('/status', authMiddleware, (req, res) => {
 });
 
 // POST /api/tasks/generate - Simulate product matching
-router.post('/generate', authMiddleware, (req, res) => {
-  const user = db.findUserById(req.user.id);
-  const settings = db.getSettings();
+router.post('/generate', authMiddleware, async (req, res) => {
+  const user = await db.findUserById(req.user.id);
+  const settings = await db.getSettings();
   const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.005, max_tasks: 38 };
 
   if (user.today_tasks_completed >= vipRate.max_tasks) {
@@ -46,7 +46,7 @@ router.post('/generate', authMiddleware, (req, res) => {
     });
   }
 
-  const products = db.getProducts();
+  const products = await db.getProducts();
   const randomProduct = products[Math.floor(Math.random() * products.length)];
   
   // Calculate commission based on order value or working balance
@@ -67,7 +67,7 @@ router.post('/generate', authMiddleware, (req, res) => {
     created_at: new Date().toISOString()
   };
 
-  db.createTask(task);
+  await db.createTask(task);
 
   res.json({
     success: true,
@@ -76,15 +76,15 @@ router.post('/generate', authMiddleware, (req, res) => {
 });
 
 // POST /api/tasks/submit - Submit review and claim commission
-router.post('/submit', authMiddleware, (req, res) => {
+router.post('/submit', authMiddleware, async (req, res) => {
   const { taskId } = req.body;
-  const user = db.findUserById(req.user.id);
+  const user = await db.findUserById(req.user.id);
 
   if (!taskId) {
     return res.status(400).json({ success: false, message: 'Task ID required' });
   }
 
-  const tasks = db.getTasks(user.id);
+  const tasks = await db.getTasks(user.id);
   const task = tasks.find(t => t.id === taskId);
 
   if (!task) {
@@ -96,7 +96,7 @@ router.post('/submit', authMiddleware, (req, res) => {
   }
 
   // Update task to completed
-  db.updateTask(taskId, {
+  await db.updateTask(taskId, {
     status: 'completed',
     completed_at: new Date().toISOString()
   });
@@ -107,7 +107,7 @@ router.post('/submit', authMiddleware, (req, res) => {
   const newCompletedTasks = user.today_tasks_completed + 1;
   const newTotalTasks = user.total_tasks_completed + 1;
 
-  db.updateUser(user.id, {
+  await db.updateUser(user.id, {
     balance: newBalance,
     today_profit: newTodayProfit,
     today_tasks_completed: newCompletedTasks,
@@ -128,9 +128,9 @@ router.post('/submit', authMiddleware, (req, res) => {
 });
 
 // GET /api/tasks/records - List all user tasks
-router.get('/records', authMiddleware, (req, res) => {
+router.get('/records', authMiddleware, async (req, res) => {
   const statusFilter = req.query.status; // 'all', 'pending', 'completed'
-  let tasks = db.getTasks(req.user.id);
+  let tasks = await db.getTasks(req.user.id);
 
   if (statusFilter && statusFilter !== 'all') {
     tasks = tasks.filter(t => t.status === statusFilter);

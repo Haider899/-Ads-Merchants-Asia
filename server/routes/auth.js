@@ -6,13 +6,13 @@ const db = require('../db');
 const { authMiddleware, JWT_SECRET } = require('../middleware/auth');
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { identifier, password } = req.body;
   if (!identifier || !password) {
     return res.status(400).json({ success: false, message: 'Please provide email/username and password' });
   }
 
-  const user = db.findUserByIdentifier(identifier);
+  const user = await db.findUserByIdentifier(identifier);
   if (!user) {
     return res.status(401).json({ success: false, message: 'Invalid credentials. Please check your login details.' });
   }
@@ -42,7 +42,7 @@ router.post('/login', (req, res) => {
 });
 
 // POST /api/auth/register
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { fullname, phone, email, password, gender, referral_code } = req.body;
 
   if (!fullname || !phone || !email || !password) {
@@ -50,7 +50,7 @@ router.post('/register', (req, res) => {
   }
 
   // Check if existing user
-  const existing = db.findUserByIdentifier(email) || db.findUserByIdentifier(phone);
+  const existing = await db.findUserByIdentifier(email) || await db.findUserByIdentifier(phone);
   if (existing) {
     return res.status(400).json({ success: false, message: 'An account with this email or phone number already exists.' });
   }
@@ -79,7 +79,7 @@ router.post('/register', (req, res) => {
     created_at: new Date().toISOString()
   };
 
-  db.createUser(newUser);
+  await db.createUser(newUser);
 
   const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
   res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
@@ -96,25 +96,25 @@ router.post('/register', (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authMiddleware, (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
   const safeUser = { ...req.user };
   delete safeUser.password_hash;
   res.json({ success: true, user: safeUser });
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   res.clearCookie('token', { path: '/' });
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // POST /api/auth/forgot-password
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   const { identifier } = req.body;
   if (!identifier) {
     return res.status(400).json({ success: false, message: 'Please provide registered email or phone' });
   }
-  const user = db.findUserByIdentifier(identifier);
+  const user = await db.findUserByIdentifier(identifier);
   if (!user) {
     return res.status(404).json({ success: false, message: 'No registered account found with that identifier.' });
   }

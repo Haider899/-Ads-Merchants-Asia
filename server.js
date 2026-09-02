@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
+const vhost = require('vhost');
 
 const authRoutes = require('./server/routes/auth');
 const taskRoutes = require('./server/routes/tasks');
@@ -12,65 +13,89 @@ const adminRoutes = require('./server/routes/admin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Middleware (Global for all vhosts)
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Serve static assets
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, 'views'))); // Serve static files from views (if any direct hits)
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/client', express.static(path.join(__dirname, 'client')));
 app.use('/css', express.static(path.join(__dirname, 'css')));
 app.use('/js', express.static(path.join(__dirname, 'js')));
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/finance', financeRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/admin', adminRoutes);
+// --- ADMIN SUBDOMAIN APP ---
+const adminApp = express();
+
+// Admin API Routes
+adminApp.use('/api/admin', adminRoutes);
+
+// Admin Frontend Routes
+adminApp.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'admin.html'));
+});
+adminApp.get('/admin.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'admin.html'));
+});
+// Fallback for admin
+adminApp.use((req, res) => {
+  res.redirect('/');
+});
+
+// --- MAIN (USER) APP ---
+const mainApp = express();
+
+// User API Routes
+mainApp.use('/api/auth', authRoutes);
+mainApp.use('/api/tasks', taskRoutes);
+mainApp.use('/api/finance', financeRoutes);
+mainApp.use('/api/user', userRoutes);
 
 // Helper to serve HTML files
 const servePage = (fileName) => (req, res) => {
-  res.sendFile(path.join(__dirname, fileName));
+  res.sendFile(path.join(__dirname, 'views', fileName));
 };
 
 // Route Mappings matching the original Ads Merchants Asia site
-app.get('/', (req, res) => {
+mainApp.get('/', (req, res) => {
   if (req.cookies.token) {
     return res.redirect('/dashboard');
   }
-  res.sendFile(path.join(__dirname, 'login.html'));
+  res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
-app.get(['/login', '/Login', '/login.html'], servePage('login.html'));
-app.get(['/register', '/Register', '/register.html'], servePage('register.html'));
-app.get(['/forgotpass', '/forgotpass.html'], servePage('forgotpass.html'));
-app.get(['/dashboard', '/dashboard.html'], servePage('dashboard.html'));
-app.get(['/recordData', '/record', '/record.html'], servePage('record.html'));
-app.get(['/startData', '/start', '/start.html'], servePage('start.html'));
-app.get(['/contactData', '/contact', '/contact.html'], servePage('contact.html'));
-app.get(['/profileData', '/profile', '/profile.html'], servePage('profile.html'));
-app.get(['/deposit', '/deposit.html', '/recharge'], servePage('deposit.html'));
-app.get(['/withdraw', '/withdraw.html', '/withdrawal'], servePage('withdraw.html'));
-app.get(['/license', '/license.html'], servePage('license.html'));
-app.get(['/contract', '/contract.html'], servePage('contract.html'));
-app.get(['/faqs', '/faqs.html'], servePage('faqs.html'));
-app.get(['/aboutData', '/about', '/about.html', '/aboutus'], servePage('about.html'));
-app.get(['/levelsData', '/levels', '/levels.html'], servePage('levels.html'));
-app.get(['/editprofileData*', '/editprofile*', '/editprofile.html'], servePage('editprofile.html'));
-app.get(['/admin', '/admin.html'], servePage('admin.html'));
+mainApp.get(['/login', '/Login', '/login.html'], servePage('login.html'));
+mainApp.get(['/register', '/Register', '/register.html'], servePage('register.html'));
+mainApp.get(['/forgotpass', '/forgotpass.html'], servePage('forgotpass.html'));
+mainApp.get(['/dashboard', '/dashboard.html'], servePage('dashboard.html'));
+mainApp.get(['/recordData', '/record', '/record.html'], servePage('record.html'));
+mainApp.get(['/startData', '/start', '/start.html'], servePage('start.html'));
+mainApp.get(['/contactData', '/contact', '/contact.html'], servePage('contact.html'));
+mainApp.get(['/profileData', '/profile', '/profile.html'], servePage('profile.html'));
+mainApp.get(['/deposit', '/deposit.html', '/recharge'], servePage('deposit.html'));
+mainApp.get(['/withdraw', '/withdraw.html', '/withdrawal'], servePage('withdraw.html'));
+mainApp.get(['/license', '/license.html'], servePage('license.html'));
+mainApp.get(['/contract', '/contract.html'], servePage('contract.html'));
+mainApp.get(['/faqs', '/faqs.html'], servePage('faqs.html'));
+mainApp.get(['/aboutData', '/about', '/about.html', '/aboutus'], servePage('about.html'));
+mainApp.get(['/levelsData', '/levels', '/levels.html'], servePage('levels.html'));
+mainApp.get(['/editprofileData*', '/editprofile*', '/editprofile.html'], servePage('editprofile.html'));
+
+// Redirect old admin paths on main app to the subdomain
+mainApp.get(['/admin', '/admin.html'], (req, res) => {
+  res.redirect('http://admin.ads-merchants-asia.com');
+});
 
 // Signout route
-app.get(['/signout', '/logout'], (req, res) => {
+mainApp.get(['/signout', '/logout'], (req, res) => {
   res.clearCookie('token', { path: '/' });
   res.redirect('/login');
 });
 
 // Fallback to dashboard or login
-app.use((req, res) => {
+mainApp.use((req, res) => {
   if (req.cookies.token) {
     res.redirect('/dashboard');
   } else {
@@ -78,11 +103,23 @@ app.use((req, res) => {
   }
 });
 
+// --- VHOST MOUNTING ---
+// Mount the admin app on the admin subdomain
+app.use(vhost('admin.ads-merchants-asia.com', adminApp));
+app.use(vhost('admin.localhost', adminApp)); // For local testing
+
+// Mount the main app on the root domain and www
+app.use(vhost('ads-merchants-asia.com', mainApp));
+app.use(vhost('www.ads-merchants-asia.com', mainApp));
+app.use(vhost('localhost', mainApp)); // For local testing
+
+// Catch-all if vhost doesn't match (e.g. accessing via IP directly)
+app.use(mainApp);
+
 app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`🚀 Ads Merchants Asia Server Running on port ${PORT}`);
-  console.log(`🔗 Member Portal: http://localhost:${PORT}/login`);
-  console.log(`🔗 Member Dashboard: http://localhost:${PORT}/dashboard`);
-  console.log(`👑 Admin Management Panel: http://localhost:${PORT}/admin`);
+  console.log(`🔗 Local Main App: http://localhost:${PORT}`);
+  console.log(`🔗 Local Admin App: http://admin.localhost:${PORT}`);
   console.log(`=======================================================`);
 });

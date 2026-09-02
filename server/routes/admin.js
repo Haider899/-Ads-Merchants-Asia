@@ -6,9 +6,9 @@ const db = require('../db');
 const { adminAuthMiddleware, JWT_SECRET } = require('../middleware/auth');
 
 // POST /api/admin/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const settings = db.getSettings();
+  const settings = await db.getSettings();
 
   if (!email || !password) {
     return res.status(400).json({ success: false, message: 'Please enter admin email and password' });
@@ -34,19 +34,19 @@ router.post('/login', (req, res) => {
 });
 
 // POST /api/admin/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   res.clearCookie('admin_token', { path: '/' });
   res.json({ success: true, message: 'Admin logged out' });
 });
 
 // GET /api/admin/metrics
-router.get('/metrics', adminAuthMiddleware, (req, res) => {
-  const users = db.getUsers();
-  const deposits = db.getDeposits();
-  const withdrawals = db.getWithdrawals();
-  const kycs = db.getKycSubmissions();
-  const tickets = db.getSupportTickets();
-  const tasks = db.getTasks();
+router.get('/metrics', adminAuthMiddleware, async (req, res) => {
+  const users = await db.getUsers();
+  const deposits = await db.getDeposits();
+  const withdrawals = await db.getWithdrawals();
+  const kycs = await db.getKycSubmissions();
+  const tickets = await db.getSupportTickets();
+  const tasks = await db.getTasks();
 
   const totalUserBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
   const totalDeposits = deposits.filter(d => d.status === 'approved').reduce((sum, d) => sum + (d.amount || 0), 0);
@@ -73,8 +73,8 @@ router.get('/metrics', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/users
-router.get('/users', adminAuthMiddleware, (req, res) => {
-  const users = db.getUsers().map(u => {
+router.get('/users', adminAuthMiddleware, async (req, res) => {
+  const users = await db.getUsers().map(u => {
     const safe = { ...u };
     delete safe.password_hash;
     return safe;
@@ -83,9 +83,9 @@ router.get('/users', adminAuthMiddleware, (req, res) => {
 });
 
 // POST /api/admin/users/update
-router.post('/users/update', adminAuthMiddleware, (req, res) => {
+router.post('/users/update', adminAuthMiddleware, async (req, res) => {
   const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks } = req.body;
-  const user = db.findUserById(userId);
+  const user = await db.findUserById(userId);
 
   if (!user) {
     return res.status(404).json({ success: false, message: 'User not found' });
@@ -109,7 +109,7 @@ router.post('/users/update', adminAuthMiddleware, (req, res) => {
     updates.balance = parseFloat(Math.max(0, user.balance - parseFloat(deduct_balance)).toFixed(2));
   }
 
-  const updated = db.updateUser(userId, updates);
+  const updated = await db.updateUser(userId, updates);
   const safe = { ...updated };
   delete safe.password_hash;
 
@@ -121,12 +121,12 @@ router.post('/users/update', adminAuthMiddleware, (req, res) => {
 });
 
 // POST /api/admin/users/reset-password
-router.post('/users/reset-password', adminAuthMiddleware, (req, res) => {
+router.post('/users/reset-password', adminAuthMiddleware, async (req, res) => {
   const { userId, newPassword } = req.body;
   if (!userId || !newPassword || newPassword.length < 6) {
     return res.status(400).json({ success: false, message: 'Please provide a valid password of at least 6 characters.' });
   }
-  const user = db.resetUserPassword(userId, newPassword);
+  const user = await db.resetUserPassword(userId, newPassword);
   if (!user) {
     return res.status(404).json({ success: false, message: 'User not found' });
   }
@@ -137,22 +137,22 @@ router.post('/users/reset-password', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/kyc - Get KYC verification requests
-router.get('/kyc', adminAuthMiddleware, (req, res) => {
-  const submissions = db.getKycSubmissions();
+router.get('/kyc', adminAuthMiddleware, async (req, res) => {
+  const submissions = await db.getKycSubmissions();
   res.json({ success: true, submissions });
 });
 
 // POST /api/admin/kyc/action - Approve, Reject, or Request Re-upload
-router.post('/kyc/action', adminAuthMiddleware, (req, res) => {
+router.post('/kyc/action', adminAuthMiddleware, async (req, res) => {
   const { kycId, action, reason } = req.body; // action: 'approve' | 'reject' | 'reupload'
-  const submissions = db.getKycSubmissions();
+  const submissions = await db.getKycSubmissions();
   const kyc = submissions.find(k => k.id === kycId);
 
   if (!kyc) {
     return res.status(404).json({ success: false, message: 'KYC submission not found' });
   }
 
-  const user = db.findUserById(kyc.user_id);
+  const user = await db.findUserById(kyc.user_id);
   let newStatus = 'pending';
   let userKycStatus = 'pending';
 
@@ -169,34 +169,34 @@ router.post('/kyc/action', adminAuthMiddleware, (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid action' });
   }
 
-  db.updateKycSubmission(kycId, {
+  await db.updateKycSubmission(kycId, {
     status: newStatus,
     rejection_reason: reason || '',
     updated_at: new Date().toISOString()
   });
 
   if (user) {
-    db.updateUser(user.id, {
+    await db.updateUser(user.id, {
       kyc_status: userKycStatus,
       kyc_notes: reason || ''
     });
 
     if (action === 'approve') {
-      db.createNotification({
+      await db.createNotification({
         user_id: user.id,
         title: 'KYC Verified! ✅',
         message: 'Congratulations! Your merchant identity documents have been verified and approved.',
         type: 'success'
       });
     } else if (action === 'reject') {
-      db.createNotification({
+      await db.createNotification({
         user_id: user.id,
         title: 'KYC Rejected ⚠️',
         message: 'Your KYC submission was rejected. Reason: ' + (reason || 'Documents could not be verified.'),
         type: 'error'
       });
     } else if (action === 'reupload') {
-      db.createNotification({
+      await db.createNotification({
         user_id: user.id,
         title: 'KYC Re-upload Required 📝',
         message: 'Please re-upload your verification documents. Instructions: ' + (reason || 'Clear photo required.'),
@@ -212,36 +212,36 @@ router.post('/kyc/action', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/deposits
-router.get('/deposits', adminAuthMiddleware, (req, res) => {
-  const deposits = db.getDeposits();
+router.get('/deposits', adminAuthMiddleware, async (req, res) => {
+  const deposits = await db.getDeposits();
   res.json({ success: true, deposits });
 });
 
 // POST /api/admin/deposits/action
-router.post('/deposits/action', adminAuthMiddleware, (req, res) => {
+router.post('/deposits/action', adminAuthMiddleware, async (req, res) => {
   const { depositId, action, notes } = req.body;
-  const deposits = db.getDeposits();
+  const deposits = await db.getDeposits();
   const deposit = deposits.find(d => d.id === depositId);
 
   if (!deposit) {
     return res.status(404).json({ success: false, message: 'Deposit request not found' });
   }
 
-  const user = db.findUserById(deposit.user_id);
+  const user = await db.findUserById(deposit.user_id);
   if (!user) {
     return res.status(404).json({ success: false, message: 'Associated user not found' });
   }
 
   if (action === 'approve') {
     const newBalance = parseFloat((user.balance + deposit.amount).toFixed(2));
-    db.updateUser(user.id, { balance: newBalance });
-    db.updateDeposit(depositId, {
+    await db.updateUser(user.id, { balance: newBalance });
+    await db.updateDeposit(depositId, {
       status: 'approved',
       admin_notes: notes || 'Verified on blockchain',
       approved_at: new Date().toISOString()
     });
 
-    db.createNotification({
+    await db.createNotification({
       user_id: user.id,
       title: 'Deposit Approved! 💳',
       message: `Your deposit of $${deposit.amount.toFixed(2)} (${deposit.method}) has been approved and credited to your working balance!`,
@@ -253,13 +253,13 @@ router.post('/deposits/action', adminAuthMiddleware, (req, res) => {
       message: `Deposit of $${deposit.amount.toFixed(2)} approved. User balance credited to $${newBalance.toFixed(2)}.`
     });
   } else if (action === 'reject') {
-    db.updateDeposit(depositId, {
+    await db.updateDeposit(depositId, {
       status: 'rejected',
       admin_notes: notes || 'Invalid transaction hash / receipt',
       rejected_at: new Date().toISOString()
     });
 
-    db.createNotification({
+    await db.createNotification({
       user_id: user.id,
       title: 'Deposit Rejected ⚠️',
       message: `Your deposit request of $${deposit.amount.toFixed(2)} was rejected. Reason: ` + (notes || 'Invalid transaction receipt.'),
@@ -276,36 +276,36 @@ router.post('/deposits/action', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/withdrawals
-router.get('/withdrawals', adminAuthMiddleware, (req, res) => {
-  const withdrawals = db.getWithdrawals();
+router.get('/withdrawals', adminAuthMiddleware, async (req, res) => {
+  const withdrawals = await db.getWithdrawals();
   res.json({ success: true, withdrawals });
 });
 
 // POST /api/admin/withdrawals/action
-router.post('/withdrawals/action', adminAuthMiddleware, (req, res) => {
+router.post('/withdrawals/action', adminAuthMiddleware, async (req, res) => {
   const { withdrawalId, action, notes } = req.body;
-  const withdrawals = db.getWithdrawals();
+  const withdrawals = await db.getWithdrawals();
   const withdrawal = withdrawals.find(w => w.id === withdrawalId);
 
   if (!withdrawal) {
     return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
   }
 
-  const user = db.findUserById(withdrawal.user_id);
+  const user = await db.findUserById(withdrawal.user_id);
   if (!user) {
     return res.status(404).json({ success: false, message: 'Associated user not found' });
   }
 
   if (action === 'approve') {
     const newFrozen = parseFloat(Math.max(0, user.frozen_balance - withdrawal.amount).toFixed(2));
-    db.updateUser(user.id, { frozen_balance: newFrozen });
-    db.updateWithdrawal(withdrawalId, {
+    await db.updateUser(user.id, { frozen_balance: newFrozen });
+    await db.updateWithdrawal(withdrawalId, {
       status: 'approved',
       admin_notes: notes || 'Payout transferred to destination address',
       approved_at: new Date().toISOString()
     });
 
-    db.createNotification({
+    await db.createNotification({
       user_id: user.id,
       title: 'Withdrawal Paid! 💸',
       message: `Your withdrawal of $${withdrawal.amount.toFixed(2)} has been successfully approved and payout dispatched!`,
@@ -320,18 +320,18 @@ router.post('/withdrawals/action', adminAuthMiddleware, (req, res) => {
     const newFrozen = parseFloat(Math.max(0, user.frozen_balance - withdrawal.amount).toFixed(2));
     const newBalance = parseFloat((user.balance + withdrawal.amount).toFixed(2));
 
-    db.updateUser(user.id, {
+    await db.updateUser(user.id, {
       balance: newBalance,
       frozen_balance: newFrozen
     });
 
-    db.updateWithdrawal(withdrawalId, {
+    await db.updateWithdrawal(withdrawalId, {
       status: 'rejected',
       admin_notes: notes || 'Rejected and refunded to account balance',
       rejected_at: new Date().toISOString()
     });
 
-    db.createNotification({
+    await db.createNotification({
       user_id: user.id,
       title: 'Withdrawal Refunded ⚠️',
       message: `Your withdrawal request of $${withdrawal.amount.toFixed(2)} was rejected and $${withdrawal.amount.toFixed(2)} has been refunded back to your working balance. Note: ` + (notes || 'Details unverified.'),
@@ -348,19 +348,19 @@ router.post('/withdrawals/action', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/tickets - Support query tickets
-router.get('/tickets', adminAuthMiddleware, (req, res) => {
-  const tickets = db.getSupportTickets();
+router.get('/tickets', adminAuthMiddleware, async (req, res) => {
+  const tickets = await db.getSupportTickets();
   res.json({ success: true, tickets });
 });
 
 // POST /api/admin/tickets/reply - Reply to support ticket
-router.post('/tickets/reply', adminAuthMiddleware, (req, res) => {
+router.post('/tickets/reply', adminAuthMiddleware, async (req, res) => {
   const { ticketId, reply } = req.body;
   if (!ticketId || !reply) {
     return res.status(400).json({ success: false, message: 'Please provide ticket ID and reply message.' });
   }
 
-  const ticket = db.updateSupportTicket(ticketId, {
+  const ticket = await db.updateSupportTicket(ticketId, {
     admin_reply: reply.trim(),
     status: 'answered',
     replied_at: new Date().toISOString()
@@ -378,17 +378,17 @@ router.post('/tickets/reply', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/chat/conversations - List all user chat threads with unread counts
-router.get('/chat/conversations', adminAuthMiddleware, (req, res) => {
-  const conversations = db.getChatConversations();
+router.get('/chat/conversations', adminAuthMiddleware, async (req, res) => {
+  const conversations = await db.getChatConversations();
   res.json({ success: true, conversations });
 });
 
 // GET /api/admin/chat/:userId - Get conversation messages for a specific user
-router.get('/chat/:userId', adminAuthMiddleware, (req, res) => {
+router.get('/chat/:userId', adminAuthMiddleware, async (req, res) => {
   const { userId } = req.params;
-  const user = db.findUserById(userId);
-  const messages = db.getChatMessages(userId);
-  db.markChatReadByAdmin(userId);
+  const user = await db.findUserById(userId);
+  const messages = await db.getChatMessages(userId);
+  await db.markChatReadByAdmin(userId);
   res.json({
     success: true,
     user: user ? {
@@ -403,7 +403,7 @@ router.get('/chat/:userId', adminAuthMiddleware, (req, res) => {
 });
 
 // POST /api/admin/chat/:userId - Send admin reply to a user
-router.post('/chat/:userId', adminAuthMiddleware, (req, res) => {
+router.post('/chat/:userId', adminAuthMiddleware, async (req, res) => {
   const { userId } = req.params;
   const { text } = req.body;
 
@@ -411,12 +411,12 @@ router.post('/chat/:userId', adminAuthMiddleware, (req, res) => {
     return res.status(400).json({ success: false, message: 'Reply text cannot be empty.' });
   }
 
-  const user = db.findUserById(userId);
+  const user = await db.findUserById(userId);
   if (!user) {
     return res.status(404).json({ success: false, message: 'User not found.' });
   }
 
-  const message = db.createChatMessage({
+  const message = await db.createChatMessage({
     userId,
     sender: 'admin',
     text: text.trim(),
@@ -425,14 +425,14 @@ router.post('/chat/:userId', adminAuthMiddleware, (req, res) => {
   });
 
   // Also send notification alert to user
-  db.createNotification({
+  await db.createNotification({
     user_id: user.id,
     title: 'Support Message 💬',
     message: text.trim().length > 60 ? (text.trim().substring(0, 57) + '...') : text.trim(),
     type: 'info'
   });
 
-  const messages = db.getChatMessages(userId);
+  const messages = await db.getChatMessages(userId);
   res.json({
     success: true,
     message: 'Reply sent to user',
@@ -442,15 +442,15 @@ router.post('/chat/:userId', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/settings
-router.get('/settings', adminAuthMiddleware, (req, res) => {
-  const settings = db.getSettings();
+router.get('/settings', adminAuthMiddleware, async (req, res) => {
+  const settings = await db.getSettings();
   const safeSettings = { ...settings };
   delete safeSettings.admin_password_hash;
   res.json({ success: true, settings: safeSettings });
 });
 
 // POST /api/admin/settings
-router.post('/settings', adminAuthMiddleware, (req, res) => {
+router.post('/settings', adminAuthMiddleware, async (req, res) => {
   const { trc20_address, erc20_address, btc_address, min_deposit, min_withdraw, telegram_support, whatsapp_support, new_admin_password } = req.body;
   
   const updates = {};
@@ -466,7 +466,7 @@ router.post('/settings', adminAuthMiddleware, (req, res) => {
     updates.admin_password_hash = bcrypt.hashSync(new_admin_password, 10);
   }
 
-  const updatedSettings = db.updateSettings(updates);
+  const updatedSettings = await db.updateSettings(updates);
   const safe = { ...updatedSettings };
   delete safe.admin_password_hash;
 

@@ -5,24 +5,24 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 // GET /api/user/profile
-router.get('/profile', authMiddleware, (req, res) => {
-  const user = db.findUserById(req.user.id);
+router.get('/profile', authMiddleware, async (req, res) => {
+  const user = await db.findUserById(req.user.id);
   const safeUser = { ...user };
   delete safeUser.password_hash;
   res.json({ success: true, user: safeUser });
 });
 
 // POST /api/user/profile
-router.post('/profile', authMiddleware, (req, res) => {
+router.post('/profile', authMiddleware, async (req, res) => {
   const { fullname, phone, gender } = req.body;
-  const user = db.findUserById(req.user.id);
+  const user = await db.findUserById(req.user.id);
 
   const updates = {};
   if (fullname) updates.fullname = fullname.trim();
   if (phone) updates.phone = phone.trim();
   if (gender) updates.gender = gender;
 
-  const updatedUser = db.updateUser(user.id, updates);
+  const updatedUser = await db.updateUser(user.id, updates);
   const safeUser = { ...updatedUser };
   delete safeUser.password_hash;
 
@@ -34,9 +34,9 @@ router.post('/profile', authMiddleware, (req, res) => {
 });
 
 // POST /api/user/change-password
-router.post('/change-password', authMiddleware, (req, res) => {
+router.post('/change-password', authMiddleware, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  const user = db.findUserById(req.user.id);
+  const user = await db.findUserById(req.user.id);
 
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ success: false, message: 'Please provide both current and new passwords.' });
@@ -52,7 +52,7 @@ router.post('/change-password', authMiddleware, (req, res) => {
   }
 
   const newHash = bcrypt.hashSync(newPassword, 10);
-  db.updateUser(user.id, { password_hash: newHash });
+  await db.updateUser(user.id, { password_hash: newHash });
 
   res.json({
     success: true,
@@ -61,9 +61,9 @@ router.post('/change-password', authMiddleware, (req, res) => {
 });
 
 // GET /api/user/kyc - Get KYC status
-router.get('/kyc', authMiddleware, (req, res) => {
-  const user = db.findUserById(req.user.id);
-  const submissions = db.getKycSubmissions(user.id);
+router.get('/kyc', authMiddleware, async (req, res) => {
+  const user = await db.findUserById(req.user.id);
+  const submissions = await db.getKycSubmissions(user.id);
   res.json({
     success: true,
     kyc_status: user.kyc_status || 'none',
@@ -73,9 +73,9 @@ router.get('/kyc', authMiddleware, (req, res) => {
 });
 
 // POST /api/user/kyc - Submit KYC Documents & Contract
-router.post('/kyc', authMiddleware, (req, res) => {
+router.post('/kyc', authMiddleware, async (req, res) => {
   const { name, front_id, back_id, signature, investment_amount } = req.body;
-  const user = db.findUserById(req.user.id);
+  const user = await db.findUserById(req.user.id);
 
   if (!name || !front_id || !back_id || !signature) {
     return res.status(400).json({
@@ -98,8 +98,8 @@ router.post('/kyc', authMiddleware, (req, res) => {
     created_at: new Date().toISOString()
   };
 
-  db.createKycSubmission(kycSubmission);
-  db.updateUser(user.id, {
+  await db.createKycSubmission(kycSubmission);
+  await db.updateUser(user.id, {
     kyc_status: 'pending',
     kyc_notes: ''
   });
@@ -112,15 +112,15 @@ router.post('/kyc', authMiddleware, (req, res) => {
 });
 
 // GET /api/user/tickets - Get user support questions & replies
-router.get('/tickets', authMiddleware, (req, res) => {
-  const tickets = db.getSupportTickets(req.user.id);
+router.get('/tickets', authMiddleware, async (req, res) => {
+  const tickets = await db.getSupportTickets(req.user.id);
   res.json({ success: true, tickets });
 });
 
 // POST /api/user/tickets - Submit new support question
-router.post('/tickets', authMiddleware, (req, res) => {
+router.post('/tickets', authMiddleware, async (req, res) => {
   const { subject, message } = req.body;
-  const user = db.findUserById(req.user.id);
+  const user = await db.findUserById(req.user.id);
 
   if (!subject || !message) {
     return res.status(400).json({ success: false, message: 'Please provide both subject and message.' });
@@ -139,7 +139,7 @@ router.post('/tickets', authMiddleware, (req, res) => {
     replied_at: ''
   };
 
-  db.createSupportTicket(ticket);
+  await db.createSupportTicket(ticket);
 
   res.json({
     success: true,
@@ -149,22 +149,22 @@ router.post('/tickets', authMiddleware, (req, res) => {
 });
 
 // GET /api/user/notifications - Get unread notifications
-router.get('/notifications', authMiddleware, (req, res) => {
-  const notifications = db.getNotifications(req.user.id, true);
+router.get('/notifications', authMiddleware, async (req, res) => {
+  const notifications = await db.getNotifications(req.user.id, true);
   res.json({ success: true, notifications });
 });
 
 // POST & GET /api/user/notifications/mark-read - Mark user notifications as read
-router.all('/notifications/mark-read', authMiddleware, (req, res) => {
-  db.markNotificationsRead(req.user.id);
+router.all('/notifications/mark-read', authMiddleware, async (req, res) => {
+  await db.markNotificationsRead(req.user.id);
   res.json({ success: true, message: 'Notifications marked as read' });
 });
 
 // GET /api/user/chat - Fetch conversation history for current user
-router.get('/chat', authMiddleware, (req, res) => {
-  const user = db.findUserById(req.user.id);
-  const messages = db.getChatMessages(req.user.id);
-  db.markChatReadByUser(req.user.id);
+router.get('/chat', authMiddleware, async (req, res) => {
+  const user = await db.findUserById(req.user.id);
+  const messages = await db.getChatMessages(req.user.id);
+  await db.markChatReadByUser(req.user.id);
   res.json({
     success: true,
     user: {
@@ -178,15 +178,15 @@ router.get('/chat', authMiddleware, (req, res) => {
 });
 
 // POST /api/user/chat - Send message from user to admin
-router.post('/chat', authMiddleware, (req, res) => {
+router.post('/chat', authMiddleware, async (req, res) => {
   const { text } = req.body;
-  const user = db.findUserById(req.user.id);
+  const user = await db.findUserById(req.user.id);
 
   if (!text || !text.trim()) {
     return res.status(400).json({ success: false, message: 'Message text cannot be empty' });
   }
 
-  const message = db.createChatMessage({
+  const message = await db.createChatMessage({
     userId: user.id,
     sender: 'user',
     text: text.trim(),
@@ -194,7 +194,7 @@ router.post('/chat', authMiddleware, (req, res) => {
     userEmail: user.email
   });
 
-  const messages = db.getChatMessages(user.id);
+  const messages = await db.getChatMessages(user.id);
   res.json({
     success: true,
     message: 'Message sent',
@@ -204,7 +204,7 @@ router.post('/chat', authMiddleware, (req, res) => {
 });
 
 // GET /api/user/levels
-router.get('/levels', (req, res) => {
+router.get('/levels', async (req, res) => {
   res.json({
     success: true,
     levels: [

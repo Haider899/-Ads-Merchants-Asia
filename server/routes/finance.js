@@ -4,8 +4,8 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 // GET /api/finance/wallets - Retrieve current crypto deposit addresses
-router.get('/wallets', (req, res) => {
-  const settings = db.getSettings();
+router.get('/wallets', async (req, res) => {
+  const settings = await db.getSettings();
   res.json({
     success: true,
     wallets: {
@@ -36,10 +36,10 @@ router.get('/wallets', (req, res) => {
 });
 
 // POST /api/finance/deposit - Submit deposit request
-router.post('/deposit', authMiddleware, (req, res) => {
+router.post('/deposit', authMiddleware, async (req, res) => {
   const { amount, method, txid, proof_image, notes } = req.body;
-  const user = db.findUserById(req.user.id);
-  const settings = db.getSettings();
+  const user = await db.findUserById(req.user.id);
+  const settings = await db.getSettings();
 
   const numAmount = parseFloat(amount);
   if (isNaN(numAmount) || numAmount < (settings.min_deposit || 20)) {
@@ -69,7 +69,7 @@ router.post('/deposit', authMiddleware, (req, res) => {
     created_at: new Date().toISOString()
   };
 
-  db.createDeposit(deposit);
+  await db.createDeposit(deposit);
 
   res.json({
     success: true,
@@ -79,10 +79,10 @@ router.post('/deposit', authMiddleware, (req, res) => {
 });
 
 // POST /api/finance/withdraw - Submit withdrawal request
-router.post('/withdraw', authMiddleware, (req, res) => {
+router.post('/withdraw', authMiddleware, async (req, res) => {
   const { amount, method, network, wallet_address, bank_name, account_holder, iban } = req.body;
-  const user = db.findUserById(req.user.id);
-  const settings = db.getSettings();
+  const user = await db.findUserById(req.user.id);
+  const settings = await db.getSettings();
 
   const numAmount = parseFloat(amount);
   if (isNaN(numAmount) || numAmount < (settings.min_withdraw || 30)) {
@@ -114,7 +114,7 @@ router.post('/withdraw', authMiddleware, (req, res) => {
   const updatedBalance = parseFloat((user.balance - numAmount).toFixed(2));
   const updatedFrozen = parseFloat((user.frozen_balance + numAmount).toFixed(2));
 
-  db.updateUser(user.id, {
+  await db.updateUser(user.id, {
     balance: updatedBalance,
     frozen_balance: updatedFrozen
   });
@@ -135,7 +135,7 @@ router.post('/withdraw', authMiddleware, (req, res) => {
     created_at: new Date().toISOString()
   };
 
-  db.createWithdrawal(withdrawal);
+  await db.createWithdrawal(withdrawal);
 
   res.json({
     success: true,
@@ -146,10 +146,10 @@ router.post('/withdraw', authMiddleware, (req, res) => {
 });
 
 // GET /api/finance/history - User financial transaction log
-router.get('/history', authMiddleware, (req, res) => {
+router.get('/history', authMiddleware, async (req, res) => {
   const user = req.user;
-  const deposits = db.getDeposits(user.id);
-  const withdrawals = db.getWithdrawals(user.id);
+  const deposits = await db.getDeposits(user.id);
+  const withdrawals = await db.getWithdrawals(user.id);
 
   res.json({
     success: true,
