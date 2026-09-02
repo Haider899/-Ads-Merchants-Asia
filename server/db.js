@@ -12,6 +12,18 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+function formatMySQLDate(val) {
+  if (!val) return new Date().toISOString().slice(0, 19).replace('T', ' ');
+  if (val instanceof Date) return val.toISOString().slice(0, 19).replace('T', ' ');
+  if (typeof val === 'string') {
+    if (val.includes('T')) {
+      return val.slice(0, 19).replace('T', ' ');
+    }
+    return val;
+  }
+  return new Date().toISOString().slice(0, 19).replace('T', ' ');
+}
+
 // Helper for queries
 async function query(sql, params) {
   const [rows] = await pool.execute(sql, params);
@@ -65,7 +77,7 @@ const db = {
         userData.id, userData.fullname, userData.username, userData.email, userData.phone, userData.gender, userData.password_hash, 
         userData.vip_level || 'Bronze', userData.balance || 0, userData.frozen_balance || 0, userData.today_profit || 0, 
         userData.today_tasks_completed || 0, userData.total_tasks_completed || 0, userData.current_set || 0, userData.invite_code, 
-        userData.status || 'active', userData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')
+        userData.status || 'active', formatMySQLDate(userData.created_at)
       ]);
     return userData;
   },
@@ -99,7 +111,7 @@ const db = {
 
   createTask: async (taskData) => {
     await query(`INSERT INTO tasks (id, user_id, product_id, product_name, product_price, commission_rate, commission_earned, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [taskData.id, taskData.user_id, taskData.product_id, taskData.product_name, taskData.product_price, taskData.commission_rate, taskData.commission_earned, taskData.status, taskData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+      [taskData.id, taskData.user_id, taskData.product_id, taskData.product_name, taskData.product_price, taskData.commission_rate, taskData.commission_earned, taskData.status, formatMySQLDate(taskData.created_at)]);
     return taskData;
   },
 
@@ -119,7 +131,7 @@ const db = {
 
   createDeposit: async (depositData) => {
     await query(`INSERT INTO deposits (id, user_id, user_email, amount, method, txid, proof_image, status, admin_notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [depositData.id, depositData.user_id, depositData.user_email, depositData.amount, depositData.method, depositData.txid, depositData.proof_image, depositData.status || 'pending', depositData.admin_notes || '', depositData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+      [depositData.id, depositData.user_id, depositData.user_email, depositData.amount, depositData.method, depositData.txid, depositData.proof_image, depositData.status || 'pending', depositData.admin_notes || '', formatMySQLDate(depositData.created_at)]);
     return depositData;
   },
 
@@ -139,7 +151,7 @@ const db = {
 
   createWithdrawal: async (withdrawalData) => {
     await query(`INSERT INTO withdrawals (id, user_id, user_email, amount, bank_name, account_name, account_number, status, admin_notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [withdrawalData.id, withdrawalData.user_id, withdrawalData.user_email, withdrawalData.amount, withdrawalData.bank_name, withdrawalData.account_name, withdrawalData.account_number, withdrawalData.status || 'pending', withdrawalData.admin_notes || '', withdrawalData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+      [withdrawalData.id, withdrawalData.user_id, withdrawalData.user_email, withdrawalData.amount, withdrawalData.bank_name, withdrawalData.account_name, withdrawalData.account_number, withdrawalData.status || 'pending', withdrawalData.admin_notes || '', formatMySQLDate(withdrawalData.created_at)]);
     return withdrawalData;
   },
 
@@ -160,7 +172,7 @@ const db = {
 
   createKycSubmission: async (kycData) => {
     await query(`INSERT INTO kyc_submissions (id, user_id, user_email, name, front_id_image, back_id_image, signature_image, investment_amount, status, rejection_reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [kycData.id, kycData.user_id, kycData.user_email, kycData.name, kycData.front_id_image, kycData.back_id_image, kycData.signature_image, kycData.investment_amount, kycData.status || 'pending', kycData.rejection_reason || '', kycData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+      [kycData.id, kycData.user_id, kycData.user_email, kycData.name, kycData.front_id_image, kycData.back_id_image, kycData.signature_image, kycData.investment_amount, kycData.status || 'pending', kycData.rejection_reason || '', formatMySQLDate(kycData.created_at)]);
     return kycData;
   },
 
@@ -181,7 +193,7 @@ const db = {
 
   createSupportTicket: async (ticketData) => {
     await query(`INSERT INTO support_tickets (id, user_id, user_email, user_name, subject, message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [ticketData.id, ticketData.user_id, ticketData.user_email, ticketData.user_name, ticketData.subject, ticketData.message, ticketData.status || 'open', ticketData.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+      [ticketData.id, ticketData.user_id, ticketData.user_email, ticketData.user_name, ticketData.subject, ticketData.message, ticketData.status || 'open', formatMySQLDate(ticketData.created_at)]);
     return ticketData;
   },
 
@@ -219,7 +231,7 @@ const db = {
   createNotification: async (notifData) => {
     const id = 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     await query(`INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, notifData.user_id, notifData.title, notifData.message, notifData.type || 'info', false, new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+      [id, notifData.user_id, notifData.title, notifData.message, notifData.type || 'info', false, formatMySQLDate(notifData.created_at)]);
     return { id, ...notifData };
   },
 
@@ -238,7 +250,7 @@ const db = {
     const readByAdmin = sender === 'admin';
     const readByUser = sender === 'user';
     await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, userName || 'User', userEmail || '', sender || 'user', text.trim(), readByAdmin, readByUser, new Date().toISOString().slice(0, 19).replace('T', ' ')]);
+      [id, userId, userName || 'User', userEmail || '', sender || 'user', text.trim(), readByAdmin, readByUser, formatMySQLDate(new Date())]);
     return { id, user_id: userId, sender, text };
   },
 
