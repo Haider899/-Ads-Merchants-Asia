@@ -162,45 +162,61 @@ router.all('/notifications/mark-read', authMiddleware, async (req, res) => {
 
 // GET /api/user/chat - Fetch conversation history for current user
 router.get('/chat', authMiddleware, async (req, res) => {
-  const user = await db.findUserById(req.user.id);
-  const messages = await db.getChatMessages(req.user.id);
-  await db.markChatReadByUser(req.user.id);
-  res.json({
-    success: true,
-    user: {
-      id: user.id,
-      fullname: user.fullname || user.username,
-      email: user.email,
-      vip_level: user.vip_level
-    },
-    messages
-  });
+  try {
+    const user = await db.findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const messages = await db.getChatMessages(user.id);
+    await db.markChatReadByUser(user.id);
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        fullname: user.fullname || user.username,
+        email: user.email,
+        vip_level: user.vip_level
+      },
+      messages: messages || []
+    });
+  } catch (err) {
+    console.error('User Chat Fetch Error:', err);
+    res.status(500).json({ success: false, message: 'Could not load chat messages: ' + err.message });
+  }
 });
 
 // POST /api/user/chat - Send message from user to admin
 router.post('/chat', authMiddleware, async (req, res) => {
-  const { text } = req.body;
-  const user = await db.findUserById(req.user.id);
+  try {
+    const { text } = req.body;
+    const user = await db.findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
-  if (!text || !text.trim()) {
-    return res.status(400).json({ success: false, message: 'Message text cannot be empty' });
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'Message text cannot be empty' });
+    }
+
+    const message = await db.createChatMessage({
+      userId: user.id,
+      sender: 'user',
+      text: text.trim(),
+      userName: user.fullname || user.username,
+      userEmail: user.email
+    });
+
+    const messages = await db.getChatMessages(user.id);
+    res.json({
+      success: true,
+      message: 'Message sent',
+      newMessage: message,
+      messages: messages || []
+    });
+  } catch (err) {
+    console.error('User Chat Send Error:', err);
+    res.status(500).json({ success: false, message: 'Could not send chat message: ' + err.message });
   }
-
-  const message = await db.createChatMessage({
-    userId: user.id,
-    sender: 'user',
-    text: text.trim(),
-    userName: user.fullname || user.username,
-    userEmail: user.email
-  });
-
-  const messages = await db.getChatMessages(user.id);
-  res.json({
-    success: true,
-    message: 'Message sent',
-    newMessage: message,
-    messages
-  });
 });
 
 // GET /api/user/levels

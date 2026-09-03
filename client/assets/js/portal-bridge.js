@@ -1086,7 +1086,7 @@
     chatWin.innerHTML = `
       <div class="native-chat-header">
         <div class="native-chat-agent">
-          <img src="client/assets/img/icons/customer-service1.svg" alt="Support Agent" />
+          <img src="/client/assets/img/icons/customer-service1.svg" alt="Support Agent" onerror="this.style.display='none'" />
           <div class="native-chat-agent-info">
             <span class="native-chat-agent-name">Official Support</span>
             <span class="native-chat-agent-status"><span class="native-chat-status-dot"></span> Admin Online</span>
@@ -1124,7 +1124,8 @@
         loadChatMessages();
         if (!pollInterval) pollInterval = setInterval(loadChatMessages, 3000);
         setTimeout(() => {
-          document.getElementById('nativeChatTextInput').focus();
+          const input = document.getElementById('nativeChatTextInput');
+          if (input) input.focus();
         }, 100);
       } else {
         floatBtn.style.display = 'flex';
@@ -1151,7 +1152,9 @@
       try {
         const res = await API.get('/api/user/chat');
         const container = document.getElementById('nativeChatMsgContainer');
-        if (res && res.success && res.messages) {
+        if (!container) return;
+
+        if (res && res.success && Array.isArray(res.messages)) {
           if (res.messages.length === 0) {
             container.innerHTML = `
               <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 20px;">
@@ -1167,21 +1170,22 @@
             cachedMessagesCount = res.messages.length;
             container.innerHTML = res.messages.map(m => {
               const isUser = m.sender === 'user';
-              const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+              const msgText = m.text || m.message_text || '';
               if (isUser) {
                 return `
                   <div class="native-chat-bubble native-bubble-user">
-                    <div>${escapeHtml(m.text)}</div>
+                    <div>${escapeHtml(msgText)}</div>
                     <div class="native-bubble-time">${time}</div>
                   </div>
                 `;
               } else {
                 return `
                   <div class="native-chat-bubble native-bubble-admin">
-                    <img src="client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" />
+                    <img src="/client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" onerror="this.style.display='none'" />
                     <div style="flex: 1;">
                       <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; opacity: 0.9;">Ads Support</div>
-                      <div>${escapeHtml(m.text)}</div>
+                      <div>${escapeHtml(msgText)}</div>
                       <div class="native-bubble-time" style="text-align: left; color: #e2e8f0;">${time}</div>
                     </div>
                   </div>
@@ -1189,6 +1193,17 @@
               }
             }).join('');
             container.scrollTop = container.scrollHeight;
+          }
+        } else if (!res || !res.success) {
+          // If empty and initial state, show friendly welcome
+          if (container.querySelector('.text-muted')) {
+            container.innerHTML = `
+              <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 20px;">
+                <div style="font-size: 32px; margin-bottom: 8px;">💬</div>
+                <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Live Customer Care</div>
+                <div>Official support is online. Send your question below!</div>
+              </div>
+            `;
           }
         }
       } catch (err) {
@@ -1204,19 +1219,38 @@
       input.value = '';
       const container = document.getElementById('nativeChatMsgContainer');
 
+      // Clear any initial greeting placeholder
+      const placeholder = container.querySelector('.text-muted');
+      if (placeholder) placeholder.remove();
+
       // Optimistic UI render
       const tempBubble = document.createElement('div');
       tempBubble.className = 'native-chat-bubble native-bubble-user';
       tempBubble.innerHTML = `
         <div>${escapeHtml(text)}</div>
-        <div class="native-bubble-time">Sending...</div>
+        <div class="native-bubble-time sending-status">Sending...</div>
       `;
       container.appendChild(tempBubble);
       container.scrollTop = container.scrollHeight;
 
-      const res = await API.post('/api/user/chat', { text });
-      if (res && res.success) {
-        loadChatMessages();
+      try {
+        const res = await API.post('/api/user/chat', { text });
+        if (res && res.success) {
+          cachedMessagesCount = -1; // Force immediate re-render
+          await loadChatMessages();
+        } else {
+          const statusEl = tempBubble.querySelector('.sending-status');
+          if (statusEl) {
+            statusEl.textContent = 'Failed to send';
+            statusEl.style.color = '#ef4444';
+          }
+        }
+      } catch (err) {
+        const statusEl = tempBubble.querySelector('.sending-status');
+        if (statusEl) {
+          statusEl.textContent = 'Error';
+          statusEl.style.color = '#ef4444';
+        }
       }
     }
 
@@ -1229,7 +1263,7 @@
     });
 
     function escapeHtml(str) {
-      return str.replace(/[&<>'"]/g, 
+      return (str || '').toString().replace(/[&<>'"]/g, 
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
       );
     }

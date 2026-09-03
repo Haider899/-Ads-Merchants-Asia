@@ -310,20 +310,55 @@ const db = {
   },
 
   // Chat Messages
+  ensureChatMessagesTable: async () => {
+    await query(`CREATE TABLE IF NOT EXISTS chat_messages (
+      id VARCHAR(100) PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      user_name VARCHAR(255),
+      user_email VARCHAR(255),
+      sender VARCHAR(20) DEFAULT 'user',
+      message_text TEXT,
+      read_by_admin BOOLEAN DEFAULT FALSE,
+      read_by_user BOOLEAN DEFAULT FALSE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX (user_id),
+      INDEX (created_at)
+    )`);
+  },
+
   getChatMessages: async (userId) => {
-    return await query('SELECT * FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC', [userId]);
+    await db.ensureChatMessagesTable();
+    return await query(`
+      SELECT 
+        id, 
+        user_id, 
+        user_name, 
+        user_email, 
+        sender, 
+        message_text, 
+        message_text AS text, 
+        read_by_admin, 
+        read_by_user, 
+        created_at 
+      FROM chat_messages 
+      WHERE user_id = ? 
+      ORDER BY created_at ASC
+    `, [userId]);
   },
 
   createChatMessage: async ({ userId, sender, text, userName, userEmail }) => {
+    await db.ensureChatMessagesTable();
     const id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     const readByAdmin = sender === 'admin';
     const readByUser = sender === 'user';
+    const cleanText = (text || '').trim();
     await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, userName || 'User', userEmail || '', sender || 'user', text.trim(), readByAdmin, readByUser, formatMySQLDate(new Date())]);
-    return { id, user_id: userId, sender, text };
+      [id, userId, userName || 'User', userEmail || '', sender || 'user', cleanText, readByAdmin, readByUser, formatMySQLDate(new Date())]);
+    return { id, user_id: userId, sender, text: cleanText, message_text: cleanText };
   },
 
   getChatConversations: async () => {
+    await db.ensureChatMessagesTable();
     // A simplified query to get the latest message for each user and count unread messages
     const sql = `
       SELECT 
@@ -345,11 +380,13 @@ const db = {
   },
 
   markChatReadByAdmin: async (userId) => {
+    await db.ensureChatMessagesTable();
     await query(`UPDATE chat_messages SET read_by_admin = TRUE WHERE user_id = ? AND sender = 'user'`, [userId]);
     return true;
   },
 
   markChatReadByUser: async (userId) => {
+    await db.ensureChatMessagesTable();
     await query(`UPDATE chat_messages SET read_by_user = TRUE WHERE user_id = ? AND sender = 'admin'`, [userId]);
     return true;
   },
