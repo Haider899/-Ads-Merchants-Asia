@@ -97,8 +97,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
 
   // Update task to completed
   await db.updateTask(taskId, {
-    status: 'completed',
-    completed_at: new Date().toISOString()
+    status: 'completed'
   });
 
   // Credit commission to user balance

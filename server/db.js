@@ -83,10 +83,17 @@ const db = {
   },
 
   updateUser: async (id, updates) => {
-    const keys = Object.keys(updates);
+    const allowed = ['fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 'vip_level', 'balance', 'frozen_balance', 'today_profit', 'today_tasks_completed', 'total_tasks_completed', 'current_set', 'invite_code', 'kyc_status', 'kyc_notes', 'status'];
+    const filteredUpdates = {};
+    for (const key of Object.keys(updates)) {
+      if (allowed.includes(key)) {
+        filteredUpdates[key] = updates[key];
+      }
+    }
+    const keys = Object.keys(filteredUpdates);
     if (keys.length === 0) return await db.findUserById(id);
     const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = Object.values(updates);
+    const values = Object.values(filteredUpdates);
     values.push(id);
     await query(`UPDATE users SET ${setClause} WHERE id = ?`, values);
     return await db.findUserById(id);
@@ -116,10 +123,17 @@ const db = {
   },
 
   updateTask: async (id, updates) => {
-    const keys = Object.keys(updates);
+    const allowed = ['product_id', 'product_name', 'product_price', 'commission_rate', 'commission_earned', 'status', 'created_at'];
+    const filteredUpdates = {};
+    for (const key of Object.keys(updates)) {
+      if (allowed.includes(key)) {
+        filteredUpdates[key] = key === 'created_at' ? formatMySQLDate(updates[key]) : updates[key];
+      }
+    }
+    const keys = Object.keys(filteredUpdates);
     if (keys.length === 0) return;
     const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = Object.values(updates);
+    const values = Object.values(filteredUpdates);
     values.push(id);
     await query(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
   },
@@ -145,10 +159,17 @@ const db = {
   },
 
   updateDeposit: async (id, updates) => {
-    const keys = Object.keys(updates);
+    const allowed = ['user_id', 'user_email', 'amount', 'method', 'txid', 'proof_image', 'status', 'admin_notes', 'created_at'];
+    const filteredUpdates = {};
+    for (const key of Object.keys(updates)) {
+      if (allowed.includes(key)) {
+        filteredUpdates[key] = key === 'created_at' ? formatMySQLDate(updates[key]) : updates[key];
+      }
+    }
+    const keys = Object.keys(filteredUpdates);
     if (keys.length === 0) return;
     const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = Object.values(updates);
+    const values = Object.values(filteredUpdates);
     values.push(id);
     await query(`UPDATE deposits SET ${setClause} WHERE id = ?`, values);
   },
@@ -174,10 +195,17 @@ const db = {
   },
 
   updateWithdrawal: async (id, updates) => {
-    const keys = Object.keys(updates);
+    const allowed = ['user_id', 'user_email', 'amount', 'bank_name', 'account_name', 'account_number', 'status', 'admin_notes', 'created_at'];
+    const filteredUpdates = {};
+    for (const key of Object.keys(updates)) {
+      if (allowed.includes(key)) {
+        filteredUpdates[key] = key === 'created_at' ? formatMySQLDate(updates[key]) : updates[key];
+      }
+    }
+    const keys = Object.keys(filteredUpdates);
     if (keys.length === 0) return;
     const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = Object.values(updates);
+    const values = Object.values(filteredUpdates);
     values.push(id);
     await query(`UPDATE withdrawals SET ${setClause} WHERE id = ?`, values);
   },
@@ -204,10 +232,17 @@ const db = {
   },
 
   updateKycSubmission: async (id, updates) => {
-    const keys = Object.keys(updates);
+    const allowed = ['user_id', 'user_email', 'name', 'front_id_image', 'back_id_image', 'signature_image', 'investment_amount', 'status', 'rejection_reason', 'created_at'];
+    const filteredUpdates = {};
+    for (const key of Object.keys(updates)) {
+      if (allowed.includes(key)) {
+        filteredUpdates[key] = key === 'created_at' ? formatMySQLDate(updates[key]) : updates[key];
+      }
+    }
+    const keys = Object.keys(filteredUpdates);
     if (keys.length === 0) return;
     const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = Object.values(updates);
+    const values = Object.values(filteredUpdates);
     values.push(id);
     await query(`UPDATE kyc_submissions SET ${setClause} WHERE id = ?`, values);
   },
@@ -225,10 +260,17 @@ const db = {
   },
 
   updateSupportTicket: async (id, updates) => {
-    const keys = Object.keys(updates);
+    const allowed = ['user_id', 'user_email', 'user_name', 'subject', 'message', 'admin_reply', 'status', 'created_at', 'replied_at'];
+    const filteredUpdates = {};
+    for (const key of Object.keys(updates)) {
+      if (allowed.includes(key)) {
+        filteredUpdates[key] = (key === 'created_at' || key === 'replied_at') ? formatMySQLDate(updates[key]) : updates[key];
+      }
+    }
+    const keys = Object.keys(filteredUpdates);
     if (keys.length === 0) return;
     const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = Object.values(updates);
+    const values = Object.values(filteredUpdates);
     values.push(id);
     await query(`UPDATE support_tickets SET ${setClause} WHERE id = ?`, values);
   },

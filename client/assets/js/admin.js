@@ -507,7 +507,7 @@
   };
 
   window.confirmKycAction = async function(kycId, action) {
-    const kyc = state.kycs.find(k => k.id === kycId);
+    const kyc = state.kycs.find(k => String(k.id) === String(kycId));
     const applicantName = kyc ? (kyc.name || kyc.fullname) : 'User';
 
     if (action === 'approve') {
@@ -534,11 +534,13 @@
         message: 'Please enter the rejection reason for the applicant:',
         placeholder: 'e.g. Document image is blurry or unreadable',
         type: 'danger',
+        required: false,
         confirmText: 'Reject Submission'
       });
-      if (!reason) return;
+      if (reason === null) return;
+      const finalReason = (reason || '').trim() || 'Document image is blurry or unreadable';
 
-      const res = await AdminAPI.post('/api/admin/kyc/action', { kycId, action: 'reject', reason });
+      const res = await AdminAPI.post('/api/admin/kyc/action', { kycId, action: 'reject', reason: finalReason });
       if (res && res.success) {
         AdminUI.toast('KYC Rejected', res.message, 'warning');
         loadKycs();
@@ -553,11 +555,13 @@
         message: 'Specify which document needs to be re-uploaded:',
         placeholder: 'e.g. Back side of ID is cropped or blurry',
         type: 'warning',
+        required: false,
         confirmText: 'Request Re-upload'
       });
-      if (!reason) return;
+      if (reason === null) return;
+      const finalReason = (reason || '').trim() || 'Please re-upload clearer photos of verification documents';
 
-      const res = await AdminAPI.post('/api/admin/kyc/action', { kycId, action: 'reupload', reason });
+      const res = await AdminAPI.post('/api/admin/kyc/action', { kycId, action: 'reupload', reason: finalReason });
       if (res && res.success) {
         AdminUI.toast('Requested', res.message, 'info');
         loadKycs();
@@ -687,13 +691,15 @@
       const notes = await AdminUI.prompt({
         title: 'Reject Deposit Request',
         message: 'Reason for rejection (e.g. Unverified blockchain transaction hash):',
-        placeholder: 'Enter rejection reason',
+        placeholder: 'Enter rejection reason (optional)',
         type: 'danger',
+        required: false,
         confirmText: 'Reject Deposit'
       });
-      if (!notes) return;
+      if (notes === null) return;
+      const finalNotes = (notes || '').trim() || 'Invalid transaction hash / receipt';
 
-      const res = await AdminAPI.post('/api/admin/deposits/action', { depositId, action: 'reject', notes });
+      const res = await AdminAPI.post('/api/admin/deposits/action', { depositId, action: 'reject', notes: finalNotes });
       if (res && res.success) {
         AdminUI.toast('Deposit Rejected', res.message, 'warning');
         loadDeposits();
@@ -773,13 +779,15 @@
       const notes = await AdminUI.prompt({
         title: 'Reject & Refund Withdrawal',
         message: `Reject withdrawal of ${amountStr} and return funds back to user working balance:`,
-        placeholder: 'Enter rejection notes',
+        placeholder: 'Enter rejection notes (optional)',
         type: 'danger',
+        required: false,
         confirmText: 'Reject & Refund'
       });
-      if (!notes) return;
+      if (notes === null) return;
+      const finalNotes = (notes || '').trim() || 'Withdrawal request rejected by admin';
 
-      const res = await AdminAPI.post('/api/admin/withdrawals/action', { withdrawalId, action: 'reject', notes });
+      const res = await AdminAPI.post('/api/admin/withdrawals/action', { withdrawalId, action: 'reject', notes: finalNotes });
       if (res && res.success) {
         AdminUI.toast('Withdrawal Refunded', res.message, 'warning');
         loadWithdrawals();

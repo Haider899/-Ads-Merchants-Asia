@@ -221,71 +221,82 @@ router.get('/kyc', adminAuthMiddleware, async (req, res) => {
 
 // POST /api/admin/kyc/action - Approve, Reject, or Request Re-upload
 router.post('/kyc/action', adminAuthMiddleware, async (req, res) => {
-  const { kycId, action, reason } = req.body; // action: 'approve' | 'reject' | 'reupload'
-  const submissions = await db.getKycSubmissions();
-  const kyc = submissions.find(k => k.id === kycId);
+  try {
+    const kycId = req.body.kycId || req.body.id || req.body.submissionId;
+    const action = req.body.action;
+    const reason = (req.body.reason || req.body.notes || '').trim();
 
-  if (!kyc) {
-    return res.status(404).json({ success: false, message: 'KYC submission not found' });
-  }
+    if (!kycId) {
+      return res.status(400).json({ success: false, message: 'KYC submission ID is required.' });
+    }
 
-  const user = await db.findUserById(kyc.user_id);
-  let newStatus = 'pending';
-  let userKycStatus = 'pending';
+    const submissions = await db.getKycSubmissions();
+    const kyc = submissions.find(k => String(k.id).trim() === String(kycId).trim());
 
-  if (action === 'approve') {
-    newStatus = 'approved';
-    userKycStatus = 'approved';
-  } else if (action === 'reject') {
-    newStatus = 'rejected';
-    userKycStatus = 'rejected';
-  } else if (action === 'reupload') {
-    newStatus = 'reupload_required';
-    userKycStatus = 'reupload_required';
-  } else {
-    return res.status(400).json({ success: false, message: 'Invalid action' });
-  }
+    if (!kyc) {
+      return res.status(404).json({ success: false, message: 'KYC submission not found.' });
+    }
 
-  await db.updateKycSubmission(kycId, {
-    status: newStatus,
-    rejection_reason: reason || '',
-    updated_at: new Date().toISOString()
-  });
-
-  if (user) {
-    await db.updateUser(user.id, {
-      kyc_status: userKycStatus,
-      kyc_notes: reason || ''
-    });
+    const user = await db.findUserById(kyc.user_id);
+    let newStatus = 'pending';
+    let userKycStatus = 'pending';
 
     if (action === 'approve') {
-      await db.createNotification({
-        user_id: user.id,
-        title: 'KYC Verified! ✅',
-        message: 'Congratulations! Your merchant identity documents have been verified and approved.',
-        type: 'success'
-      });
+      newStatus = 'approved';
+      userKycStatus = 'approved';
     } else if (action === 'reject') {
-      await db.createNotification({
-        user_id: user.id,
-        title: 'KYC Rejected ⚠️',
-        message: 'Your KYC submission was rejected. Reason: ' + (reason || 'Documents could not be verified.'),
-        type: 'error'
-      });
+      newStatus = 'rejected';
+      userKycStatus = 'rejected';
     } else if (action === 'reupload') {
-      await db.createNotification({
-        user_id: user.id,
-        title: 'KYC Re-upload Required 📝',
-        message: 'Please re-upload your verification documents. Instructions: ' + (reason || 'Clear photo required.'),
-        type: 'warning'
-      });
+      newStatus = 'reupload_required';
+      userKycStatus = 'reupload_required';
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid action: ' + action });
     }
-  }
 
-  res.json({
-    success: true,
-    message: `KYC submission marked as ${newStatus}. User notified.`
-  });
+    await db.updateKycSubmission(kyc.id, {
+      status: newStatus,
+      rejection_reason: reason
+    });
+
+    if (user) {
+      await db.updateUser(user.id, {
+        kyc_status: userKycStatus,
+        kyc_notes: reason
+      });
+
+      if (action === 'approve') {
+        await db.createNotification({
+          user_id: user.id,
+          title: 'KYC Verified! ✅',
+          message: 'Congratulations! Your merchant identity documents have been verified and approved.',
+          type: 'success'
+        });
+      } else if (action === 'reject') {
+        await db.createNotification({
+          user_id: user.id,
+          title: 'KYC Rejected ⚠️',
+          message: 'Your KYC submission was rejected. Reason: ' + (reason || 'Documents could not be verified.'),
+          type: 'error'
+        });
+      } else if (action === 'reupload') {
+        await db.createNotification({
+          user_id: user.id,
+          title: 'KYC Re-upload Required 📝',
+          message: 'Please re-upload your verification documents. Instructions: ' + (reason || 'Clear photo required.'),
+          type: 'warning'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `KYC submission marked as ${newStatus}. User has been notified.`
+    });
+  } catch (err) {
+    console.error('KYC Action Error:', err);
+    res.status(500).json({ success: false, message: 'Error processing KYC action: ' + err.message });
+  }
 });
 
 // GET /api/admin/deposits
@@ -318,8 +329,7 @@ router.post('/deposits/action', adminAuthMiddleware, async (req, res) => {
       await db.updateUser(user.id, { balance: newBalance });
       await db.updateDeposit(depositId, {
         status: 'approved',
-        admin_notes: notes || 'Verified on blockchain',
-        approved_at: new Date().toISOString()
+        admin_notes: notes || 'Verified on blockchain'
       });
 
       await db.createNotification({
@@ -336,8 +346,7 @@ router.post('/deposits/action', adminAuthMiddleware, async (req, res) => {
     } else if (action === 'reject') {
       await db.updateDeposit(depositId, {
         status: 'rejected',
-        admin_notes: notes || 'Invalid transaction hash / receipt',
-        rejected_at: new Date().toISOString()
+        admin_notes: notes || 'Invalid transaction hash / receipt'
       });
 
       await db.createNotification({
@@ -396,8 +405,7 @@ router.post('/withdrawals/action', adminAuthMiddleware, async (req, res) => {
       await db.updateUser(user.id, { frozen_balance: newFrozen });
       await db.updateWithdrawal(withdrawalId, {
         status: 'approved',
-        admin_notes: notes || 'Payout transferred to destination address',
-        approved_at: new Date().toISOString()
+        admin_notes: notes || 'Payout transferred to destination address'
       });
 
       await db.createNotification({
@@ -419,8 +427,7 @@ router.post('/withdrawals/action', adminAuthMiddleware, async (req, res) => {
 
       await db.updateWithdrawal(withdrawalId, {
         status: 'rejected',
-        admin_notes: notes || 'Withdrawal request rejected by admin',
-        rejected_at: new Date().toISOString()
+        admin_notes: notes || 'Withdrawal request rejected by admin'
       });
 
       await db.createNotification({
