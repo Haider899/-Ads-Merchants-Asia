@@ -174,9 +174,14 @@ const db = {
     await query(`UPDATE deposits SET ${setClause} WHERE id = ?`, values);
   },
 
-  getWithdrawals: async (userId) => {
+  getWithdrawals: async (userId = null) => {
     let sql = `
-      SELECT w.*, u.username, u.fullname, u.phone 
+      SELECT 
+        w.*, 
+        w.bank_name as method,
+        w.account_number as wallet_address,
+        u.fullname, 
+        u.username
       FROM withdrawals w 
       LEFT JOIN users u ON w.user_id = u.id
     `;
@@ -189,8 +194,13 @@ const db = {
   },
 
   createWithdrawal: async (withdrawalData) => {
+    const id = withdrawalData.id || ('wth_' + Date.now());
+    const bankName = withdrawalData.bank_name || withdrawalData.method || 'USDT';
+    const accountName = withdrawalData.account_name || withdrawalData.account_holder || withdrawalData.user_name || 'Merchant';
+    const accountNumber = withdrawalData.account_number || withdrawalData.wallet_address || withdrawalData.iban || '';
+
     await query(`INSERT INTO withdrawals (id, user_id, user_email, amount, bank_name, account_name, account_number, status, admin_notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [withdrawalData.id, withdrawalData.user_id, withdrawalData.user_email, withdrawalData.amount, withdrawalData.bank_name, withdrawalData.account_name, withdrawalData.account_number, withdrawalData.status || 'pending', withdrawalData.admin_notes || '', formatMySQLDate(withdrawalData.created_at)]);
+      [id, withdrawalData.user_id, withdrawalData.user_email || '', withdrawalData.amount, bankName, accountName, accountNumber, withdrawalData.status || 'pending', withdrawalData.admin_notes || '', formatMySQLDate(withdrawalData.created_at || new Date())]);
     return withdrawalData;
   },
 
@@ -370,7 +380,8 @@ const db = {
         c.message_text as last_message, 
         c.created_at as last_message_at, 
         c.sender as last_sender,
-        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE) as unread_admin_count
+        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE) as unread_admin_count,
+        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE) as unread_count
       FROM chat_messages c
       JOIN users u ON c.user_id = u.id
       WHERE c.created_at = (SELECT MAX(created_at) FROM chat_messages WHERE user_id = c.user_id)
@@ -413,10 +424,11 @@ const db = {
     return await query('SELECT id, fullname, email, role, status, created_at FROM admins ORDER BY created_at DESC');
   },
 
-  findAdminByEmail: async (email) => {
-    if (!email) return null;
+  findAdminByEmail: async (identifier) => {
+    if (!identifier) return null;
     await db.ensureAdminsTable();
-    const rows = await query('SELECT * FROM admins WHERE LOWER(email) = ?', [email.trim().toLowerCase()]);
+    const clean = identifier.trim().toLowerCase();
+    const rows = await query('SELECT * FROM admins WHERE LOWER(email) = ? OR LOWER(fullname) = ?', [clean, clean]);
     return rows[0] || null;
   },
 

@@ -80,69 +80,82 @@ router.post('/deposit', authMiddleware, async (req, res) => {
 
 // POST /api/finance/withdraw - Submit withdrawal request
 router.post('/withdraw', authMiddleware, async (req, res) => {
-  const { amount, method, network, wallet_address, bank_name, account_holder, iban } = req.body;
-  const user = await db.findUserById(req.user.id);
-  const settings = await db.getSettings();
+  try {
+    const { amount, method, network, wallet_address, bank_name, account_holder, iban } = req.body;
+    const user = await db.findUserById(req.user.id);
+    const settings = await db.getSettings();
 
-  const numAmount = parseFloat(amount);
-  if (isNaN(numAmount) || numAmount < (settings.min_withdraw || 30)) {
-    return res.status(400).json({
-      success: false,
-      message: `Minimum withdrawal amount is $${settings.min_withdraw || 30}.00`
-    });
-  }
-
-  if (user.balance < numAmount) {
-    return res.status(400).json({
-      success: false,
-      message: `Insufficient working balance. Available balance: $${user.balance.toFixed(2)}`
-    });
-  }
-
-  // Validate address/bank details
-  if (method === 'USDT' || method === 'BTC') {
-    if (!wallet_address || wallet_address.trim().length < 10) {
-      return res.status(400).json({ success: false, message: 'Please provide a valid receiving crypto wallet address.' });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
     }
-  } else if (method === 'BANK') {
-    if (!bank_name || !account_holder || !iban) {
-      return res.status(400).json({ success: false, message: 'Please complete all bank transfer details (Bank Name, Holder, IBAN/Account).' });
+
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount < (settings.min_withdraw || 30)) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum withdrawal amount is $${settings.min_withdraw || 30}.00`
+      });
     }
+
+    const currentBalance = parseFloat(user.balance) || 0;
+    const currentFrozen = parseFloat(user.frozen_balance) || 0;
+
+    if (currentBalance < numAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient working balance. Available balance: $${currentBalance.toFixed(2)}`
+      });
+    }
+
+    // Validate address/bank details
+    const withdrawMethod = (method || 'USDT').toUpperCase();
+    if (withdrawMethod === 'USDT' || withdrawMethod === 'BTC') {
+      if (!wallet_address || wallet_address.trim().length < 10) {
+        return res.status(400).json({ success: false, message: 'Please provide a valid receiving crypto wallet address.' });
+      }
+    } else if (withdrawMethod === 'BANK') {
+      if (!bank_name || !account_holder || !iban) {
+        return res.status(400).json({ success: false, message: 'Please complete all bank transfer details (Bank Name, Holder, IBAN/Account).' });
+      }
+    }
+
+    // Deduct balance and add to frozen balance
+    const updatedBalance = parseFloat((currentBalance - numAmount).toFixed(2));
+    const updatedFrozen = parseFloat((currentFrozen + numAmount).toFixed(2));
+
+    await db.updateUser(user.id, {
+      balance: updatedBalance,
+      frozen_balance: updatedFrozen
+    });
+
+    const withdrawal = {
+      id: 'wth_' + Date.now(),
+      user_id: user.id,
+      user_email: user.email,
+      amount: numAmount,
+      method: withdrawMethod,
+      network: network || 'TRC20',
+      wallet_address: (wallet_address || '').trim(),
+      bank_name: (bank_name || withdrawMethod).trim(),
+      account_name: (account_holder || user.fullname || user.username || 'Merchant').trim(),
+      account_number: (wallet_address || iban || '').trim(),
+      status: 'pending',
+      admin_notes: '',
+      created_at: new Date().toISOString()
+    };
+
+    await db.createWithdrawal(withdrawal);
+
+    res.json({
+      success: true,
+      message: `Withdrawal request for $${numAmount.toFixed(2)} submitted successfully! Processing time is usually 15-60 minutes.`,
+      withdrawal,
+      new_balance: updatedBalance
+    });
+  } catch (err) {
+    console.error('Withdrawal error:', err);
+    res.status(500).json({ success: false, message: 'Error submitting withdrawal: ' + err.message });
   }
-
-  // Deduct balance and add to frozen balance
-  const updatedBalance = parseFloat((user.balance - numAmount).toFixed(2));
-  const updatedFrozen = parseFloat((user.frozen_balance + numAmount).toFixed(2));
-
-  await db.updateUser(user.id, {
-    balance: updatedBalance,
-    frozen_balance: updatedFrozen
-  });
-
-  const withdrawal = {
-    id: 'wth_' + Date.now(),
-    user_id: user.id,
-    user_email: user.email,
-    amount: numAmount,
-    method: method || 'USDT',
-    network: network || 'TRC20',
-    wallet_address: wallet_address ? wallet_address.trim() : '',
-    bank_name: bank_name || '',
-    account_holder: account_holder || '',
-    iban: iban || '',
-    status: 'pending',
-    admin_notes: '',
-    created_at: new Date().toISOString()
-  };
-
-  await db.createWithdrawal(withdrawal);
-
-  res.json({
-    success: true,
-    message: `Withdrawal request for $${numAmount.toFixed(2)} submitted successfully! Processing time is usually 15-60 minutes.`,
-    withdrawal,
-    new_balance: updatedBalance
-  });
 });
 
 // GET /api/finance/history - User financial transaction log

@@ -204,12 +204,29 @@
     activeChatUserId: null
   };
 
+  // Real-time Automated Polling for Badges & Incoming Chats (Every 4s)
+  let adminPollingTimer = null;
+  function startAdminPolling() {
+    if (adminPollingTimer) clearInterval(adminPollingTimer);
+    adminPollingTimer = setInterval(async () => {
+      const modal = document.getElementById('adminLoginModal');
+      if (modal && modal.style.display === 'none') {
+        await loadMetrics();
+        await loadChatConversations();
+        if (state.activeChatUserId) {
+          await loadActiveUserMessages();
+        }
+      }
+    }, 4000);
+  }
+
   // 1. Initial Authentication Check
   async function checkAuthAndLoad() {
     const res = await AdminAPI.get('/api/admin/metrics');
     if (res && res.success) {
       document.getElementById('adminLoginModal').style.display = 'none';
       loadAllData();
+      startAdminPolling();
     } else {
       document.getElementById('adminLoginModal').style.display = 'flex';
     }
@@ -823,7 +840,7 @@
 
       if (res && res.success && res.conversations) {
         state.chatConversations = res.conversations;
-        const totalUnread = res.conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+        const totalUnread = res.conversations.reduce((sum, c) => sum + (c.unread_count || c.unread_admin_count || 0), 0);
         const badge = document.getElementById('adminChatUnreadBadge');
         if (badge) {
           if (totalUnread > 0) {
@@ -839,20 +856,23 @@
           return;
         }
 
-        listEl.innerHTML = res.conversations.map(c => `
-          <div class="admin-chat-user-item ${state.activeChatUserId === c.user_id ? 'active' : ''}" onclick="selectChatUser('${c.user_id}')" style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; cursor: pointer; background: ${state.activeChatUserId === c.user_id ? '#eff6ff' : '#ffffff'}; transition: background 0.15s ease;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <div style="font-weight: 700; font-size: 13.5px; color: #0f172a;">${escapeHtml(c.user_name || 'Customer')}</div>
-              <small style="font-size: 10.5px; color: #94a3b8;">${new Date(c.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;">
-                ${escapeHtml(c.last_message || 'Attachment/image')}
+        listEl.innerHTML = res.conversations.map(c => {
+          const unread = c.unread_count || c.unread_admin_count || 0;
+          return `
+            <div class="admin-chat-user-item ${state.activeChatUserId === c.user_id ? 'active' : ''}" onclick="selectChatUser('${c.user_id}')" style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; cursor: pointer; background: ${state.activeChatUserId === c.user_id ? '#eff6ff' : '#ffffff'}; transition: background 0.15s ease;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <div style="font-weight: 700; font-size: 13.5px; color: #0f172a;">${escapeHtml(c.user_name || 'Customer')}</div>
+                <small style="font-size: 10.5px; color: #94a3b8;">${new Date(c.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
               </div>
-              ${c.unread_count > 0 ? `<span class="badge-status badge-danger" style="font-size: 10px; padding: 2px 6px;">${c.unread_count}</span>` : ''}
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;">
+                  ${escapeHtml(c.last_message || 'Attachment/image')}
+                </div>
+                ${unread > 0 ? `<span class="badge-status badge-danger" style="font-size: 10px; padding: 2px 6px; font-weight: bold; border-radius: 10px;">${unread}</span>` : ''}
+              </div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       }
     } catch (e) {
       console.error('Chat load error:', e);
@@ -956,6 +976,23 @@
       });
     });
 
+    // Toggle Password Visibility in Admin Login Modal
+    const togglePass = document.getElementById('toggleAdminPass');
+    const passInput = document.getElementById('adminPassword');
+    if (togglePass && passInput) {
+      togglePass.addEventListener('click', () => {
+        if (passInput.type === 'password') {
+          passInput.type = 'text';
+          togglePass.classList.remove('fa-eye');
+          togglePass.classList.add('fa-eye-slash');
+        } else {
+          passInput.type = 'password';
+          togglePass.classList.remove('fa-eye-slash');
+          togglePass.classList.add('fa-eye');
+        }
+      });
+    }
+
     // Admin Login Form
     const adminLoginForm = document.getElementById('adminLoginForm');
     if (adminLoginForm) {
@@ -970,6 +1007,7 @@
           document.getElementById('adminLoginModal').style.display = 'none';
           AdminUI.toast('Signed In', res.message || 'Welcome to Admin Control Center', 'success');
           loadAllData();
+          startAdminPolling();
         } else {
           AdminUI.toast('Login Failed', (res && res.message) || 'Invalid admin credentials', 'error');
         }

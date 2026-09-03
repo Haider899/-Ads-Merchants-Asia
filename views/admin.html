@@ -703,15 +703,15 @@
             <!-- Admin Authentication Form -->
             <form id="adminLoginForm">
                 <div class="admin-pill-group">
-                    <label>Admin Email</label>
-                    <input type="email" id="adminEmail" class="admin-pill-input" placeholder="haiderusama707@gmail.com" value="haiderusama707@gmail.com" required />
+                    <label>Admin Email / Username</label>
+                    <input type="text" id="adminEmail" class="admin-pill-input" placeholder="Enter your email/username" value="" autocomplete="username" required />
                     <i class="fa fa-envelope admin-input-icon"></i>
                 </div>
 
                 <div class="admin-pill-group">
                     <label>Master Password</label>
-                    <input type="password" id="adminPassword" class="admin-pill-input" placeholder="••••••••••••" required />
-                    <i class="fa fa-lock admin-input-icon"></i>
+                    <input type="password" id="adminPassword" class="admin-pill-input" placeholder="Enter your password" autocomplete="current-password" required />
+                    <i id="toggleAdminPass" class="fa fa-eye admin-input-icon" style="cursor: pointer; pointer-events: auto;" title="View Password"></i>
                 </div>
 
                 <button type="submit" id="adminLoginBtn" class="admin-submit-btn">

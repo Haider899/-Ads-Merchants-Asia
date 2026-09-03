@@ -195,6 +195,21 @@
           populateUserData(updatedMe.user);
         }
       }
+
+      // Check unread chat messages from admin for floating button red badge
+      const chatRes = await API.get('/api/user/chat');
+      if (chatRes && chatRes.success && Array.isArray(chatRes.messages)) {
+        const unreadFromAdmin = chatRes.messages.filter(m => m.sender === 'admin' && (m.read_by_user === 0 || m.read_by_user === false)).length;
+        const chatBadge = document.getElementById('nativeChatBadge');
+        if (chatBadge) {
+          if (unreadFromAdmin > 0 && window._nativeChatOpen !== true) {
+            chatBadge.textContent = unreadFromAdmin;
+            chatBadge.style.display = 'flex';
+          } else {
+            chatBadge.style.display = 'none';
+          }
+        }
+      }
     } catch (e) {
       // Ignore polling errors
     }
@@ -574,53 +589,79 @@
 
   // WITHDRAW PAGE HANDLER
   function initWithdrawPage(user) {
-    const withdrawForm = document.querySelector('form.withdrawal-form') || document.getElementById('withdrawForm') || document.querySelector('form');
-    if (!withdrawForm) return;
+    const withdrawForms = document.querySelectorAll('form.withdrawal-form, #withdrawForm');
+    if (!withdrawForms || !withdrawForms.length) return;
 
-    withdrawForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const amountInput = withdrawForm.querySelector('input[name="withdraw_amount"], input[name="amount"]');
-      const addressInput = withdrawForm.querySelector('input[name="wallet_address"], input[name="address"]');
-      const submitBtn = withdrawForm.querySelector('button[type="submit"]');
+    withdrawForms.forEach(withdrawForm => {
+      withdrawForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amountInput = withdrawForm.querySelector('input[name="withdraw_amount"], input[name="amount"], #withdraw-amount');
+        const addressInput = withdrawForm.querySelector('input[name="wallet_address"], input[name="address"], #wallet-address');
+        const networkSelect = withdrawForm.querySelector('select[name="usdt_network"], #usdt-network');
+        const bankInput = withdrawForm.querySelector('input[name="bank_name"], #bank_name');
+        const holderInput = withdrawForm.querySelector('input[name="account_holdername"], #account_holdername');
+        const ibanInput = withdrawForm.querySelector('input[name="iban_number"], #iban_number');
+        const submitBtn = withdrawForm.querySelector('button[type="submit"], .withdraw-btn');
 
-      if (!amountInput) return;
+        if (!amountInput) return;
 
-      const amount = parseFloat(amountInput.value);
-      const wallet_address = addressInput ? addressInput.value.trim() : 'TNmwNEPiuT4zNMDEhJGUrxXpMPfivzDdTV';
-
-      if (isNaN(amount) || amount < 30) {
-        showBridgeToast('Invalid Amount', 'Minimum withdrawal is $30.00', 'error');
-        return;
-      }
-
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Processing...';
-      }
-
-      const res = await API.post('/api/finance/withdraw', {
-        amount,
-        wallet_address,
-        method: 'USDT',
-        network: 'TRC20'
-      });
-
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Withdraw';
-      }
-
-      if (res && res.success) {
-        showBridgeToast('Withdrawal Requested', res.message, 'success');
-        amountInput.value = '';
-        if (res.new_balance !== undefined) {
-          document.querySelectorAll('.user-balance, #userBalance, .withdraw-card-value').forEach(el => {
-            el.textContent = `USD ${parseFloat(res.new_balance).toFixed(2)}`;
-          });
+        const amount = parseFloat(amountInput.value);
+        if (isNaN(amount) || amount < 30) {
+          showBridgeToast('Invalid Amount', 'Minimum withdrawal is $30.00', 'error');
+          return;
         }
-      } else {
-        showBridgeToast('Withdrawal Failed', (res && res.message) || 'Error submitting withdrawal', 'error');
-      }
+
+        const isFiat = withdrawForm.closest('#fiat-section') !== null;
+        let payload = { amount };
+
+        if (isFiat) {
+          payload.method = 'BANK';
+          payload.bank_name = bankInput ? bankInput.value.trim() : '';
+          payload.account_holder = holderInput ? holderInput.value.trim() : '';
+          payload.iban = ibanInput ? ibanInput.value.trim() : '';
+          if (!payload.bank_name || !payload.account_holder || !payload.iban) {
+            showBridgeToast('Incomplete Details', 'Please complete all bank transfer fields', 'error');
+            return;
+          }
+        } else {
+          payload.method = 'USDT';
+          payload.network = (networkSelect && networkSelect.value !== 'Select Network') ? networkSelect.value : 'TRC20';
+          payload.wallet_address = addressInput ? addressInput.value.trim() : '';
+          if (!payload.wallet_address || payload.wallet_address.length < 10) {
+            showBridgeToast('Invalid Address', 'Please provide a valid USDT destination address', 'error');
+            return;
+          }
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Processing...';
+        }
+
+        try {
+          const res = await API.post('/api/finance/withdraw', payload);
+          if (res && res.success) {
+            showBridgeToast('Withdrawal Requested', res.message, 'success');
+            amountInput.value = '';
+            if (addressInput) addressInput.value = '';
+            if (ibanInput) ibanInput.value = '';
+            if (res.new_balance !== undefined) {
+              document.querySelectorAll('.user-balance, #userBalance, .withdraw-card-value').forEach(el => {
+                el.textContent = `USD ${parseFloat(res.new_balance).toFixed(2)}`;
+              });
+            }
+          } else {
+            showBridgeToast('Withdrawal Failed', (res && res.message) || 'Error submitting withdrawal', 'error');
+          }
+        } catch (err) {
+          showBridgeToast('Error', 'Connection error while processing withdrawal', 'error');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Withdraw';
+          }
+        }
+      });
     });
   }
 
@@ -1117,9 +1158,12 @@
 
     function toggleChat(open) {
       chatOpen = open !== undefined ? open : !chatOpen;
+      window._nativeChatOpen = chatOpen;
       chatWin.style.display = chatOpen ? 'flex' : 'none';
       if (chatOpen) {
         floatBtn.style.display = 'none';
+        const chatBadge = document.getElementById('nativeChatBadge');
+        if (chatBadge) chatBadge.style.display = 'none';
         cachedMessagesCount = -1; // Force immediate refresh on open
         loadChatMessages();
         if (!pollInterval) pollInterval = setInterval(loadChatMessages, 3000);
