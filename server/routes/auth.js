@@ -68,9 +68,10 @@ router.post('/register', async (req, res) => {
     }
     const password_hash = bcrypt.hashSync(password, 10);
     const invite_code = 'ASIA-' + Math.floor(10000 + Math.random() * 90000);
+    const nextUserId = await db.getNextUserId();
 
     const newUser = {
-      id: 'usr_' + Date.now(),
+      id: nextUserId,
       fullname: fullname.trim(),
       username,
       email: email.trim().toLowerCase(),

@@ -13,7 +13,10 @@ async function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await db.findUserById(decoded.id);
+    let user = await db.findUserById(decoded.id);
+    if (!user && decoded.email) {
+      user = await db.findUserByIdentifier(decoded.email);
+    }
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }

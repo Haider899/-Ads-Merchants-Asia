@@ -279,7 +279,14 @@
     if (nameInput && !nameInput.value) nameInput.value = user.fullname;
 
     const userIdInput = document.getElementById('userId');
-    if (userIdInput) userIdInput.value = user.id;
+    if (userIdInput) {
+      let displayId = String(user.id || '1001');
+      if (displayId.startsWith('usr_')) {
+        const numPart = displayId.replace(/\D/g, '');
+        displayId = '10' + (numPart.slice(-2) || '01');
+      }
+      userIdInput.value = displayId;
+    }
   }
 
   // LOGIN PAGE HANDLER
@@ -956,29 +963,44 @@
     style.innerHTML = `
       #nativeChatFloatingBtn {
         position: fixed;
-        bottom: 24px;
-        right: 24px;
-        width: 58px;
-        height: 58px;
+        bottom: 82px;
+        right: 16px;
         background: #00875a;
         color: #ffffff;
-        border-radius: 50%;
+        border-radius: 26px;
+        padding: 9px 16px 9px 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 6px 20px rgba(0, 135, 90, 0.4);
+        gap: 7px;
+        box-shadow: 0 5px 22px rgba(0, 135, 90, 0.42);
         cursor: pointer;
         z-index: 999998;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-weight: 700;
+        font-size: 13.5px;
+        letter-spacing: 0.3px;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
+        user-select: none;
       }
       #nativeChatFloatingBtn:hover {
-        transform: scale(1.06);
-        box-shadow: 0 8px 25px rgba(0, 135, 90, 0.5);
+        transform: translateY(-2px) scale(1.03);
+        box-shadow: 0 8px 25px rgba(0, 135, 90, 0.55);
+      }
+      #nativeChatFloatingBtn:active {
+        transform: scale(0.97);
+      }
+      .native-chat-label {
+        display: inline-block;
+        font-weight: 700;
+        font-size: 13.5px;
+        line-height: 1;
+        color: #ffffff;
       }
       #nativeChatBadge {
         position: absolute;
-        top: -4px;
-        right: -4px;
+        top: -6px;
+        right: -6px;
         background: #e71d36;
         color: #fff;
         font-size: 11px;
@@ -990,15 +1012,16 @@
         align-items: center;
         justify-content: center;
         border: 2px solid #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
       }
       #nativeChatWindow {
         position: fixed;
-        bottom: 20px;
-        right: 20px;
+        bottom: 85px;
+        right: 16px;
         width: 380px;
-        height: 580px;
-        max-height: calc(100vh - 40px);
-        max-width: calc(100vw - 40px);
+        height: 560px;
+        max-height: calc(100vh - 100px);
+        max-width: calc(100vw - 32px);
         background: #ffffff;
         border-radius: 16px;
         box-shadow: 0 12px 40px rgba(0,0,0,0.25);
@@ -1008,6 +1031,21 @@
         overflow: hidden;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         border: 1px solid rgba(0,0,0,0.08);
+      }
+      @media (max-width: 480px) {
+        #nativeChatFloatingBtn {
+          bottom: 78px;
+          right: 14px;
+          padding: 8px 14px 8px 10px;
+          font-size: 13px;
+        }
+        #nativeChatWindow {
+          bottom: 76px;
+          right: 12px;
+          left: 12px;
+          width: calc(100% - 24px);
+          max-height: calc(100vh - 90px);
+        }
       }
       .native-chat-header {
         background: #00875a;
@@ -1142,9 +1180,10 @@
     floatBtn.id = 'nativeChatFloatingBtn';
     floatBtn.title = 'Live Support Chat';
     floatBtn.innerHTML = `
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       </svg>
+      <span class="native-chat-label">Chat</span>
       <span id="nativeChatBadge">0</span>
     `;
     document.body.appendChild(floatBtn);

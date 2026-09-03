@@ -115,10 +115,18 @@ app.use(vhost('localhost', mainApp)); // For local testing
 // Catch-all if vhost doesn't match (e.g. accessing via IP directly)
 app.use(mainApp);
 
+const db = require('./server/db');
+
 app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`🚀 Ads Merchants Asia Server Running on port ${PORT}`);
   console.log(`🔗 Local Main App: http://localhost:${PORT}`);
   console.log(`🔗 Local Admin App: http://admin.localhost:${PORT}`);
   console.log(`=======================================================`);
+  
+  if (db.migrateUserIdsToSequential) {
+    db.migrateUserIdsToSequential().catch(err => {
+      console.log('Legacy User ID migration notice:', err.message);
+    });
+  }
 });

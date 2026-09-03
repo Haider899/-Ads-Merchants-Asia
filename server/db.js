@@ -69,17 +69,74 @@ const db = {
     return rows[0] || null;
   },
 
+  getNextUserId: async () => {
+    try {
+      const rows = await query(`
+        SELECT id FROM users 
+        WHERE id REGEXP '^[0-9]+$' 
+        ORDER BY CAST(id AS UNSIGNED) DESC 
+        LIMIT 1
+      `);
+      if (rows && rows.length > 0) {
+        const highest = parseInt(rows[0].id, 10);
+        if (!isNaN(highest) && highest >= 1000) {
+          return String(highest + 1);
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching max user id:', e);
+    }
+    return '1001';
+  },
+
+  migrateUserIdsToSequential: async () => {
+    try {
+      const nonNumericUsers = await query(`
+        SELECT id, created_at FROM users 
+        WHERE id NOT REGEXP '^[0-9]+$' 
+        ORDER BY created_at ASC
+      `);
+      if (!nonNumericUsers || nonNumericUsers.length === 0) return;
+
+      console.log(`[MIGRATION] Found ${nonNumericUsers.length} legacy user IDs to convert to sequential 1000+ IDs...`);
+      
+      try { await query('SET FOREIGN_KEY_CHECKS = 0'); } catch (_) {}
+      
+      for (const u of nonNumericUsers) {
+        const nextId = await db.getNextUserId();
+        const oldId = u.id;
+        
+        await query('UPDATE users SET id = ? WHERE id = ?', [nextId, oldId]);
+        await query('UPDATE deposits SET user_id = ? WHERE user_id = ?', [nextId, oldId]);
+        await query('UPDATE withdrawals SET user_id = ? WHERE user_id = ?', [nextId, oldId]);
+        await query('UPDATE tasks SET user_id = ? WHERE user_id = ?', [nextId, oldId]);
+        await query('UPDATE kyc_submissions SET user_id = ? WHERE user_id = ?', [nextId, oldId]);
+        await query('UPDATE support_tickets SET user_id = ? WHERE user_id = ?', [nextId, oldId]);
+        await query('UPDATE notifications SET user_id = ? WHERE user_id = ?', [nextId, oldId]);
+        await query('UPDATE chat_messages SET user_id = ? WHERE user_id = ?', [nextId, oldId]);
+        
+        console.log(`[MIGRATION] Successfully migrated user ${oldId} -> ${nextId}`);
+      }
+      
+      try { await query('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) {}
+    } catch (err) {
+      console.error('[MIGRATION ERROR] Could not migrate legacy user IDs:', err);
+      try { await query('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) {}
+    }
+  },
+
   createUser: async (userData) => {
+    const id = userData.id || (await db.getNextUserId());
     await query(`INSERT INTO users 
       (id, fullname, username, email, phone, gender, password_hash, vip_level, balance, frozen_balance, today_profit, today_tasks_completed, total_tasks_completed, current_set, invite_code, status, created_at) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
       [
-        userData.id, userData.fullname, userData.username, userData.email, userData.phone, userData.gender, userData.password_hash, 
+        id, userData.fullname, userData.username, userData.email, userData.phone, userData.gender, userData.password_hash, 
         userData.vip_level || 'Bronze', userData.balance || 0, userData.frozen_balance || 0, userData.today_profit || 0, 
         userData.today_tasks_completed || 0, userData.total_tasks_completed || 0, userData.current_set || 0, userData.invite_code, 
         userData.status || 'active', formatMySQLDate(userData.created_at)
       ]);
-    return userData;
+    return { ...userData, id };
   },
 
   updateUser: async (id, updates) => {
