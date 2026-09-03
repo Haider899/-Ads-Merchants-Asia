@@ -233,16 +233,38 @@
       el.textContent = user.fullname || displayName;
     });
 
-    document.querySelectorAll('.user-balance, #userBalance, .balance-amount, .deposit-card-value, .withdraw-card-value').forEach(el => {
-      el.textContent = `USD ${parseFloat(user.balance).toFixed(2)}`;
+    const userBal = parseFloat(user.balance || 0).toFixed(2);
+    const userProfit = parseFloat(user.today_profit || 0).toFixed(2);
+    const userFrozen = parseFloat(user.frozen_balance || 0).toFixed(2);
+
+    document.querySelectorAll(`
+      .user-balance, 
+      #userBalance, 
+      .balance-amount, 
+      .deposit-card-value, 
+      .withdraw-card-value,
+      #start-total-balance-text,
+      #start-grandtotal-balance-text,
+      #profile-total-balance,
+      .profile-total-balance,
+      .profile-balances-right .small-text
+    `).forEach(el => {
+      el.textContent = `USD ${userBal}`;
+    });
+
+    document.querySelectorAll(`
+      .user-today-profit, 
+      #todayProfit,
+      #start-todays-profit-text,
+      #profile-total-profit,
+      .profile-total-profit,
+      .profile-balances-left .small-text
+    `).forEach(el => {
+      el.textContent = `USD ${userProfit}`;
     });
 
     document.querySelectorAll('.user-frozen, #userFrozen').forEach(el => {
-      el.textContent = `$${parseFloat(user.frozen_balance || 0).toFixed(2)}`;
-    });
-
-    document.querySelectorAll('.user-today-profit, #todayProfit').forEach(el => {
-      el.textContent = `$${parseFloat(user.today_profit || 0).toFixed(2)}`;
+      el.textContent = `$${userFrozen}`;
     });
 
     document.querySelectorAll('.user-vip, #userVip, .vip-badge').forEach(el => {
@@ -915,6 +937,12 @@
         }
       });
     }
+  }
+
+  // PROFILE PAGE HANDLER
+  function initProfilePage(user) {
+    if (!user) return;
+    populateUserData(user);
   }
 
   // NATIVE LIVE CUSTOMER SUPPORT CHAT ENGINE (NO AI - DIRECT ADMIN LINK)
