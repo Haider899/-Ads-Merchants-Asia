@@ -148,10 +148,20 @@ router.post('/tickets', authMiddleware, async (req, res) => {
   });
 });
 
-// GET /api/user/notifications - Get unread notifications
+// GET /api/user/notifications - Get user notifications and unread counter
 router.get('/notifications', authMiddleware, async (req, res) => {
-  const notifications = await db.getNotifications(req.user.id, true);
-  res.json({ success: true, notifications });
+  try {
+    const notifications = await db.getNotifications(req.user.id, false);
+    const unreadCount = (notifications || []).filter(n => !n.is_read).length;
+    res.json({
+      success: true,
+      notifications: notifications || [],
+      unread_count: unreadCount
+    });
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    res.status(500).json({ success: false, message: 'Error fetching notifications' });
+  }
 });
 
 // POST & GET /api/user/notifications/mark-read - Mark user notifications as read

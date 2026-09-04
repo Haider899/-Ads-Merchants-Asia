@@ -150,6 +150,14 @@ router.get('/metrics', adminAuthMiddleware, async (req, res) => {
     const pendingKycs = kycs.filter(k => (k.status || '').toLowerCase() === 'pending').length;
     const openTickets = tickets.filter(t => (t.status || '').toLowerCase() === 'open').length;
 
+    let unreadChats = 0;
+    try {
+      const conversations = await db.getChatConversations();
+      unreadChats = conversations.reduce((sum, c) => sum + (parseInt(c.unread_admin_count) || 0), 0);
+    } catch (_) {}
+
+    const totalAlerts = pendingDeposits + pendingWithdrawals + pendingKycs + unreadChats + openTickets;
+
     res.json({
       success: true,
       admin: req.admin,
@@ -161,7 +169,9 @@ router.get('/metrics', adminAuthMiddleware, async (req, res) => {
         pendingDeposits,
         pendingWithdrawals,
         pendingKycs,
+        unreadChats,
         openTickets,
+        totalAlerts,
         totalTasksCompleted: tasks.filter(t => t.status === 'completed').length
       }
     });
@@ -178,6 +188,7 @@ router.get('/users', adminAuthMiddleware, async (req, res) => {
     const users = usersList.map(u => {
       const safe = { ...u };
       delete safe.password_hash;
+      delete safe.phone;
       return safe;
     });
     res.json({ success: true, users });

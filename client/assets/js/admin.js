@@ -367,6 +367,28 @@
           kycBadge.style.display = 'none';
         }
       }
+
+      const chatBadge = document.getElementById('adminChatUnreadBadge');
+      if (chatBadge) {
+        const unreadChats = res.metrics.unreadChats || 0;
+        if (unreadChats > 0) {
+          chatBadge.textContent = unreadChats;
+          chatBadge.style.display = 'inline-block';
+        } else {
+          chatBadge.style.display = 'none';
+        }
+      }
+
+      const totalBadge = document.getElementById('adminTotalAlertsBadge');
+      if (totalBadge) {
+        const totalAlerts = res.metrics.totalAlerts || ((res.metrics.pendingDeposits || 0) + (res.metrics.pendingWithdrawals || 0) + (res.metrics.pendingKycs || 0) + (res.metrics.unreadChats || 0));
+        if (totalAlerts > 0) {
+          totalBadge.textContent = totalAlerts;
+          totalBadge.style.display = 'inline-block';
+        } else {
+          totalBadge.style.display = 'none';
+        }
+      }
     }
   }
 

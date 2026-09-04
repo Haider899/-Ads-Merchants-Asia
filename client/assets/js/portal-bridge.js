@@ -1267,11 +1267,15 @@
 
         if (res && res.success && Array.isArray(res.messages)) {
           if (res.messages.length === 0) {
+            cachedMessagesCount = 0;
             container.innerHTML = `
               <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 20px;">
-                <div style="font-size: 32px; margin-bottom: 8px;">👋</div>
+                <div style="font-size: 32px; margin-bottom: 8px;">💬</div>
                 <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Welcome to Live Support!</div>
-                <div>Send your question or deposit/withdrawal query below. A human support specialist will assist you.</div>
+                <div>Send your question or deposit/withdrawal query below. Support is online.</div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
+                  <i class="fa fa-clock-o mr-1"></i> Active session. Chat history clears automatically 10 minutes after resolution.
+                </div>
               </div>
             `;
             return;
@@ -1313,6 +1317,9 @@
                 <div style="font-size: 32px; margin-bottom: 8px;">💬</div>
                 <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Live Customer Care</div>
                 <div>Official support is online. Send your question below!</div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
+                  <i class="fa fa-clock-o mr-1"></i> Active session. Chat clears automatically 10 minutes after resolution.
+                </div>
               </div>
             `;
           }
@@ -1380,11 +1387,320 @@
     }
   }
 
-  // Bind live chat initialization when user profile loads
+  // USER NOTIFICATIONS BELL WIDGET
+  function initUserNotificationsWidget(user) {
+    if (document.getElementById('userNotifFloatingBtn')) return;
+
+    // Append styles for Notification Bell and Drawer
+    const notifStyle = document.createElement('style');
+    notifStyle.textContent = `
+      #userNotifFloatingBtn {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 99999;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      #userNotifFloatingBtn:hover {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+      }
+      #userNotifBadge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #ef4444;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 800;
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.45);
+        animation: pulseNotif 2s infinite;
+      }
+      @keyframes pulseNotif {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+      }
+      #userNotifDrawer {
+        position: fixed;
+        top: 68px;
+        right: 16px;
+        width: 360px;
+        max-width: calc(100vw - 32px);
+        max-height: 520px;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 16px 45px rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        z-index: 100000;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .user-notif-header {
+        padding: 14px 16px;
+        background: #ffffff;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .user-notif-title {
+        font-weight: 700;
+        font-size: 15px;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .user-notif-mark-btn {
+        background: none;
+        border: none;
+        color: #0284c7;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      .user-notif-mark-btn:hover {
+        background: #f0f9ff;
+      }
+      .user-notif-close {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+      }
+      .user-notif-body {
+        padding: 12px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 420px;
+        background: #f8fafc;
+      }
+      .user-notif-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 12px 14px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+      }
+      .user-notif-card.unread {
+        border-left: 4px solid #00875a;
+        background: #f0fdf4;
+      }
+      .user-notif-card.type-error.unread {
+        border-left: 4px solid #ef4444;
+        background: #fef2f2;
+      }
+      .user-notif-card.type-warning.unread {
+        border-left: 4px solid #f59e0b;
+        background: #fffbeb;
+      }
+      .user-notif-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .notif-icon-success { background: #dcfce7; color: #15803d; }
+      .notif-icon-error { background: #fee2e2; color: #b91c1c; }
+      .notif-icon-warning { background: #fef3c7; color: #b45309; }
+      .notif-icon-info { background: #e0f2fe; color: #0369a1; }
+      .user-notif-content {
+        flex: 1;
+      }
+      .user-notif-card-title {
+        font-weight: 700;
+        font-size: 13px;
+        color: #0f172a;
+        margin-bottom: 3px;
+      }
+      .user-notif-card-msg {
+        font-size: 12px;
+        color: #475569;
+        line-height: 1.4;
+      }
+      .user-notif-card-time {
+        font-size: 10.5px;
+        color: #94a3b8;
+        margin-top: 6px;
+      }
+    `;
+    document.head.appendChild(notifStyle);
+
+    // Create Bell Button
+    const notifBtn = document.createElement('div');
+    notifBtn.id = 'userNotifFloatingBtn';
+    notifBtn.title = 'Platform Notifications';
+    notifBtn.innerHTML = `
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00875a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </svg>
+      <span id="userNotifBadge">0</span>
+    `;
+    document.body.appendChild(notifBtn);
+
+    // Create Drawer
+    const drawer = document.createElement('div');
+    drawer.id = 'userNotifDrawer';
+    drawer.innerHTML = `
+      <div class="user-notif-header">
+        <div class="user-notif-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00875a" stroke-width="2.2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          Notifications
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button id="userNotifMarkReadBtn" class="user-notif-mark-btn">Mark read</button>
+          <button id="userNotifCloseBtn" class="user-notif-close">&times;</button>
+        </div>
+      </div>
+      <div class="user-notif-body" id="userNotifList">
+        <div style="text-align: center; color: #94a3b8; padding: 24px 0; font-size: 13px;">Loading notifications...</div>
+      </div>
+    `;
+    document.body.appendChild(drawer);
+
+    let drawerOpen = false;
+
+    async function loadNotifications() {
+      try {
+        const res = await API.get('/api/user/notifications');
+        const badge = document.getElementById('userNotifBadge');
+        if (res && res.success) {
+          const list = res.notifications || [];
+          const unreadCount = res.unread_count !== undefined ? res.unread_count : list.filter(n => !n.is_read).length;
+
+          if (badge) {
+            if (unreadCount > 0) {
+              badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+              badge.style.display = 'flex';
+            } else {
+              badge.style.display = 'none';
+            }
+          }
+
+          if (drawerOpen) {
+            renderNotificationList(list);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching notifications:', e);
+      }
+    }
+
+    function renderNotificationList(list) {
+      const container = document.getElementById('userNotifList');
+      if (!container) return;
+
+      if (!list || list.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; color: #94a3b8; padding: 36px 16px; font-size: 13px;">
+            <div style="font-size: 30px; margin-bottom: 8px;">📭</div>
+            <div style="font-weight: 600; color: #64748b;">No notifications yet</div>
+            <div style="font-size: 11.5px; margin-top: 4px;">Deposit, withdrawal, and verification updates will show here.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map(n => {
+        const isUnread = !n.is_read;
+        const type = (n.type || 'info').toLowerCase();
+        let iconClass = 'notif-icon-info';
+        let iconSymbol = 'ℹ️';
+
+        if (type === 'success') {
+          iconClass = 'notif-icon-success';
+          iconSymbol = '✓';
+        } else if (type === 'error') {
+          iconClass = 'notif-icon-error';
+          iconSymbol = '✕';
+        } else if (type === 'warning') {
+          iconClass = 'notif-icon-warning';
+          iconSymbol = '⚠️';
+        }
+
+        const timeStr = n.created_at ? new Date(n.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '';
+
+        return `
+          <div class="user-notif-card type-${type} ${isUnread ? 'unread' : ''}">
+            <div class="user-notif-icon ${iconClass}">${iconSymbol}</div>
+            <div class="user-notif-content">
+              <div class="user-notif-card-title">${escapeHtml(n.title || 'Notification')}</div>
+              <div class="user-notif-card-msg">${escapeHtml(n.message || '')}</div>
+              <div class="user-notif-card-time">${timeStr}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleDrawer(open) {
+      drawerOpen = open !== undefined ? open : !drawerOpen;
+      drawer.style.display = drawerOpen ? 'flex' : 'none';
+      if (drawerOpen) {
+        loadNotifications();
+      }
+    }
+
+    notifBtn.addEventListener('click', () => toggleDrawer());
+    document.getElementById('userNotifCloseBtn').addEventListener('click', () => toggleDrawer(false));
+
+    document.getElementById('userNotifMarkReadBtn').addEventListener('click', async () => {
+      await API.post('/api/user/notifications/mark-read', {});
+      const badge = document.getElementById('userNotifBadge');
+      if (badge) badge.style.display = 'none';
+      document.querySelectorAll('.user-notif-card.unread').forEach(card => card.classList.remove('unread'));
+    });
+
+    // Initial load and polling every 5 seconds
+    loadNotifications();
+    setInterval(loadNotifications, 5000);
+  }
+
+  // Bind live chat and notifications initialization when user profile loads
   const origPopulate = populateUserData;
   populateUserData = function(user) {
     origPopulate(user);
     initLiveChatWidget(user);
+    initUserNotificationsWidget(user);
   };
 
 })();

@@ -398,8 +398,15 @@ const db = {
     )`);
   },
 
-  getChatMessages: async (userId) => {
+  cleanupExpiredChatMessages: async () => {
     await db.ensureChatMessagesTable();
+    try {
+      await query(`DELETE FROM chat_messages WHERE created_at < NOW() - INTERVAL 10 MINUTE`);
+    } catch (_) {}
+  },
+
+  getChatMessages: async (userId) => {
+    await db.cleanupExpiredChatMessages();
     return await query(`
       SELECT 
         id, 
@@ -413,25 +420,24 @@ const db = {
         read_by_user, 
         created_at 
       FROM chat_messages 
-      WHERE user_id = ? 
+      WHERE user_id = ? AND created_at >= NOW() - INTERVAL 10 MINUTE
       ORDER BY created_at ASC
     `, [userId]);
   },
 
   createChatMessage: async ({ userId, sender, text, userName, userEmail }) => {
-    await db.ensureChatMessagesTable();
+    await db.cleanupExpiredChatMessages();
     const id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     const readByAdmin = sender === 'admin';
     const readByUser = sender === 'user';
     const cleanText = (text || '').trim();
-    await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, userName || 'User', userEmail || '', sender || 'user', cleanText, readByAdmin, readByUser, formatMySQLDate(new Date())]);
-    return { id, user_id: userId, sender, text: cleanText, message_text: cleanText };
+    await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, userId, userName || 'User', userEmail || '', sender || 'user', cleanText, readByAdmin, readByUser]);
+    return { id, user_id: userId, sender, text: cleanText, message_text: cleanText, created_at: new Date().toISOString() };
   },
 
   getChatConversations: async () => {
-    await db.ensureChatMessagesTable();
-    // A simplified query to get the latest message for each user and count unread messages
+    await db.cleanupExpiredChatMessages();
     const sql = `
       SELECT 
         c.user_id, 
@@ -442,11 +448,12 @@ const db = {
         c.message_text as last_message, 
         c.created_at as last_message_at, 
         c.sender as last_sender,
-        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE) as unread_admin_count,
-        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE) as unread_count
+        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE AND created_at >= NOW() - INTERVAL 10 MINUTE) as unread_admin_count,
+        (SELECT COUNT(*) FROM chat_messages WHERE user_id = c.user_id AND sender = 'user' AND read_by_admin = FALSE AND created_at >= NOW() - INTERVAL 10 MINUTE) as unread_count
       FROM chat_messages c
       JOIN users u ON c.user_id = u.id
       WHERE c.created_at = (SELECT MAX(created_at) FROM chat_messages WHERE user_id = c.user_id)
+        AND c.created_at >= NOW() - INTERVAL 10 MINUTE
       ORDER BY c.created_at DESC
     `;
     return await query(sql);
