@@ -1309,10 +1309,142 @@
     }, 4000);
   });
 
+
   function escapeHtml(str) {
     return (str || '').replace(/[&<>'"]/g, 
       tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
     );
   }
+
+  // Tab switcher helper for navigation from notifications
+  window.switchAdminTab = function(tabId) {
+    const btn = document.querySelector(`.admin-tab-btn[data-tab="${tabId}"]`);
+    if (btn) {
+      btn.click();
+    }
+    const dropdown = document.getElementById('adminNotifDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+  };
+
+  // Admin Notification Bell Dropdown Handler
+  (function initAdminNotifBell() {
+    const bellBtn = document.getElementById('adminNotificationBellBtn');
+    const dropdown = document.getElementById('adminNotifDropdown');
+    const closeBtn = document.getElementById('adminNotifCloseBtn');
+    const listEl = document.getElementById('adminNotifList');
+
+    if (!bellBtn || !dropdown) return;
+
+    let isOpen = false;
+
+    function renderAdminNotifList() {
+      const m = state.metrics || {};
+      const items = [];
+
+      if ((m.pendingDeposits || 0) > 0) {
+        items.push({
+          icon: '💳', label: 'Pending Deposits',
+          desc: `${m.pendingDeposits} new deposit awaiting verification`,
+          count: m.pendingDeposits, color: '#3b82f6',
+          tabId: 'tabDeposits'
+        });
+      }
+      if ((m.pendingWithdrawals || 0) > 0) {
+        items.push({
+          icon: '🏦', label: 'Pending Withdrawals',
+          desc: `${m.pendingWithdrawals} withdrawal payout request pending`,
+          count: m.pendingWithdrawals, color: '#f59e0b',
+          tabId: 'tabWithdrawals'
+        });
+      }
+      if ((m.pendingKycs || 0) > 0) {
+        items.push({
+          icon: '📋', label: 'KYC Document Reviews',
+          desc: `${m.pendingKycs} identity verification waiting`,
+          count: m.pendingKycs, color: '#8b5cf6',
+          tabId: 'tabKyc'
+        });
+      }
+      if ((m.unreadChats || 0) > 0) {
+        items.push({
+          icon: '💬', label: 'Unread Customer Chats',
+          desc: `${m.unreadChats} message from active users`,
+          count: m.unreadChats, color: '#10b981',
+          tabId: 'tabChat'
+        });
+      }
+      if ((m.openTickets || 0) > 0) {
+        items.push({
+          icon: '🎫', label: 'Open Support Tickets',
+          desc: `${m.openTickets} inquiry waiting response`,
+          count: m.openTickets, color: '#ef4444',
+          tabId: 'tabChat'
+        });
+      }
+
+      if (!listEl) return;
+
+      if (items.length === 0) {
+        listEl.innerHTML = `
+          <div style="text-align: center; color: #94a3b8; padding: 36px 16px; font-size: 13px;">
+            <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
+            <div style="font-weight: 700; color: #475569; font-size: 14px;">All caught up!</div>
+            <div style="font-size: 12px; margin-top: 4px; color: #94a3b8;">No pending deposits, withdrawals, or KYC requests.</div>
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = items.map(item => `
+        <div onclick="switchAdminTab('${item.tabId}')" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid #f8fafc;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: ${item.color}15; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+            ${item.icon}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 700; font-size: 13px; color: #1e293b;">${escapeHtml(item.label)}</div>
+            <div style="font-size: 11.5px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(item.desc)}</div>
+          </div>
+          <div style="background: ${item.color}; color: #fff; font-size: 11px; font-weight: 800; border-radius: 12px; padding: 3px 9px; min-width: 22px; text-align: center; box-shadow: 0 2px 6px ${item.color}40;">
+            ${item.count}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function toggleDropdown(open) {
+      isOpen = open !== undefined ? open : !isOpen;
+      dropdown.style.display = isOpen ? 'block' : 'none';
+      if (isOpen) {
+        renderAdminNotifList();
+        try {
+          await loadMetrics();
+          renderAdminNotifList();
+        } catch (_) {}
+      }
+    }
+
+    bellBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleDropdown();
+    });
+
+    dropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown(false);
+      });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (isOpen && !dropdown.contains(e.target) && !bellBtn.contains(e.target)) {
+        toggleDropdown(false);
+      }
+    });
+  })();
 
 })();

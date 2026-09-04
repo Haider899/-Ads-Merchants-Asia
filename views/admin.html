@@ -737,9 +737,21 @@
             <span id="adminRoleBadge" class="badge-admin">Master Authority</span>
         </a>
         <div style="display: flex; align-items: center; gap: 14px;">
-            <div id="adminNotificationBellBtn" title="Pending Action Alerts" style="position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; background: rgba(0, 123, 255, 0.1); color: var(--primary);">
-                <i class="fa fa-bell" style="font-size: 16px;"></i>
-                <span id="adminTotalAlertsBadge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 800; border-radius: 10px; padding: 1px 6px; min-width: 18px; text-align: center; display: none; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
+            <div style="position: relative;">
+                <div id="adminNotificationBellBtn" title="Pending Action Alerts" style="cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; background: rgba(0, 123, 255, 0.1); color: var(--primary);">
+                    <i class="fa fa-bell" style="font-size: 16px;"></i>
+                    <span id="adminTotalAlertsBadge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 800; border-radius: 10px; padding: 1px 6px; min-width: 18px; text-align: center; display: none; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
+                </div>
+                <!-- Notification Dropdown -->
+                <div id="adminNotifDropdown" style="display: none; position: absolute; top: 48px; right: 0; width: 340px; max-height: 440px; overflow-y: auto; background: #fff; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.18); z-index: 99999; border: 1px solid #e2e8f0; padding: 0;">
+                  <div style="padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border-top-left-radius: 14px; border-top-right-radius: 14px;">
+                    <span style="font-weight: 700; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 6px;">🔔 Pending Action Alerts</span>
+                    <button id="adminNotifCloseBtn" style="background: none; border: none; cursor: pointer; font-size: 20px; color: #94a3b8; line-height: 1; padding: 0 4px;">&times;</button>
+                  </div>
+                  <div id="adminNotifList" style="padding: 8px 0;">
+                    <div style="text-align: center; color: #94a3b8; padding: 24px 0; font-size: 13px;">Loading alerts...</div>
+                  </div>
+                </div>
             </div>
             <span id="adminUserGreeting" style="font-size: 13px; font-weight: 600; color: #475569;"></span>
             <button id="adminLogoutBtn" class="btn-logout">
@@ -1261,6 +1273,6 @@
     </div>
 
     <!-- Dedicated Admin Script -->
-    <script src="/client/assets/js/admin.js?v=3.1.0"></script>
+    <script src="/client/assets/js/admin.js?v=3.2.0"></script>
 </body>
 </html>

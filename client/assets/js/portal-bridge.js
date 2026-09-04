@@ -1437,6 +1437,12 @@
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
       );
     }
+  // Helper to safely escape HTML strings
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>'"]/g, 
+      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
   }
 
   // USER NOTIFICATIONS BELL WIDGET
@@ -1668,12 +1674,31 @@
             }
           }
 
+          // Always render list when drawer is open
           if (drawerOpen) {
             renderNotificationList(list);
+          }
+        } else {
+          // API returned error - show empty state if drawer is open
+          if (drawerOpen) {
+            renderNotificationList([]);
           }
         }
       } catch (e) {
         console.error('Error fetching notifications:', e);
+        // Show error state instead of stuck on "Loading..."
+        if (drawerOpen) {
+          const container = document.getElementById('userNotifList');
+          if (container) {
+            container.innerHTML = `
+              <div style="text-align: center; color: #94a3b8; padding: 36px 16px; font-size: 13px;">
+                <div style="font-size: 30px; margin-bottom: 8px;">📭</div>
+                <div style="font-weight: 600; color: #64748b;">No notifications yet</div>
+                <div style="font-size: 11.5px; margin-top: 4px;">Deposit, withdrawal, and verification updates will show here.</div>
+              </div>
+            `;
+          }
+        }
       }
     }
 

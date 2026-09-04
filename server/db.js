@@ -348,7 +348,22 @@ const db = {
   },
 
   // Notifications
+  ensureNotificationsTable: async () => {
+    await query(`CREATE TABLE IF NOT EXISTS notifications (
+      id VARCHAR(100) PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      title VARCHAR(255),
+      message TEXT,
+      type VARCHAR(50) DEFAULT 'info',
+      is_read BOOLEAN DEFAULT FALSE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX (user_id),
+      INDEX (created_at)
+    )`);
+  },
+
   getNotifications: async (userId, unreadOnly = false) => {
+    await db.ensureNotificationsTable();
     let sql = 'SELECT * FROM notifications';
     let params = [];
     let conditions = [];
@@ -370,6 +385,7 @@ const db = {
   },
 
   createNotification: async (notifData) => {
+    await db.ensureNotificationsTable();
     const id = 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     await query(`INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [id, notifData.user_id, notifData.title, notifData.message, notifData.type || 'info', false, formatMySQLDate(notifData.created_at)]);
@@ -377,6 +393,7 @@ const db = {
   },
 
   markNotificationsRead: async (userId) => {
+    await db.ensureNotificationsTable();
     await query('UPDATE notifications SET is_read = TRUE WHERE user_id = ?', [userId]);
     return true;
   },
