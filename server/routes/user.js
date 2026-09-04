@@ -178,7 +178,6 @@ router.get('/chat', authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     const messages = await db.getChatMessages(user.id);
-    await db.markChatReadByUser(user.id);
     res.json({
       success: true,
       user: {
@@ -192,6 +191,17 @@ router.get('/chat', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('User Chat Fetch Error:', err);
     res.status(500).json({ success: false, message: 'Could not load chat messages: ' + err.message });
+  }
+});
+
+// POST /api/user/chat/read - Mark chat as read when user opens the chat box
+router.post('/chat/read', authMiddleware, async (req, res) => {
+  try {
+    await db.markChatReadByUser(req.user.id);
+    res.json({ success: true, message: 'Chat marked as read' });
+  } catch (err) {
+    console.error('User Chat Mark Read Error:', err);
+    res.status(500).json({ success: false, message: 'Error marking chat as read' });
   }
 });
 

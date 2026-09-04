@@ -179,20 +179,68 @@
     }
   });
 
+  // Client-side image compressor for super-fast, reliable uploads of receipts and KYC
+  function compressImageFile(file, maxWidth = 1400, quality = 0.85) {
+    return new Promise((resolve) => {
+      if (!file || !file.type || !file.type.startsWith('image/')) {
+        return resolve(null);
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth || height > maxWidth) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxWidth) / height);
+              height = maxWidth;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = function() {
+          resolve(e.target.result);
+        };
+        img.src = e.target.result;
+      };
+      reader.onerror = function() {
+        resolve(null);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   // Check unread admin notifications for user
+  const _shownToastNotificationIds = new Set();
   async function checkUserNotifications() {
     try {
       const res = await API.get('/api/user/notifications');
       if (res && res.success && res.notifications && res.notifications.length > 0) {
+        let hasNewNotification = false;
         for (const notif of res.notifications) {
-          showBridgeToast(notif.title, notif.message, notif.type);
+          if (!notif.is_read && !_shownToastNotificationIds.has(notif.id)) {
+            _shownToastNotificationIds.add(notif.id);
+            showBridgeToast(notif.title, notif.message, notif.type);
+            hasNewNotification = true;
+          }
         }
-        await API.post('/api/user/notifications/mark-read', {});
 
-        // Refresh user profile balance
-        const updatedMe = await API.get('/api/auth/me');
-        if (updatedMe && updatedMe.success && updatedMe.user) {
-          populateUserData(updatedMe.user);
+        // When a new deposit/withdrawal notification arrives, refresh balance display
+        if (hasNewNotification) {
+          const updatedMe = await API.get('/api/auth/me');
+          if (updatedMe && updatedMe.success && updatedMe.user) {
+            populateUserData(updatedMe.user);
+          }
         }
       }
 
@@ -203,9 +251,9 @@
         const chatBadge = document.getElementById('nativeChatBadge');
         if (chatBadge) {
           if (unreadFromAdmin > 0 && window._nativeChatOpen !== true) {
-            chatBadge.textContent = unreadFromAdmin;
+            chatBadge.textContent = unreadFromAdmin > 99 ? '99+' : unreadFromAdmin;
             chatBadge.style.display = 'flex';
-          } else {
+          } else if (window._nativeChatOpen === true) {
             chatBadge.style.display = 'none';
           }
         }
@@ -558,16 +606,19 @@
     const previewImg = document.getElementById('receiptPreviewImg');
 
     if (receiptInput) {
-      receiptInput.addEventListener('change', (e) => {
+      receiptInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          if (previewImg) previewImg.src = ev.target.result;
-          if (placeholder) placeholder.style.display = 'none';
-          if (container) container.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+        if (placeholder) placeholder.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Optimizing receipt...';
+        const compressed = await compressImageFile(file, 1400, 0.85);
+        if (previewImg && compressed) {
+          previewImg.src = compressed;
+        }
+        if (placeholder) {
+          placeholder.innerHTML = '<i class="fa fa-cloud-upload-alt mr-1"></i> Click or tap to upload transfer proof';
+          placeholder.style.display = 'none';
+        }
+        if (container) container.style.display = 'block';
       });
     }
 
@@ -1231,6 +1282,7 @@
         floatBtn.style.display = 'none';
         const chatBadge = document.getElementById('nativeChatBadge');
         if (chatBadge) chatBadge.style.display = 'none';
+        API.post('/api/user/chat/read', {});
         cachedMessagesCount = -1; // Force immediate refresh on open
         loadChatMessages();
         if (!pollInterval) pollInterval = setInterval(loadChatMessages, 3000);
