@@ -75,7 +75,7 @@ router.post('/register', async (req, res) => {
       fullname: fullname.trim(),
       username,
       email: email.trim().toLowerCase(),
-      phone: phone ? phone.trim() : '0000000000',
+      phone: phone ? phone.trim() : '',
       gender: gender || 'Male',
       password_hash,
       vip_level: 'Bronze',

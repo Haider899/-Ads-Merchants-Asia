@@ -731,9 +731,10 @@
         <a href="/admin" class="admin-brand">
             <img src="client/assets/img/amazon.png" alt="Logo" onerror="this.src='assets/uploads/logo/1742595477_icon.png'">
             <span>Ads Merchants Asia</span>
-            <span class="badge-admin">Authority Master</span>
+            <span id="adminRoleBadge" class="badge-admin">Master Authority</span>
         </a>
         <div style="display: flex; align-items: center; gap: 14px;">
+            <span id="adminUserGreeting" style="font-size: 13px; font-weight: 600; color: #475569;"></span>
             <button id="adminLogoutBtn" class="btn-logout">
                 <i class="fa fa-power-off"></i> Logout
             </button>
@@ -783,13 +784,13 @@
 
         <!-- Navigation Tabs -->
         <div class="admin-tabs">
-            <button class="admin-tab-btn active" data-tab="tabUsers"><i class="fa fa-users"></i> Users & Balances</button>
-            <button class="admin-tab-btn" data-tab="tabStaff"><i class="fa fa-user-shield"></i> Sub-Admins & Staff</button>
-            <button class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
-            <button class="admin-tab-btn" data-tab="tabKyc"><i class="fa fa-id-card"></i> KYC / Documents Review <span id="adminKycUnreadBadge" class="badge-status badge-warning ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
-            <button class="admin-tab-btn" data-tab="tabDeposits"><i class="fa fa-receipt"></i> Deposits & Receipts <span id="adminDepositUnreadBadge" class="badge-status badge-success ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
-            <button class="admin-tab-btn" data-tab="tabWithdrawals"><i class="fa fa-money-bill-wave"></i> Withdrawals & Payouts <span id="adminWithdrawUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
-            <button class="admin-tab-btn" data-tab="tabSettings"><i class="fa fa-cog"></i> Crypto Wallets & Settings</button>
+            <button id="tabBtnUsers" class="admin-tab-btn active" data-tab="tabUsers"><i class="fa fa-users"></i> Users & Balances</button>
+            <button id="tabBtnStaff" class="admin-tab-btn" data-tab="tabStaff"><i class="fa fa-user-shield"></i> Sub-Admins & Staff</button>
+            <button id="tabBtnChat" class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
+            <button id="tabBtnKyc" class="admin-tab-btn" data-tab="tabKyc"><i class="fa fa-id-card"></i> KYC / Documents Review <span id="adminKycUnreadBadge" class="badge-status badge-warning ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
+            <button id="tabBtnDeposits" class="admin-tab-btn" data-tab="tabDeposits"><i class="fa fa-receipt"></i> Deposits & Receipts <span id="adminDepositUnreadBadge" class="badge-status badge-success ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
+            <button id="tabBtnWithdrawals" class="admin-tab-btn" data-tab="tabWithdrawals"><i class="fa fa-money-bill-wave"></i> Withdrawals & Payouts <span id="adminWithdrawUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:10.5px; padding:2px 6px;">0</span></button>
+            <button id="tabBtnSettings" class="admin-tab-btn" data-tab="tabSettings"><i class="fa fa-cog"></i> Crypto Wallets & Settings</button>
         </div>
 
         <!-- Tab 1: Users Management -->
@@ -804,7 +805,7 @@
                         <thead>
                             <tr>
                                 <th>User Profile</th>
-                                <th>Contact Details</th>
+                                <th>Email Address</th>
                                 <th>VIP Tier</th>
                                 <th>Working Balance</th>
                                 <th>Frozen Balance</th>

@@ -5,7 +5,7 @@ require('dotenv').config();
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || process.env.DB_PASS || '',
+  password: (process.env.DB_PASSWORD || process.env.DB_PASS || '').replace(/^['"]|['"]$/g, ''),
   database: process.env.DB_NAME || 'ads_merchants_db',
   waitForConnections: true,
   connectionLimit: 10,
@@ -118,6 +118,11 @@ const db = {
         console.log(`[MIGRATION] Successfully migrated user ${oldId} -> ${nextId}`);
       }
       
+      // Clean up legacy placeholder phone numbers
+      try {
+        await query("UPDATE users SET phone = '' WHERE phone = '0000000000' OR phone REGEXP '^0+$'");
+      } catch (_) {}
+
       try { await query('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) {}
     } catch (err) {
       console.error('[MIGRATION ERROR] Could not migrate legacy user IDs:', err);

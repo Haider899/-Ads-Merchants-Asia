@@ -220,11 +220,86 @@
     }, 4000);
   }
 
-  // 1. Initial Authentication Check
+  // 1. Initial Authentication Check & Role Permissions
+  function applyRolePermissions(role, adminData) {
+    const r = (role || 'super_admin').toLowerCase();
+    state.currentRole = r;
+    if (adminData) state.currentAdmin = adminData;
+
+    const allTabs = {
+      tabUsers: document.getElementById('tabBtnUsers'),
+      tabStaff: document.getElementById('tabBtnStaff'),
+      tabChat: document.getElementById('tabBtnChat'),
+      tabKyc: document.getElementById('tabBtnKyc'),
+      tabDeposits: document.getElementById('tabBtnDeposits'),
+      tabWithdrawals: document.getElementById('tabBtnWithdrawals'),
+      tabSettings: document.getElementById('tabBtnSettings')
+    };
+
+    let allowedTabIds = [];
+    let roleTitle = 'Master Authority';
+
+    if (r === 'super_admin') {
+      allowedTabIds = ['tabUsers', 'tabStaff', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals', 'tabSettings'];
+      roleTitle = 'Master Authority';
+    } else if (r === 'sub_admin') {
+      allowedTabIds = ['tabUsers', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals'];
+      roleTitle = 'Sub-Admin Manager';
+    } else if (r === 'support' || r === 'support_operator') {
+      // Support Operator: Live Chat & KYC Review + Customer profiles
+      allowedTabIds = ['tabChat', 'tabKyc', 'tabUsers'];
+      roleTitle = 'Support & KYC Officer';
+    } else if (r === 'finance' || r === 'finance_officer') {
+      // Finance Officer: Deposits & Withdrawals + User balances
+      allowedTabIds = ['tabDeposits', 'tabWithdrawals', 'tabUsers'];
+      roleTitle = 'Finance & Treasury Officer';
+    } else {
+      allowedTabIds = ['tabUsers', 'tabChat'];
+      roleTitle = 'Staff Member';
+    }
+
+    // Update Header Badge and Greeting
+    const roleBadge = document.getElementById('adminRoleBadge');
+    if (roleBadge) roleBadge.textContent = roleTitle;
+
+    const greeting = document.getElementById('adminUserGreeting');
+    if (greeting && adminData) {
+      greeting.textContent = `${adminData.fullname || adminData.email || 'Admin'}`;
+    }
+
+    // Show only permitted tabs, hide others completely
+    Object.keys(allTabs).forEach(tabKey => {
+      const btn = allTabs[tabKey];
+      const content = document.getElementById(tabKey);
+      if (btn) {
+        btn.style.display = allowedTabIds.includes(tabKey) ? 'inline-flex' : 'none';
+      }
+      if (content && !allowedTabIds.includes(tabKey)) {
+        content.style.display = 'none';
+      }
+    });
+
+    // Make sure the active tab is one of the allowed tabs
+    const currentActiveBtn = document.querySelector('.admin-tab-btn.active');
+    const currentActiveTabId = currentActiveBtn ? currentActiveBtn.getAttribute('data-tab') : null;
+
+    if (!currentActiveTabId || !allowedTabIds.includes(currentActiveTabId)) {
+      const firstAllowedId = allowedTabIds[0];
+      document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
+
+      const targetBtn = allTabs[firstAllowedId];
+      const targetContent = document.getElementById(firstAllowedId);
+      if (targetBtn) targetBtn.classList.add('active');
+      if (targetContent) targetContent.style.display = 'block';
+    }
+  }
+
   async function checkAuthAndLoad() {
     const res = await AdminAPI.get('/api/admin/metrics');
     if (res && res.success) {
       document.getElementById('adminLoginModal').style.display = 'none';
+      applyRolePermissions(res.admin ? res.admin.role : 'super_admin', res.admin);
       loadAllData();
       startAdminPolling();
     } else {
@@ -233,14 +308,22 @@
   }
 
   window.loadAllData = async function() {
-    loadMetrics();
+    await loadMetrics();
+    const r = (state.currentRole || 'super_admin').toLowerCase();
+
+    if (r === 'super_admin' || r === 'sub_admin' || r === 'finance' || r === 'finance_officer') {
+      loadDeposits();
+      loadWithdrawals();
+    }
+    if (r === 'super_admin' || r === 'sub_admin' || r === 'support' || r === 'support_operator') {
+      loadKycs();
+      loadChatConversations();
+    }
+    if (r === 'super_admin') {
+      loadStaff();
+      loadSettings();
+    }
     loadUsers();
-    loadStaff();
-    loadKycs();
-    loadDeposits();
-    loadWithdrawals();
-    loadSettings();
-    loadChatConversations();
   };
 
   // 2. Metrics & Dashboard Stats
@@ -299,28 +382,20 @@
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">No registered users found.</td></tr>`;
         return;
       }
-      tbody.innerHTML = state.users.map(u => `
-        <tr>
-          <td>
-            <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(u.fullname || u.username || 'User')}</div>
-            <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(u.username || 'user')}</div>
-            <small style="color: #94a3b8; font-size: 11px;">ID: ${u.id}</small>
-          </td>
-          <td>
-            <div style="font-weight: 600; color: #334155;">${escapeHtml(u.email)}</div>
-            <small style="color: #64748b; font-size: 11.5px;"><i class="fa fa-phone mr-1"></i>${escapeHtml(u.phone || 'No phone')}</small>
-          </td>
-          <td><span class="badge-status badge-primary">${u.vip_level} VIP</span></td>
-          <td style="font-weight: 800; color: #10b981; font-size: 14.5px;">$${parseFloat(u.balance || 0).toFixed(2)}</td>
-          <td style="font-weight: 700; color: #64748b;">$${parseFloat(u.frozen_balance || 0).toFixed(2)}</td>
-          <td style="font-weight: 700; color: #0284c7;">+$${parseFloat(u.today_profit || 0).toFixed(2)}</td>
-          <td>
-            <span class="badge-status badge-${(u.kyc_status || 'none').toLowerCase()}">
-              ${(u.kyc_status || 'none').toUpperCase()}
-            </span>
-          </td>
-          <td><span class="badge-status badge-${u.status === 'active' ? 'active' : 'banned'}">${(u.status || 'active').toUpperCase()}</span></td>
-          <td>
+      const role = (state.currentRole || 'super_admin').toLowerCase();
+
+      tbody.innerHTML = state.users.map(u => {
+        let actionButtonsHtml = '';
+        if (role === 'support' || role === 'support_operator') {
+          actionButtonsHtml = `<span style="font-size: 11.5px; color: #64748b; font-weight: 600;"><i class="fa fa-eye mr-1"></i> Customer Profile</span>`;
+        } else if (role === 'finance' || role === 'finance_officer') {
+          actionButtonsHtml = `
+            <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')">
+              <i class="fa fa-wallet"></i> Adjust Balance
+            </button>
+          `;
+        } else {
+          actionButtonsHtml = `
             <div style="display: flex; gap: 6px;">
               <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')">
                 <i class="fa fa-pen"></i> Edit
@@ -329,9 +404,35 @@
                 <i class="fa fa-key"></i> Reset Pass
               </button>
             </div>
-          </td>
-        </tr>
-      `).join('');
+          `;
+        }
+
+        return `
+          <tr>
+            <td>
+              <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(u.fullname || u.username || 'User')}</div>
+              <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(u.username || 'user')}</div>
+              <small style="color: #94a3b8; font-size: 11px;">ID: ${u.id}</small>
+            </td>
+            <td>
+              <div style="font-weight: 600; color: #334155;">${escapeHtml(u.email)}</div>
+            </td>
+            <td><span class="badge-status badge-primary">${u.vip_level} VIP</span></td>
+            <td style="font-weight: 800; color: #10b981; font-size: 14.5px;">$${parseFloat(u.balance || 0).toFixed(2)}</td>
+            <td style="font-weight: 700; color: #64748b;">$${parseFloat(u.frozen_balance || 0).toFixed(2)}</td>
+            <td style="font-weight: 700; color: #0284c7;">+$${parseFloat(u.today_profit || 0).toFixed(2)}</td>
+            <td>
+              <span class="badge-status badge-${(u.kyc_status || 'none').toLowerCase()}">
+                ${(u.kyc_status || 'none').toUpperCase()}
+              </span>
+            </td>
+            <td><span class="badge-status badge-${u.status === 'active' ? 'active' : 'banned'}">${(u.status || 'active').toUpperCase()}</span></td>
+            <td>
+              ${actionButtonsHtml}
+            </td>
+          </tr>
+        `;
+      }).join('');
     } else {
       tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #dc2626;">Failed to load user accounts.</td></tr>`;
     }
@@ -1006,6 +1107,7 @@
           AdminAPI.setToken(res.token);
           document.getElementById('adminLoginModal').style.display = 'none';
           AdminUI.toast('Signed In', res.message || 'Welcome to Admin Control Center', 'success');
+          applyRolePermissions(res.admin ? res.admin.role : 'super_admin', res.admin);
           loadAllData();
           startAdminPolling();
         } else {

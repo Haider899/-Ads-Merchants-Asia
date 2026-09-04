@@ -5,6 +5,32 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { adminAuthMiddleware, JWT_SECRET } = require('../middleware/auth');
 
+// Role-based permission guard helper
+function checkRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.admin) {
+      return res.status(401).json({ success: false, message: 'Admin authentication required' });
+    }
+    const role = (req.admin.role || '').toLowerCase();
+    const normalizedRole = (role === 'support_operator') ? 'support' : ((role === 'finance_officer') ? 'finance' : role);
+
+    const normalizedAllowed = allowedRoles.map(r => {
+      if (r === 'support_operator') return 'support';
+      if (r === 'finance_officer') return 'finance';
+      return r.toLowerCase();
+    });
+
+    if (normalizedRole === 'super_admin' || normalizedAllowed.includes(normalizedRole)) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. Your role (${req.admin.role}) is not authorized for this section.`
+    });
+  };
+}
+
 // POST /api/admin/login
 router.post('/login', async (req, res) => {
   try {
@@ -126,6 +152,7 @@ router.get('/metrics', adminAuthMiddleware, async (req, res) => {
 
     res.json({
       success: true,
+      admin: req.admin,
       metrics: {
         totalUsers: users.length,
         totalUserBalance: totalUserBalance.toFixed(2),
@@ -161,7 +188,7 @@ router.get('/users', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/users/update
-router.post('/users/update', adminAuthMiddleware, async (req, res) => {
+router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks } = req.body;
   const user = await db.findUserById(userId);
 
@@ -199,7 +226,7 @@ router.post('/users/update', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/users/reset-password
-router.post('/users/reset-password', adminAuthMiddleware, async (req, res) => {
+router.post('/users/reset-password', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
   const { userId, newPassword } = req.body;
   if (!userId || !newPassword || newPassword.length < 6) {
     return res.status(400).json({ success: false, message: 'Please provide a valid password of at least 6 characters.' });
@@ -215,13 +242,13 @@ router.post('/users/reset-password', adminAuthMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/kyc - Get KYC verification requests
-router.get('/kyc', adminAuthMiddleware, async (req, res) => {
+router.get('/kyc', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const submissions = await db.getKycSubmissions();
   res.json({ success: true, submissions });
 });
 
 // POST /api/admin/kyc/action - Approve, Reject, or Request Re-upload
-router.post('/kyc/action', adminAuthMiddleware, async (req, res) => {
+router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   try {
     const kycId = req.body.kycId || req.body.id || req.body.submissionId;
     const action = req.body.action;
@@ -301,13 +328,13 @@ router.post('/kyc/action', adminAuthMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/deposits
-router.get('/deposits', adminAuthMiddleware, async (req, res) => {
+router.get('/deposits', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   const deposits = await db.getDeposits();
   res.json({ success: true, deposits });
 });
 
 // POST /api/admin/deposits/action
-router.post('/deposits/action', adminAuthMiddleware, async (req, res) => {
+router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
     const { depositId, action, notes } = req.body;
     const deposits = await db.getDeposits();
@@ -382,7 +409,7 @@ router.post('/deposits/action', adminAuthMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/withdrawals
-router.get('/withdrawals', adminAuthMiddleware, async (req, res) => {
+router.get('/withdrawals', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
     const withdrawals = await db.getWithdrawals();
     res.json({ success: true, withdrawals });
@@ -393,7 +420,7 @@ router.get('/withdrawals', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/withdrawals/action
-router.post('/withdrawals/action', adminAuthMiddleware, async (req, res) => {
+router.post('/withdrawals/action', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
     const { withdrawalId, action, notes } = req.body;
     const withdrawals = await db.getWithdrawals();
@@ -463,13 +490,13 @@ router.post('/withdrawals/action', adminAuthMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/tickets - Support query tickets
-router.get('/tickets', adminAuthMiddleware, async (req, res) => {
+router.get('/tickets', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const tickets = await db.getSupportTickets();
   res.json({ success: true, tickets });
 });
 
 // POST /api/admin/tickets/reply - Reply to support ticket
-router.post('/tickets/reply', adminAuthMiddleware, async (req, res) => {
+router.post('/tickets/reply', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const { ticketId, reply } = req.body;
   if (!ticketId || !reply) {
     return res.status(400).json({ success: false, message: 'Please provide ticket ID and reply message.' });
@@ -493,13 +520,13 @@ router.post('/tickets/reply', adminAuthMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/chat/conversations - List all user chat threads with unread counts
-router.get('/chat/conversations', adminAuthMiddleware, async (req, res) => {
+router.get('/chat/conversations', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const conversations = await db.getChatConversations();
   res.json({ success: true, conversations });
 });
 
 // GET /api/admin/chat/:userId - Get conversation messages for a specific user
-router.get('/chat/:userId', adminAuthMiddleware, async (req, res) => {
+router.get('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const { userId } = req.params;
   const user = await db.findUserById(userId);
   const messages = await db.getChatMessages(userId);
@@ -518,7 +545,7 @@ router.get('/chat/:userId', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/chat/:userId - Send admin reply to a user
-router.post('/chat/:userId', adminAuthMiddleware, async (req, res) => {
+router.post('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const { userId } = req.params;
   const { text } = req.body;
 
@@ -557,7 +584,7 @@ router.post('/chat/:userId', adminAuthMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/settings
-router.get('/settings', adminAuthMiddleware, async (req, res) => {
+router.get('/settings', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   const settings = await db.getSettings();
   const safeSettings = { ...settings };
   delete safeSettings.admin_password_hash;
@@ -565,7 +592,7 @@ router.get('/settings', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/settings
-router.post('/settings', adminAuthMiddleware, async (req, res) => {
+router.post('/settings', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   const { trc20_address, erc20_address, btc_address, min_deposit, min_withdraw, telegram_support, whatsapp_support, new_admin_password } = req.body;
   
   const updates = {};
@@ -595,7 +622,7 @@ router.post('/settings', adminAuthMiddleware, async (req, res) => {
 // --- STAFF & SUB-ADMIN MANAGEMENT ROUTES ---
 
 // GET /api/admin/staff - List all admins and sub-admins
-router.get('/staff', adminAuthMiddleware, async (req, res) => {
+router.get('/staff', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   try {
     const staff = await db.getAdmins();
     res.json({ success: true, staff });
@@ -606,7 +633,7 @@ router.get('/staff', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/staff/create - Create a new sub-admin
-router.post('/staff/create', adminAuthMiddleware, async (req, res) => {
+router.post('/staff/create', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   try {
     const { fullname, email, password, role } = req.body;
 
@@ -654,7 +681,7 @@ router.post('/staff/create', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/staff/update - Update staff role, status, or password
-router.post('/staff/update', adminAuthMiddleware, async (req, res) => {
+router.post('/staff/update', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   try {
     const { id, fullname, role, status, newPassword } = req.body;
 
@@ -683,7 +710,7 @@ router.post('/staff/update', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/staff/delete - Delete sub-admin
-router.post('/staff/delete', adminAuthMiddleware, async (req, res) => {
+router.post('/staff/delete', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   try {
     const { id } = req.body;
 

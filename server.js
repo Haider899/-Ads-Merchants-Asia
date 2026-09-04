@@ -51,6 +51,7 @@ mainApp.use('/api/auth', authRoutes);
 mainApp.use('/api/tasks', taskRoutes);
 mainApp.use('/api/finance', financeRoutes);
 mainApp.use('/api/user', userRoutes);
+mainApp.use('/api/admin', adminRoutes);
 
 // Helper to serve HTML files
 const servePage = (fileName) => (req, res) => {

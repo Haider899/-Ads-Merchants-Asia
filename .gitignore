@@ -19,6 +19,8 @@ scratch_inspect.py
 build_local_portal.py
 inject_bridge.py
 fix_nav_links.py
+clean_usernames.py
+scratch_*.html
 
 # Python cache & scratch
 __pycache__/
