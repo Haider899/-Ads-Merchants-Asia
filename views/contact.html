@@ -420,17 +420,12 @@
 
     </div> -->
 
-    <div class="contact-item" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
-
-    <img src="client/assets/img/icons/chatbtn.png" alt="Live Chat" style="width:35px;">
-
-    <div class="contact-title">
-
-        Need Help? Please click the <strong>"Online Chat"</strong> button below to contact our support team.
-
+    <div class="contact-item" id="contactLiveChatTrigger" style="display: flex; align-items: center; gap: 12px; padding: 14px; background: #f8fafc; border-radius: 12px; cursor: pointer; border: 1px solid #e2e8f0; transition: all 0.2s ease;" onclick="const b = document.getElementById('nativeChatFloatingBtn'); if (b) b.click();" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+        <img src="client/assets/img/icons/chatbtn.png" alt="Live Chat" style="width:38px; height:38px;">
+        <div class="contact-title" style="font-size: 13.5px; color: #1e293b; font-weight: 500;">
+            Need Help? Please click here to open <strong>Live Customer Support Chat</strong>.
+        </div>
     </div>
-
-</div>
 
 </div>
 
@@ -498,7 +493,7 @@
 
 </script>
 
-<script src="client/assets/js/portal-bridge.js?v=3.2.0"></script>
+<script src="client/assets/js/portal-bridge.js?v=3.3.0"></script>
 </body>
 
 </html>

@@ -67,7 +67,7 @@ mainApp.get('/', (req, res) => {
 });
 
 mainApp.get(['/login', '/Login', '/login.html'], servePage('login.html'));
-mainApp.get(['/register', '/Register', '/register.html'], servePage('register.html'));
+mainApp.get(['/register', '/Register', '/register.html', '/signup', '/Signup', '/signup.html'], servePage('register.html'));
 mainApp.get(['/forgotpass', '/forgotpass.html'], servePage('forgotpass.html'));
 mainApp.get(['/dashboard', '/dashboard.html'], servePage('dashboard.html'));
 mainApp.get(['/recordData', '/record', '/record.html'], servePage('record.html'));

@@ -4,6 +4,14 @@
  */
 
 (function() {
+  // Global HTML escaping utility
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>'"]/g, 
+      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+  }
+
   // Global API Helper
   window.API = {
     async get(endpoint) {
@@ -160,7 +168,7 @@
     // 2. Page Specific Handlers
     if (pathname === '/' || pathname === '/index.html' || pathname.includes('login')) {
       initLoginPage();
-    } else if (pathname.includes('register')) {
+    } else if (pathname.includes('register') || pathname.includes('signup')) {
       initRegisterPage();
     } else if (pathname.includes('start')) {
       initStartPage(currentUser);
@@ -205,11 +213,10 @@
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-          resolve(compressedDataUrl);
+          resolve(canvas.toDataURL('image/jpeg', quality));
         };
         img.onerror = function() {
-          resolve(e.target.result);
+          resolve(null);
         };
         img.src = e.target.result;
       };
@@ -270,7 +277,11 @@
     const displayName = user.username || user.fullname || 'User';
 
     document.querySelectorAll('.user-username').forEach(el => {
-      el.innerHTML = `<span class="usernamee" style="margin-right: 4px;">Welcome</span> <span class="user-name-text" style="font-weight: 700;">${displayName}</span>`;
+      el.innerHTML = `<span class="usernamee" style="margin-right: 4px;">Welcome</span> <span class="user-name-text" style="font-weight: 700;">${escapeHtml(displayName)}</span>`;
+    });
+
+    document.querySelectorAll('.user-name-text').forEach(el => {
+      el.textContent = displayName;
     });
 
     document.querySelectorAll('.username-display, #usernameDisplay, .profile-name').forEach(el => {
@@ -328,13 +339,11 @@
 
     const userIdInput = document.getElementById('userId');
     if (userIdInput) {
-      let displayId = String(user.id || '1001');
-      if (displayId.startsWith('usr_')) {
-        const numPart = displayId.replace(/\D/g, '');
-        displayId = '10' + (numPart.slice(-2) || '01');
-      }
-      userIdInput.value = displayId;
+      userIdInput.value = user.id || '';
     }
+
+    const emailInput = document.getElementById('email');
+    if (emailInput && !emailInput.value) emailInput.value = user.email;
   }
 
   // LOGIN PAGE HANDLER
@@ -393,19 +402,22 @@
   // REGISTER PAGE HANDLER
   function initRegisterPage() {
     const form = document.getElementById('signupForm') || document.getElementById('registerForm') || document.querySelector('form');
-    if (!form) return;
+    const submitBtn = document.getElementById('registerBtn') || (form ? form.querySelector('button[type="submit"]') : null);
+    if (!form && !submitBtn) return;
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    let isSubmitting = false;
+    async function handleRegister(e) {
+      if (e) e.preventDefault();
+      if (isSubmitting) return;
+
       const nameInput = document.getElementById('fullname') || document.getElementById('signupName') || document.querySelector('input[name="fullname"]');
       const usernameInput = document.getElementById('username') || document.querySelector('input[name="username"]');
       const phoneInput = document.getElementById('signupPhone') || document.querySelector('input[name="phone"], input[type="tel"]');
       const emailInput = document.getElementById('email') || document.getElementById('signupEmail') || document.querySelector('input[name="email"], input[type="email"]');
       const passInput = document.getElementById('userpassword') || document.getElementById('signupPassword') || document.querySelector('input[name="password"]');
       const confirmPassInput = document.getElementById('confirmpassword') || document.querySelector('input[name="confirmpassword"]');
-      const genderSelect = document.getElementById('signupGender') || document.querySelector('select[name="gender"]');
+      const genderSelect = document.getElementById('gender') || document.getElementById('signupGender') || document.querySelector('select[name="gender"]');
       const referralInput = document.getElementById('signupReferral') || document.querySelector('input[name="referral"]');
-      const submitBtn = form.querySelector('button[type="submit"]');
 
       const nameVal = nameInput ? nameInput.value.trim() : '';
       const usernameVal = usernameInput ? usernameInput.value.trim() : '';
@@ -424,6 +436,7 @@
         return;
       }
 
+      isSubmitting = true;
       const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Sign Up';
       if (submitBtn) {
         submitBtn.disabled = true;
@@ -447,23 +460,37 @@
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalBtnText;
         }
+        isSubmitting = false;
 
         if (res && res.success) {
           showBridgeToast('Welcome!', res.message, 'success');
           setTimeout(() => {
             window.location.href = '/dashboard';
-          }, 600);
+          }, 500);
         } else {
           showBridgeToast('Registration Failed', (res && res.message) || 'Could not complete registration', 'error');
         }
       } catch (err) {
+        isSubmitting = false;
         if (submitBtn) {
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalBtnText;
         }
         showBridgeToast('Registration Error', err.message || 'An error occurred during registration', 'error');
       }
-    });
+    }
+
+    if (form) {
+      form.onsubmit = function(e) {
+        if (e) e.preventDefault();
+        handleRegister(e);
+        return false;
+      };
+      form.addEventListener('submit', handleRegister);
+    }
+    if (submitBtn) {
+      submitBtn.addEventListener('click', handleRegister);
+    }
   }
 
   // START / TASK OPTIMIZATION ENGINE
@@ -1437,12 +1464,6 @@
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
       );
     }
-  // Helper to safely escape HTML strings
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>'"]/g, 
-      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-    );
   }
 
   // USER NOTIFICATIONS BELL WIDGET
