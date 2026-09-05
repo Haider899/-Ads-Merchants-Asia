@@ -20,7 +20,7 @@
 
     <link rel="stylesheet" href="client/assets/css/levels.css">
 
-        <link rel="stylesheet" href="client/assets/css/profile.css">
+        <link rel="stylesheet" href="client/assets/css/profile.css?v=3.4.0">
 
                 
 
@@ -438,21 +438,37 @@
 
                     <!-- <div class="small-text bold">Credit Score : 0</div> -->
 
-                    <div class="profile-balances">
+                    <div class="profile-balances profile-balances-grid">
 
-                        <div class="profile-balances-left">
+                        <div class="profile-balance-box">
 
-                            <div class="tiny-text">Total Profit</div>
+                            <div class="tiny-text balance-label">Total Balance</div>
+
+                            <div id="profile-total-balance" class="small-text bold profile-total-balance user-total-balance">USD 0.00</div>
+
+                        </div>
+
+                        <div class="profile-balance-box">
+
+                            <div class="tiny-text balance-label">Today's Profit</div>
 
                             <div id="profile-total-profit" class="small-text bold profile-total-profit user-today-profit">USD 0.00</div>
 
                         </div>
 
-                        <div class="profile-balances-right">
+                        <div class="profile-balance-box">
 
-                            <div class="tiny-text">Total Balance</div>
+                            <div class="tiny-text balance-label">Working Balance</div>
 
-                            <div id="profile-total-balance" class="small-text bold profile-total-balance user-balance">USD 0.00</div>
+                            <div id="profile-working-balance" class="small-text bold profile-working-balance user-working-balance">USD 0.00</div>
+
+                        </div>
+
+                        <div class="profile-balance-box">
+
+                            <div class="tiny-text balance-label">Frozen Balance</div>
+
+                            <div id="profile-frozen-balance" class="small-text bold profile-frozen-balance user-frozen-balance user-frozen">USD 0.00</div>
 
                         </div>
 
@@ -648,7 +664,7 @@
 
 </script>
 
-<script src="client/assets/js/portal-bridge.js?v=3.3.0"></script>
+<script src="client/assets/js/portal-bridge.js?v=3.4.0"></script>
 </body>
 
 </html>

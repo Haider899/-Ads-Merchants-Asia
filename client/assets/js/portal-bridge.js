@@ -292,25 +292,48 @@
       el.textContent = user.fullname || displayName;
     });
 
-    const userBal = parseFloat(user.balance || 0).toFixed(2);
-    const userProfit = parseFloat(user.today_profit || 0).toFixed(2);
-    const userFrozen = parseFloat(user.frozen_balance || 0).toFixed(2);
+    window.__currentUser = user;
 
+    const workingBalNum = parseFloat(user.balance || 0);
+    const frozenBalNum = parseFloat(user.frozen_balance || 0);
+    const totalProfitNum = parseFloat(user.today_profit || 0);
+    const totalBalNum = workingBalNum + frozenBalNum;
+
+    const workingBal = workingBalNum.toFixed(2);
+    const frozenBal = frozenBalNum.toFixed(2);
+    const totalBal = totalBalNum.toFixed(2);
+    const userProfit = totalProfitNum.toFixed(2);
+
+    // 1. Total Balance (Working + Frozen funds)
+    document.querySelectorAll(`
+      .user-total-balance, 
+      #userTotalBalance, 
+      #profile-total-balance,
+      .profile-total-balance,
+      #start-grandtotal-balance-text,
+      .deposit-card-value
+    `).forEach(el => {
+      el.textContent = `USD ${totalBal}`;
+    });
+
+    // 2. Working Balance (Active funds available for tasks/withdrawals)
     document.querySelectorAll(`
       .user-balance, 
       #userBalance, 
       .balance-amount, 
-      .deposit-card-value, 
+      .user-working-balance,
+      #userWorkingBalance,
+      #profile-working-balance,
+      .profile-working-balance,
       .withdraw-card-value,
       #start-total-balance-text,
-      #start-grandtotal-balance-text,
-      #profile-total-balance,
-      .profile-total-balance,
-      .profile-balances-right .small-text
+      .task-balance,
+      #workingBalance
     `).forEach(el => {
-      el.textContent = `USD ${userBal}`;
+      el.textContent = `USD ${workingBal}`;
     });
 
+    // 3. Today's Profit
     document.querySelectorAll(`
       .user-today-profit, 
       #todayProfit,
@@ -322,8 +345,17 @@
       el.textContent = `USD ${userProfit}`;
     });
 
-    document.querySelectorAll('.user-frozen, #userFrozen').forEach(el => {
-      el.textContent = `$${userFrozen}`;
+    // 4. Frozen Balance (Locked / In-Withdrawal)
+    document.querySelectorAll(`
+      .user-frozen, 
+      #userFrozen,
+      .user-frozen-balance,
+      #userFrozenBalance,
+      #profile-frozen-balance,
+      .profile-frozen-balance,
+      #start-frozen-balance-text
+    `).forEach(el => {
+      el.textContent = `USD ${frozenBal}`;
     });
 
     document.querySelectorAll('.user-vip, #userVip, .vip-badge').forEach(el => {
@@ -527,11 +559,23 @@
     document.querySelectorAll('.task-completed-count, #completedOrderCount').forEach(el => {
       el.textContent = `${data.today_tasks_completed}/${data.max_tasks}`;
     });
-    document.querySelectorAll('.task-balance, #workingBalance').forEach(el => {
-      el.textContent = `$${parseFloat(data.balance).toFixed(2)}`;
+
+    const workBal = parseFloat(data.balance || 0);
+    const frozBal = parseFloat(data.frozen_balance !== undefined ? data.frozen_balance : (window.__currentUser && window.__currentUser.frozen_balance) || 0);
+    const totBal = workBal + frozBal;
+    const profitVal = parseFloat(data.today_profit || 0);
+
+    document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, #start-total-balance-text').forEach(el => {
+      el.textContent = `USD ${workBal.toFixed(2)}`;
     });
-    document.querySelectorAll('.task-profit, #todayProfitVal').forEach(el => {
-      el.textContent = `$${parseFloat(data.today_profit).toFixed(2)}`;
+    document.querySelectorAll('.user-total-balance, #start-grandtotal-balance-text, #profile-total-balance').forEach(el => {
+      el.textContent = `USD ${totBal.toFixed(2)}`;
+    });
+    document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {
+      el.textContent = `USD ${frozBal.toFixed(2)}`;
+    });
+    document.querySelectorAll('.task-profit, #todayProfitVal, .user-today-profit, #todayProfit, #start-todays-profit-text, #profile-total-profit').forEach(el => {
+      el.textContent = `USD ${profitVal.toFixed(2)}`;
     });
   }
 
@@ -753,8 +797,21 @@
             if (addressInput) addressInput.value = '';
             if (ibanInput) ibanInput.value = '';
             if (res.new_balance !== undefined) {
-              document.querySelectorAll('.user-balance, #userBalance, .withdraw-card-value').forEach(el => {
-                el.textContent = `USD ${parseFloat(res.new_balance).toFixed(2)}`;
+              const newWork = parseFloat(res.new_balance || 0);
+              const newFrozen = parseFloat(res.new_frozen !== undefined ? res.new_frozen : (window.__currentUser ? window.__currentUser.frozen_balance : 0));
+              const newTot = newWork + newFrozen;
+              if (window.__currentUser) {
+                window.__currentUser.balance = newWork;
+                window.__currentUser.frozen_balance = newFrozen;
+              }
+              document.querySelectorAll('.user-balance, #userBalance, .user-working-balance, .withdraw-card-value').forEach(el => {
+                el.textContent = `USD ${newWork.toFixed(2)}`;
+              });
+              document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
+                el.textContent = `USD ${newTot.toFixed(2)}`;
+              });
+              document.querySelectorAll('.user-frozen, .user-frozen-balance, #profile-frozen-balance').forEach(el => {
+                el.textContent = `USD ${newFrozen.toFixed(2)}`;
               });
             }
           } else {

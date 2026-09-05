@@ -119,6 +119,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
     message: `Optimization successful! +$${task.commission_amount.toFixed(2)} credited to your account.`,
     data: {
       balance: newBalance,
+      frozen_balance: user.frozen_balance,
       today_profit: newTodayProfit,
       today_tasks_completed: newCompletedTasks,
       commission_earned: task.commission_amount

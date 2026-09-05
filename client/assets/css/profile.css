@@ -53,6 +53,51 @@ body {
     justify-content: space-between;
     align-items: center;
 }
+.profile-balances-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 18px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+    width: 100%;
+    box-sizing: border-box;
+}
+.profile-balance-box {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+.profile-balance-box .balance-label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.profile-balance-box .balance-value,
+.profile-balance-box .small-text {
+    font-size: 14px;
+    font-weight: 700;
+    word-break: break-all;
+}
+#profile-total-balance {
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+}
+#profile-working-balance {
+    color: #0284c7;
+    font-weight: 700;
+}
+#profile-frozen-balance {
+    color: #64748b;
+    font-weight: 700;
+}
+#profile-total-profit {
+    color: #16a34a;
+    font-weight: 700;
+}
 .profile-info-right{
     display: flex;
     flex-direction: column;
