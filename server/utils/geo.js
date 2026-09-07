@@ -1,4 +1,9 @@
-const geoip = require('geoip-lite');
+let geoip = null;
+try {
+  geoip = require('geoip-lite');
+} catch (err) {
+  console.warn('[GeoIP] geoip-lite not available, using fallback IP detection.');
+}
 
 // Map of common ISO 3166-1 alpha-2 codes to Full English Country Names
 const COUNTRY_NAMES = {
@@ -75,7 +80,12 @@ function lookupIp(ip) {
 
   // Remove IPv6 prefix if mapped IPv4 (e.g. ::ffff:1.2.3.4)
   const cleanIp = ip.replace(/^::ffff:/, '');
-  const geo = geoip.lookup(cleanIp);
+  let geo = null;
+  if (geoip && typeof geoip.lookup === 'function') {
+    try {
+      geo = geoip.lookup(cleanIp);
+    } catch (_) {}
+  }
 
   if (geo && geo.country) {
     const code = geo.country.toUpperCase();
