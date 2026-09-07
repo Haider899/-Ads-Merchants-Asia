@@ -133,82 +133,94 @@ router.post('/generate', authMiddleware, async (req, res) => {
 
 // POST /api/tasks/submit - Submit review and claim commission
 router.post('/submit', authMiddleware, async (req, res) => {
-  const { taskId } = req.body;
-  const user = await db.findUserById(req.user.id);
+  try {
+    const { taskId } = req.body;
+    const user = await db.findUserById(req.user.id);
 
-  if (!taskId) {
-    return res.status(400).json({ success: false, message: 'Task ID required' });
-  }
+    if (!taskId) {
+      return res.status(400).json({ success: false, message: 'Task ID required' });
+    }
 
-  const tasks = await db.getTasks(user.id);
-  const task = tasks.find(t => t.id === taskId);
+    const tasks = await db.getTasks(user.id);
+    const task = tasks.find(t => String(t.id) === String(taskId));
 
-  if (!task) {
-    return res.status(404).json({ success: false, message: 'Optimization task not found' });
-  }
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Optimization task not found' });
+    }
 
-  if (task.status === 'completed') {
-    return res.status(400).json({ success: false, message: 'Task already completed and commission claimed.' });
-  }
+    if (task.status === 'completed') {
+      return res.status(400).json({ success: false, message: 'Task already completed and commission claimed.' });
+    }
 
-  // Check if balance is sufficient to complete task
-  if (user.balance < task.product_price) {
-    const deficit = parseFloat((task.product_price - user.balance).toFixed(2));
-    // Update user frozen balance to reflect the required deficit
-    await db.updateUser(user.id, { frozen_balance: deficit });
+    const userBalance = parseFloat(user.balance || 0);
+    const taskPrice = parseFloat(task.product_price || 0);
+    const commAmount = parseFloat(task.commission_amount !== undefined ? task.commission_amount : (task.commission_earned || 0));
 
-    return res.status(400).json({
-      success: false,
-      reachedLimit: true,
-      message: 'You have reached the frozen limit.',
-      userFrozenBalance: deficit.toFixed(2),
-      deficit_amount: deficit,
-      product_price: task.product_price,
-      user_balance: user.balance
+    // Check if balance is sufficient to complete task
+    if (userBalance < taskPrice) {
+      const deficit = parseFloat(Math.max(0, taskPrice - userBalance).toFixed(2));
+      // Update user frozen balance to reflect the required deficit
+      await db.updateUser(user.id, { frozen_balance: deficit });
+
+      return res.status(400).json({
+        success: false,
+        reachedLimit: true,
+        message: 'You have reached the frozen limit.',
+        userFrozenBalance: deficit.toFixed(2),
+        deficit_amount: deficit,
+        product_price: taskPrice,
+        user_balance: userBalance
+      });
+    }
+
+    // Update task to completed
+    await db.updateTask(task.id, {
+      status: 'completed'
     });
-  }
 
-  // Update task to completed
-  await db.updateTask(taskId, {
-    status: 'completed'
-  });
+    // Credit commission to user balance
+    const newBalance = parseFloat((userBalance + commAmount).toFixed(2));
+    const newTodayProfit = parseFloat(((parseFloat(user.today_profit) || 0) + commAmount).toFixed(2));
+    const newCompletedTasks = (parseInt(user.today_tasks_completed, 10) || 0) + 1;
+    const newTotalTasks = (parseInt(user.total_tasks_completed, 10) || 0) + 1;
 
-  // Credit commission to user balance
-  const newBalance = parseFloat((user.balance + task.commission_amount).toFixed(2));
-  const newTodayProfit = parseFloat((user.today_profit + task.commission_amount).toFixed(2));
-  const newCompletedTasks = user.today_tasks_completed + 1;
-  const newTotalTasks = user.total_tasks_completed + 1;
-
-  const updates = {
-    balance: newBalance,
-    frozen_balance: 0.00, // Deficit cleared on successful completion
-    today_profit: newTodayProfit,
-    today_tasks_completed: newCompletedTasks,
-    total_tasks_completed: newTotalTasks,
-    current_set: newCompletedTasks
-  };
-
-  // If this fulfilled an admin custom assignment, clear the custom overrides
-  if (user.custom_order_num && user.custom_order_num <= newCompletedTasks) {
-    updates.custom_order_num = null;
-    updates.custom_deficit_amount = null;
-    updates.custom_product_name = null;
-    updates.custom_product_price = null;
-  }
-
-  await db.updateUser(user.id, updates);
-
-  res.json({
-    success: true,
-    message: `Optimization successful! +$${task.commission_amount.toFixed(2)} credited to your account.`,
-    data: {
+    const updates = {
       balance: newBalance,
-      frozen_balance: 0.00,
+      frozen_balance: 0.00, // Deficit cleared on successful completion
       today_profit: newTodayProfit,
       today_tasks_completed: newCompletedTasks,
-      commission_earned: task.commission_amount
+      total_tasks_completed: newTotalTasks,
+      current_set: newCompletedTasks
+    };
+
+    // If this fulfilled an admin custom assignment, clear the custom overrides
+    if (user.custom_order_num && user.custom_order_num <= newCompletedTasks) {
+      updates.custom_order_num = null;
+      updates.custom_deficit_amount = null;
+      updates.custom_product_name = null;
+      updates.custom_product_price = null;
     }
-  });
+
+    await db.updateUser(user.id, updates);
+
+    return res.json({
+      success: true,
+      message: `Optimization successful! +$${commAmount.toFixed(2)} credited to your account.`,
+      data: {
+        balance: newBalance,
+        frozen_balance: 0.00,
+        today_profit: newTodayProfit,
+        today_tasks_completed: newCompletedTasks,
+        commission_earned: commAmount
+      }
+    });
+  } catch (err) {
+    console.error('Task submit error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Error submitting optimization task. Please try again.'
+    });
+  }
 });
 
 // GET /api/tasks/records - List all user records (tasks, deposits, withdrawals)

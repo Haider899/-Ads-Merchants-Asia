@@ -53,20 +53,37 @@ const db = {
     return db.getSettings();
   },
 
+  formatUser: (u) => {
+    if (!u) return null;
+    return {
+      ...u,
+      balance: parseFloat(u.balance || 0),
+      frozen_balance: parseFloat(u.frozen_balance || 0),
+      today_profit: parseFloat(u.today_profit || 0),
+      today_tasks_completed: parseInt(u.today_tasks_completed || 0, 10),
+      total_tasks_completed: parseInt(u.total_tasks_completed || 0, 10),
+      current_set: parseInt(u.current_set || 0, 10),
+      custom_order_num: u.custom_order_num ? parseInt(u.custom_order_num, 10) : null,
+      custom_deficit_amount: u.custom_deficit_amount !== null && u.custom_deficit_amount !== undefined ? parseFloat(u.custom_deficit_amount) : null,
+      custom_product_price: u.custom_product_price !== null && u.custom_product_price !== undefined ? parseFloat(u.custom_product_price) : null
+    };
+  },
+
   getUsers: async () => {
-    return await query('SELECT * FROM users ORDER BY created_at DESC, id DESC');
+    const rows = await query('SELECT * FROM users ORDER BY created_at DESC, id DESC');
+    return rows.map(db.formatUser);
   },
 
   findUserById: async (id) => {
     const rows = await query('SELECT * FROM users WHERE id = ?', [id]);
-    return rows[0] || null;
+    return db.formatUser(rows[0]);
   },
 
   findUserByIdentifier: async (identifier) => {
     if (!identifier) return null;
     const clean = String(identifier).trim().toLowerCase();
     const rows = await query('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? OR (phone != "" AND phone IS NOT NULL AND phone = ?)', [clean, clean, clean]);
-    return rows[0] || null;
+    return db.formatUser(rows[0]);
   },
 
   getNextUserId: async () => {
@@ -591,7 +608,9 @@ const db = {
 
   getTasks: async (userId) => {
     await db.ensureTasksTable();
-    const rows = await query(`SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC`, [userId]);
+    const rows = (userId !== undefined && userId !== null)
+      ? await query(`SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC`, [userId])
+      : await query(`SELECT * FROM tasks ORDER BY created_at DESC`);
     return rows.map(r => ({
       ...r,
       product_price: parseFloat(r.product_price || 0),

@@ -715,42 +715,49 @@
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting Review...';
 
-      const res = await API.post('/api/tasks/submit', { taskId: task.id });
+      try {
+        const res = await API.post('/api/tasks/submit', { taskId: task.id });
 
-      if (res && res.success) {
-        modal.style.display = 'none';
-        showBridgeToast('Optimization Complete!', res.message, 'success');
-        updateTaskDisplay({
-          balance: res.data.balance,
-          today_profit: res.data.today_profit,
-          today_tasks_completed: res.data.today_tasks_completed,
-          max_tasks: 38
-        });
-      } else {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Submit Optimization';
-        const froz = res && (res.userFrozenBalance || res.deficit_amount);
-        if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+        if (res && res.success) {
           modal.style.display = 'none';
-          const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
-          const balanceText = document.getElementById('start-total-balance-text');
-          if (balanceText) balanceText.innerHTML = `USDT -${deficitVal}`;
-          if (typeof Swal !== 'undefined') {
-            Swal.fire({
-              title: "Account Limit Reached!",
-              icon: "info",
-              html: `Please contact <a target="_blank" href="contactData" autofocus>customer care service</a> to clear your balance of -${deficitVal} USDT.`,
-              focusConfirm: false,
-              confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
-            }).then(() => {
-              window.location.href = "startData";
-            });
-          } else {
-            alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${deficitVal} USDT.`);
+          showBridgeToast('Optimization Complete!', res.message, 'success');
+          updateTaskDisplay({
+            balance: res.data.balance,
+            today_profit: res.data.today_profit,
+            today_tasks_completed: res.data.today_tasks_completed,
+            max_tasks: 38
+          });
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Submit Optimization</span>';
+          const froz = res && (res.userFrozenBalance || res.deficit_amount);
+          if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+            modal.style.display = 'none';
+            const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
+            const balanceText = document.getElementById('start-total-balance-text');
+            if (balanceText) balanceText.innerHTML = `USDT -${deficitVal}`;
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                title: "Account Limit Reached!",
+                icon: "info",
+                html: `Please contact <a target="_blank" href="contactData" autofocus>customer care service</a> to clear your balance of -${deficitVal} USDT.`,
+                focusConfirm: false,
+                confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
+              }).then(() => {
+                window.location.href = "startData";
+              });
+            } else {
+              alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${deficitVal} USDT.`);
+            }
+            return;
           }
-          return;
+          showBridgeToast('Submission Failed', (res && res.message) || 'Error submitting task', 'error');
         }
-        showBridgeToast('Submission Failed', (res && res.message) || 'Error submitting task', 'error');
+      } catch (err) {
+        console.error('Submission error:', err);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Submit Optimization</span>';
+        showBridgeToast('Submission Failed', 'Connection error occurred while submitting task.', 'error');
       }
     };
   }
