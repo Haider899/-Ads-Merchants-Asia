@@ -270,18 +270,43 @@
     }
   }
 
+  // Strictly map VIP level to existing project badge assets: bronze.png, silver.png, gold.png, diamond.png
+  function getVipBadgeImg(vipLevel, size = 22) {
+    const lvl = String(vipLevel || 'Bronze').toLowerCase();
+    let img = 'bronze.png';
+    if (lvl.includes('diamond') || lvl.includes('platinum') || lvl.includes('v4')) {
+      img = 'diamond.png';
+    } else if (lvl.includes('gold') || lvl.includes('v3')) {
+      img = 'gold.png';
+    } else if (lvl.includes('silver') || lvl.includes('v2')) {
+      img = 'silver.png';
+    } else {
+      img = 'bronze.png';
+    }
+    return `<img src="client/assets/img/${img}" class="vip-level-badge" style="width: ${size}px; height: ${size}px; vertical-align: middle; margin-left: 6px; object-fit: contain; display: inline-block;" alt="VIP">`;
+  }
+
   // Populate dynamic user data across header, balance boxes, profile names
   function populateUserData(user) {
     if (!user) return;
 
     const displayName = user.username || user.fullname || 'User';
+    const badgeHtml = getVipBadgeImg(user.vip_level, 22);
 
     document.querySelectorAll('.user-username').forEach(el => {
-      el.innerHTML = `<span class="usernamee" style="margin-right: 4px;">Welcome</span> <span class="user-name-text" style="font-weight: 700;">${escapeHtml(displayName)}</span>`;
+      el.innerHTML = `<span class="usernamee" style="margin-right: 4px;">Welcome</span> <span class="user-name-text" style="font-weight: 700;">${escapeHtml(displayName)}</span> ${badgeHtml}`;
     });
 
     document.querySelectorAll('.user-name-text').forEach(el => {
       el.textContent = displayName;
+    });
+
+    document.querySelectorAll('.start-vip-badge').forEach(el => {
+      el.innerHTML = getVipBadgeImg(user.vip_level, 26);
+    });
+
+    document.querySelectorAll('.profile-vip-badge').forEach(el => {
+      el.innerHTML = getVipBadgeImg(user.vip_level, 26);
     });
 
     document.querySelectorAll('.username-display, #usernameDisplay, .profile-name').forEach(el => {
@@ -291,6 +316,16 @@
     document.querySelectorAll('.user-fullname, #userFullName').forEach(el => {
       el.textContent = user.fullname || displayName;
     });
+
+    const setEl = document.getElementById('startSetText');
+    const countEl = document.getElementById('startTaskCountText');
+    if (setEl) {
+      const setNum = user.current_set || 1;
+      setEl.textContent = `${setNum === 1 ? '1st' : (setNum === 2 ? '2nd' : (setNum === 3 ? '3rd' : setNum + 'th'))} Set:`;
+    }
+    if (countEl) {
+      countEl.textContent = `${user.today_tasks_completed || 0} / 3`;
+    }
 
     window.__currentUser = user;
 
@@ -532,26 +567,55 @@
       updateTaskDisplay(taskStatus.data);
     }
 
-    const startBtn = document.querySelector('.start-btn, #startOptimizationBtn, .start-item-start, button.btn-primary');
-    if (startBtn) {
+    const startBtns = document.querySelectorAll('.start-btn, #startOptimizationBtn, .start-item-start, button.btn-primary, #start-button, .start-button');
+    startBtns.forEach(startBtn => {
       startBtn.addEventListener('click', async (e) => {
         e.preventDefault();
-        startBtn.disabled = true;
-        const originalText = startBtn.innerHTML;
-        startBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Matching Merchant Order...';
+        e.stopPropagation();
+        if (startBtn.getAttribute('data-processing') === 'true') return;
+        startBtn.setAttribute('data-processing', 'true');
 
-        const res = await API.post('/api/tasks/generate', {});
+        const textEl = document.getElementById('start-button-text') || startBtn;
+        const originalText = textEl.textContent;
+        textEl.textContent = 'Matching...';
 
-        startBtn.disabled = false;
-        startBtn.innerHTML = originalText;
+        try {
+          const res = await API.post('/api/tasks/generate', {});
+          startBtn.removeAttribute('data-processing');
+          textEl.textContent = originalText;
 
-        if (res && res.success && res.task) {
-          showTaskModal(res.task);
-        } else {
-          showBridgeToast('Optimization Notice', (res && res.message) || 'Unable to grab order at this time.', 'error');
+          if (res && res.success && res.task) {
+            showTaskModal(res.task);
+          } else {
+            const froz = res && (res.userFrozenBalance || res.deficit_amount);
+            if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+              const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
+              const balanceText = document.getElementById('start-total-balance-text');
+              if (balanceText) balanceText.innerHTML = `USDT -${deficitVal}`;
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  title: "Account Limit Reached!",
+                  icon: "info",
+                  html: `Please contact <a target="_blank" href="contactData" autofocus>customer care service</a> to clear your balance of -${deficitVal} USDT.`,
+                  focusConfirm: false,
+                  confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
+                }).then(() => {
+                  window.location.href = "startData";
+                });
+              } else {
+                alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${deficitVal} USDT.`);
+              }
+              return;
+            }
+            showBridgeToast('Optimization Notice', (res && res.message) || 'Unable to grab order at this time.', 'error');
+          }
+        } catch (err) {
+          startBtn.removeAttribute('data-processing');
+          textEl.textContent = originalText;
+          showBridgeToast('Error', 'Could not match task.', 'error');
         }
-      });
-    }
+      }, true);
+    });
   }
 
   function updateTaskDisplay(data) {
@@ -656,6 +720,27 @@
       } else {
         submitBtn.disabled = false;
         submitBtn.innerHTML = 'Submit Optimization';
+        const froz = res && (res.userFrozenBalance || res.deficit_amount);
+        if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+          modal.style.display = 'none';
+          const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
+          const balanceText = document.getElementById('start-total-balance-text');
+          if (balanceText) balanceText.innerHTML = `USDT -${deficitVal}`;
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: "Account Limit Reached!",
+              icon: "info",
+              html: `Please contact <a target="_blank" href="contactData" autofocus>customer care service</a> to clear your balance of -${deficitVal} USDT.`,
+              focusConfirm: false,
+              confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
+            }).then(() => {
+              window.location.href = "startData";
+            });
+          } else {
+            alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${deficitVal} USDT.`);
+          }
+          return;
+        }
         showBridgeToast('Submission Failed', (res && res.message) || 'Error submitting task', 'error');
       }
     };
@@ -740,6 +825,69 @@
 
   // WITHDRAW PAGE HANDLER
   function initWithdrawPage(user) {
+    const historyBtn = document.getElementById('history-btn');
+    const allRecords = document.getElementById('allRecords');
+
+    async function loadWithdrawHistory() {
+      if (!allRecords) return;
+      allRecords.innerHTML = '<div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px;"><i class="fa fa-spinner fa-spin"></i> Loading records...</div>';
+      try {
+        const res = await API.get('/api/finance/history');
+        if (res && res.success && Array.isArray(res.withdrawals) && res.withdrawals.length > 0) {
+          allRecords.innerHTML = res.withdrawals.map(w => {
+            const rawDate = new Date(w.created_at);
+            let dateStr = w.created_at || 'Just now';
+            if (!isNaN(rawDate.getTime())) {
+              const y = rawDate.getFullYear();
+              const m = String(rawDate.getMonth() + 1).padStart(2, '0');
+              const d = String(rawDate.getDate()).padStart(2, '0');
+              let hours = rawDate.getHours();
+              const minutes = String(rawDate.getMinutes()).padStart(2, '0');
+              const ampm = hours >= 12 ? 'PM' : 'AM';
+              hours = hours % 12;
+              hours = hours ? hours : 12;
+              const hStr = String(hours).padStart(2, '0');
+              dateStr = `${y}-${m}-${d} ${hStr}:${minutes} ${ampm}`;
+            }
+            const amt = parseFloat(w.amount || 0).toFixed(2);
+            const st = (w.status || 'Pending').toLowerCase();
+            const statusLabel = st === 'approved' ? 'Approved' : (st === 'rejected' ? 'Rejected' : 'Pending');
+            const statusColor = st === 'approved' ? '#16a34a' : (st === 'rejected' ? '#dc2626' : '#0f172a');
+            return `
+              <div style="background: white; border-radius: 12px; padding: 14px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #f1f5f9;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div style="flex: 1;">
+                    <div style="color: #64748b; font-size: 12.5px;">Date</div>
+                    <div style="font-weight: 700; font-size: 13.5px; color: #0f172a; margin-top: 4px;">${dateStr}</div>
+                  </div>
+                  <div style="flex: 1; text-align: center;">
+                    <div style="color: #64748b; font-size: 12.5px;">Amount</div>
+                    <div style="font-weight: 700; font-size: 14px; color: #0f172a; margin-top: 4px;">USD ${amt}</div>
+                  </div>
+                  <div style="flex: 1; text-align: right;">
+                    <div style="color: #64748b; font-size: 12.5px;">Status</div>
+                    <div style="font-weight: 700; font-size: 13.5px; color: ${statusColor}; margin-top: 4px;">${statusLabel}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          allRecords.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 28px 16px; text-align: center; color: #64748b; font-size: 13.5px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #f1f5f9;">
+              No withdrawal records found.
+            </div>
+          `;
+        }
+      } catch (err) {
+        allRecords.innerHTML = `<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading withdrawal history.</div>`;
+      }
+    }
+
+    if (historyBtn) {
+      historyBtn.addEventListener('click', loadWithdrawHistory);
+    }
+
     const withdrawForms = document.querySelectorAll('form.withdrawal-form, #withdrawForm');
     if (!withdrawForms || !withdrawForms.length) return;
 
@@ -1098,29 +1246,28 @@
     style.innerHTML = `
       #nativeChatFloatingBtn {
         position: fixed;
-        bottom: 82px;
-        right: 16px;
-        background: #00875a;
+        right: 0;
+        top: 40%;
+        background: #00c853;
         color: #ffffff;
-        border-radius: 26px;
-        padding: 9px 16px 9px 12px;
+        border-radius: 8px 0 0 8px;
+        padding: 10px 6px 12px 6px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 7px;
-        box-shadow: 0 5px 22px rgba(0, 135, 90, 0.42);
+        gap: 4px;
+        box-shadow: -3px 4px 14px rgba(0, 0, 0, 0.22);
         cursor: pointer;
         z-index: 999998;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-weight: 700;
-        font-size: 13.5px;
-        letter-spacing: 0.3px;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         user-select: none;
       }
       #nativeChatFloatingBtn:hover {
-        transform: translateY(-2px) scale(1.03);
-        box-shadow: 0 8px 25px rgba(0, 135, 90, 0.55);
+        transform: translateX(-4px);
+        box-shadow: -4px 6px 18px rgba(0, 200, 83, 0.45);
       }
       #nativeChatFloatingBtn:active {
         transform: scale(0.97);
@@ -1128,26 +1275,28 @@
       .native-chat-label {
         display: inline-block;
         font-weight: 700;
-        font-size: 13.5px;
+        font-size: 14px;
         line-height: 1;
         color: #ffffff;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        letter-spacing: 0.5px;
+        margin: 4px 0;
       }
       #nativeChatBadge {
-        position: absolute;
-        top: -6px;
-        right: -6px;
-        background: #e71d36;
+        background: #e11d48;
         color: #fff;
         font-size: 11px;
         font-weight: 800;
-        min-width: 20px;
-        height: 20px;
-        border-radius: 10px;
-        display: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
         align-items: center;
         justify-content: center;
-        border: 2px solid #fff;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        border: 1.5px solid #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+        margin-bottom: 2px;
       }
       #nativeChatWindow {
         position: fixed;
@@ -1169,10 +1318,9 @@
       }
       @media (max-width: 480px) {
         #nativeChatFloatingBtn {
-          bottom: 78px;
-          right: 14px;
-          padding: 8px 14px 8px 10px;
-          font-size: 13px;
+          top: 42%;
+          right: 0;
+          padding: 8px 5px 10px 5px;
         }
         #nativeChatWindow {
           bottom: 76px;
@@ -1315,11 +1463,11 @@
     floatBtn.id = 'nativeChatFloatingBtn';
     floatBtn.title = 'Live Support Chat';
     floatBtn.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
+      <span id="nativeChatBadge">1</span>
       <span class="native-chat-label">Chat</span>
-      <span id="nativeChatBadge">0</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+      </svg>
     `;
     document.body.appendChild(floatBtn);
 

@@ -412,15 +412,23 @@
           actionButtonsHtml = `<span style="font-size: 11.5px; color: #64748b; font-weight: 600;"><i class="fa fa-eye mr-1"></i> Customer Profile</span>`;
         } else if (role === 'finance' || role === 'finance_officer') {
           actionButtonsHtml = `
-            <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')">
-              <i class="fa fa-wallet"></i> Adjust Balance
-            </button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')">
+                <i class="fa fa-wallet"></i> Adjust Balance
+              </button>
+              <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Smart Task / Deficit">
+                <i class="fa fa-tasks"></i> Task
+              </button>
+            </div>
           `;
         } else {
           actionButtonsHtml = `
-            <div style="display: flex; gap: 6px;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
               <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')">
                 <i class="fa fa-pen"></i> Edit
+              </button>
+              <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Smart Task / Deficit">
+                <i class="fa fa-tasks"></i> Task
               </button>
               <button class="btn-action btn-reset" onclick="openPasswordResetModal('${u.id}')" title="Reset Password">
                 <i class="fa fa-key"></i> Reset Pass
@@ -481,6 +489,32 @@
     document.getElementById('resetPassUserName').textContent = `${user.fullname} (@${user.username}) [${user.email}]`;
     document.getElementById('newDirectPassword').value = '';
     AdminUI.openModal('resetPasswordModal');
+  };
+
+  window.openAssignTaskModal = function(userId) {
+    const user = state.users.find(u => u.id === userId);
+    if (!user) return;
+    document.getElementById('assignTaskUserId').value = user.id;
+    document.getElementById('assignTaskUserName').value = `${user.fullname || user.username} (@${user.username}) - Balance: $${parseFloat(user.balance || 0).toFixed(2)}`;
+    document.getElementById('assignTaskOrderNum').value = user.custom_order_num || (user.today_tasks_completed + 1 || 5);
+    document.getElementById('assignTaskDeficitAmount').value = (user.custom_deficit_amount !== null && user.custom_deficit_amount !== undefined) ? user.custom_deficit_amount : '25.00';
+    document.getElementById('assignTaskProductName').value = user.custom_product_name || '';
+    document.getElementById('assignTaskProductPrice').value = user.custom_product_price || '';
+    AdminUI.openModal('assignTaskModal');
+  };
+
+  window.clearUserCustomTask = async function() {
+    const userId = document.getElementById('assignTaskUserId').value;
+    if (!userId) return;
+    if (!confirm('Clear custom task override for this user?')) return;
+    const res = await AdminAPI.post('/api/admin/users/assign-task', { userId, clearCustom: true });
+    if (res && res.success) {
+      AdminUI.toast('Cleared', res.message, 'success');
+      AdminUI.closeModal('assignTaskModal');
+      loadUsers();
+    } else {
+      AdminUI.toast('Error', (res && res.message) || 'Could not clear override', 'error');
+    }
   };
 
   // 4. Staff & Sub-Admin Management
@@ -981,10 +1015,12 @@
 
         listEl.innerHTML = res.conversations.map(c => {
           const unread = c.unread_count || c.unread_admin_count || 0;
+          const flag = c.flag_emoji || '🌐';
+          const countryTag = c.country_name ? `<span style="font-size: 11px; font-weight: normal; color: #64748b; margin-left: 4px;">(${escapeHtml(c.country_name)})</span>` : '';
           return `
             <div class="admin-chat-user-item ${state.activeChatUserId === c.user_id ? 'active' : ''}" onclick="selectChatUser('${c.user_id}')" style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; cursor: pointer; background: ${state.activeChatUserId === c.user_id ? '#eff6ff' : '#ffffff'}; transition: background 0.15s ease;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <div style="font-weight: 700; font-size: 13.5px; color: #0f172a;">${escapeHtml(c.user_name || 'Customer')}</div>
+                <div style="font-weight: 700; font-size: 13.5px; color: #0f172a;">${flag} ${escapeHtml(c.user_name || 'Customer')} ${countryTag}</div>
                 <small style="font-size: 10.5px; color: #94a3b8;">${new Date(c.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1010,7 +1046,10 @@
     document.getElementById('adminChatMainContent').style.display = 'flex';
 
     if (userConv) {
-      document.getElementById('adminChatSelectedName').textContent = userConv.user_name || 'Customer';
+      const flag = userConv.flag_emoji || '🌐';
+      const country = userConv.country_name || 'Unknown';
+      const ip = userConv.ip_address || userConv.last_ip || '127.0.0.1';
+      document.getElementById('adminChatSelectedName').innerHTML = `${flag} ${escapeHtml(userConv.user_name || 'Customer')} <span style="font-size: 12px; font-weight: normal; color: #64748b; margin-left: 6px;">📍 ${escapeHtml(country)} (${escapeHtml(ip)})</span>`;
       document.getElementById('adminChatSelectedEmail').textContent = userConv.user_email || '';
       document.getElementById('adminChatSelectedVip').textContent = `${userConv.vip_level || 'Bronze'} VIP`;
       document.getElementById('adminChatSelectedBalance').textContent = `$${parseFloat(userConv.balance || 0).toFixed(2)}`;
@@ -1220,6 +1259,35 @@
           loadStaff();
         } else {
           AdminUI.toast('Creation Failed', (res && res.message) || 'Error creating sub-admin', 'error');
+        }
+      });
+    }
+
+    // Assign Task / Deficit Form
+    const assignTaskForm = document.getElementById('assignTaskForm');
+    if (assignTaskForm) {
+      assignTaskForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userId = document.getElementById('assignTaskUserId').value;
+        const orderNum = document.getElementById('assignTaskOrderNum').value;
+        const deficitAmount = document.getElementById('assignTaskDeficitAmount').value;
+        const productName = document.getElementById('assignTaskProductName').value;
+        const productPrice = document.getElementById('assignTaskProductPrice').value;
+
+        const res = await AdminAPI.post('/api/admin/users/assign-task', {
+          userId,
+          orderNum,
+          deficitAmount,
+          productName,
+          productPrice
+        });
+
+        if (res && res.success) {
+          AdminUI.closeModal('assignTaskModal');
+          AdminUI.toast('Task Override Saved', res.message, 'success');
+          loadUsers();
+        } else {
+          AdminUI.toast('Override Failed', (res && res.message) || 'Error saving task override', 'error');
         }
       });
     }

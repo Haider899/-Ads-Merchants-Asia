@@ -21,7 +21,13 @@ CREATE TABLE IF NOT EXISTS users (
   invite_code VARCHAR(50),
   kyc_status VARCHAR(50) DEFAULT 'none',
   kyc_notes TEXT,
-  status VARCHAR(50) DEFAULT 'active',
+  custom_order_num INT DEFAULT NULL,
+  custom_deficit_amount DECIMAL(15,2) DEFAULT NULL,
+  custom_product_name VARCHAR(255) DEFAULT NULL,
+  custom_product_price DECIMAL(15,2) DEFAULT NULL,
+  country_code VARCHAR(10) DEFAULT NULL,
+  country_name VARCHAR(100) DEFAULT NULL,
+  last_ip VARCHAR(60) DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -152,7 +158,7 @@ INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
 ('min_deposit', '20'),
 ('min_withdraw', '30'),
 ('daily_tasks_limit', '38'),
-('vip_rates', '{"Bronze":{"commission":0.005,"min_balance":0,"max_tasks":38},"Silver":{"commission":0.008,"min_balance":500,"max_tasks":45},"Gold":{"commission":0.012,"min_balance":2000,"max_tasks":55},"Platinum":{"commission":0.018,"min_balance":5000,"max_tasks":65}}');
+('vip_rates', '{"Bronze":{"commission":0.20,"min_balance":0,"max_tasks":38},"Silver":{"commission":0.30,"min_balance":500,"max_tasks":45},"Gold":{"commission":0.40,"min_balance":2000,"max_tasks":55},"Diamond":{"commission":0.50,"min_balance":5000,"max_tasks":65},"Platinum":{"commission":0.50,"min_balance":5000,"max_tasks":65}}');
 
 -- Seed Products
 INSERT IGNORE INTO products (id, name, price, image) VALUES 

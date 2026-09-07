@@ -205,6 +205,8 @@ router.post('/chat/read', authMiddleware, async (req, res) => {
   }
 });
 
+const geo = require('../utils/geo');
+
 // POST /api/user/chat - Send message from user to admin
 router.post('/chat', authMiddleware, async (req, res) => {
   try {
@@ -218,13 +220,27 @@ router.post('/chat', authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message text cannot be empty' });
     }
 
+    const clientIp = geo.extractClientIp(req);
+    const geoInfo = geo.lookupIp(clientIp);
+
     const message = await db.createChatMessage({
       userId: user.id,
       sender: 'user',
       text: text.trim(),
       userName: user.fullname || user.username,
-      userEmail: user.email
+      userEmail: user.email,
+      ipAddress: geoInfo.ip,
+      countryCode: geoInfo.countryCode,
+      countryName: geoInfo.countryName
     });
+
+    try {
+      await db.updateUser(user.id, {
+        country_code: geoInfo.countryCode,
+        country_name: geoInfo.countryName,
+        last_ip: geoInfo.ip
+      });
+    } catch (_) {}
 
     const messages = await db.getChatMessages(user.id);
     res.json({
@@ -244,10 +260,10 @@ router.get('/levels', async (req, res) => {
   res.json({
     success: true,
     levels: [
-      { name: 'Bronze VIP', commission: '0.50%', min_balance: '$0.00', daily_tasks: 38 },
-      { name: 'Silver VIP', commission: '0.80%', min_balance: '$500.00', daily_tasks: 45 },
-      { name: 'Gold VIP', commission: '1.20%', min_balance: '$2,000.00', daily_tasks: 55 },
-      { name: 'Platinum VIP', commission: '1.80%', min_balance: '$5,000.00', daily_tasks: 65 }
+      { name: 'Bronze VIP', commission: '20.00%', min_balance: '$0.00', daily_tasks: 38 },
+      { name: 'Silver VIP', commission: '30.00%', min_balance: '$500.00', daily_tasks: 45 },
+      { name: 'Gold VIP', commission: '40.00%', min_balance: '$2,000.00', daily_tasks: 55 },
+      { name: 'Diamond VIP', commission: '50.00%', min_balance: '$5,000.00', daily_tasks: 65 }
     ]
   });
 });

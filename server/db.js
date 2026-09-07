@@ -54,7 +54,7 @@ const db = {
   },
 
   getUsers: async () => {
-    return await query('SELECT * FROM users');
+    return await query('SELECT * FROM users ORDER BY created_at DESC, id DESC');
   },
 
   findUserById: async (id) => {
@@ -145,7 +145,14 @@ const db = {
   },
 
   updateUser: async (id, updates) => {
-    const allowed = ['fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 'vip_level', 'balance', 'frozen_balance', 'today_profit', 'today_tasks_completed', 'total_tasks_completed', 'current_set', 'invite_code', 'kyc_status', 'kyc_notes', 'status'];
+    const allowed = [
+      'fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 
+      'vip_level', 'balance', 'frozen_balance', 'today_profit', 
+      'today_tasks_completed', 'total_tasks_completed', 'current_set', 
+      'invite_code', 'kyc_status', 'kyc_notes', 'status',
+      'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price',
+      'country_code', 'country_name', 'last_ip'
+    ];
     const filteredUpdates = {};
     for (const key of Object.keys(updates)) {
       if (allowed.includes(key)) {
@@ -442,15 +449,15 @@ const db = {
     `, [userId]);
   },
 
-  createChatMessage: async ({ userId, sender, text, userName, userEmail }) => {
+  createChatMessage: async ({ userId, sender, text, userName, userEmail, ipAddress, countryCode, countryName }) => {
     await db.cleanupExpiredChatMessages();
     const id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     const readByAdmin = sender === 'admin';
     const readByUser = sender === 'user';
     const cleanText = (text || '').trim();
-    await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, userId, userName || 'User', userEmail || '', sender || 'user', cleanText, readByAdmin, readByUser]);
-    return { id, user_id: userId, sender, text: cleanText, message_text: cleanText, created_at: new Date().toISOString() };
+    await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, ip_address, country_code, country_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, userId, userName || 'User', userEmail || '', sender || 'user', cleanText, readByAdmin, readByUser, ipAddress || null, countryCode || null, countryName || null]);
+    return { id, user_id: userId, sender, text: cleanText, message_text: cleanText, ip_address: ipAddress, country_code: countryCode, country_name: countryName, created_at: new Date().toISOString() };
   },
 
   getChatConversations: async () => {
@@ -462,6 +469,9 @@ const db = {
         u.email as user_email, 
         u.vip_level, 
         u.balance,
+        COALESCE(u.country_code, c.country_code, 'US') as country_code,
+        COALESCE(u.country_name, c.country_name, 'United States') as country_name,
+        COALESCE(u.last_ip, c.ip_address, '127.0.0.1') as ip_address,
         c.message_text as last_message, 
         c.created_at as last_message_at, 
         c.sender as last_sender,
