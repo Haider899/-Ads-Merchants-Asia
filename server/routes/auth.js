@@ -8,7 +8,8 @@ const { authMiddleware, JWT_SECRET } = require('../middleware/auth');
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const identifier = req.body.identifier || req.body.email || req.body.username || req.body.login;
+    const password = req.body.password;
     if (!identifier || !password) {
       return res.status(400).json({ success: false, message: 'Please provide email/username and password' });
     }
