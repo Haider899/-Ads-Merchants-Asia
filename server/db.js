@@ -551,6 +551,110 @@ const db = {
     await db.ensureAdminsTable();
     await query('DELETE FROM admins WHERE id = ?', [id]);
     return true;
+  },
+
+  // TASKS & SMART COMMISSION ENGINE
+  ensureTasksTable: async () => {
+    await query(`CREATE TABLE IF NOT EXISTS tasks (
+      id VARCHAR(50) PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      product_id INT,
+      product_name VARCHAR(255),
+      product_image VARCHAR(255),
+      product_price DECIMAL(15,2),
+      commission_rate DECIMAL(5,4),
+      commission_earned DECIMAL(15,2),
+      status VARCHAR(50) DEFAULT 'pending',
+      order_num INT DEFAULT 1,
+      is_deficit TINYINT(1) DEFAULT 0,
+      deficit_amount DECIMAL(15,2) DEFAULT 0.00,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX(user_id)
+    )`);
+    try {
+      const cols = await query(`SHOW COLUMNS FROM tasks`);
+      const colNames = cols.map(c => c.Field.toLowerCase());
+      if (!colNames.includes('product_image')) {
+        await query(`ALTER TABLE tasks ADD COLUMN product_image VARCHAR(255) DEFAULT NULL`);
+      }
+      if (!colNames.includes('order_num')) {
+        await query(`ALTER TABLE tasks ADD COLUMN order_num INT DEFAULT 1`);
+      }
+      if (!colNames.includes('is_deficit')) {
+        await query(`ALTER TABLE tasks ADD COLUMN is_deficit TINYINT(1) DEFAULT 0`);
+      }
+      if (!colNames.includes('deficit_amount')) {
+        await query(`ALTER TABLE tasks ADD COLUMN deficit_amount DECIMAL(15,2) DEFAULT 0.00`);
+      }
+    } catch (_) {}
+  },
+
+  getTasks: async (userId) => {
+    await db.ensureTasksTable();
+    const rows = await query(`SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC`, [userId]);
+    return rows.map(r => ({
+      ...r,
+      product_price: parseFloat(r.product_price || 0),
+      commission_rate: parseFloat(r.commission_rate || 0),
+      commission_earned: parseFloat(r.commission_earned || 0),
+      commission_amount: parseFloat(r.commission_earned || 0),
+      deficit_amount: parseFloat(r.deficit_amount || 0)
+    }));
+  },
+
+  createTask: async (task) => {
+    await db.ensureTasksTable();
+    const commEarned = task.commission_earned || task.commission_amount || 0;
+    await query(`INSERT INTO tasks (id, user_id, product_name, product_image, product_price, commission_rate, commission_earned, status, order_num, is_deficit, deficit_amount, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        task.id,
+        task.user_id,
+        task.product_name,
+        task.product_image || null,
+        task.product_price,
+        task.commission_rate,
+        commEarned,
+        task.status || 'pending',
+        task.order_num || 1,
+        task.is_deficit ? 1 : 0,
+        task.deficit_amount || 0,
+        formatMySQLDate(task.created_at || new Date())
+      ]
+    );
+    return task;
+  },
+
+  updateTask: async (id, updates) => {
+    await db.ensureTasksTable();
+    const allowed = ['status', 'commission_earned', 'order_num', 'is_deficit', 'deficit_amount'];
+    const keys = Object.keys(updates).filter(k => allowed.includes(k));
+    if (keys.length === 0) return true;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = keys.map(k => updates[k]);
+    values.push(id);
+    await query(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
+    return true;
+  },
+
+  getProducts: async () => {
+    await query(`CREATE TABLE IF NOT EXISTS products (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      price DECIMAL(15,2) NOT NULL,
+      image VARCHAR(255)
+    )`);
+    const rows = await query(`SELECT * FROM products`);
+    if (rows.length === 0) {
+      await query(`INSERT IGNORE INTO products (name, price, image) VALUES 
+        ('Apple iPhone 16 Pro Max 256GB - Desert Titanium', 1199.00, 'assets/uploads/logo/1742595477_icon.png'),
+        ('Sony WH-1000XM5 Wireless Noise-Canceling Headphones', 399.99, 'assets/uploads/logo/1742595477_icon.png'),
+        ('Dyson V15 Detect Cordless Vacuum Cleaner', 749.99, 'assets/uploads/logo/1742595477_icon.png'),
+        ('Samsung 65" Class OLED 4K S90D Smart TV', 1599.99, 'assets/uploads/logo/1742595477_icon.png')
+      `);
+      return await query(`SELECT * FROM products`);
+    }
+    return rows;
   }
 };
 
