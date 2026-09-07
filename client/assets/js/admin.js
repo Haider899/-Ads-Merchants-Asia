@@ -1013,14 +1013,22 @@
           return;
         }
 
+        function renderFlagBadge(code, emoji) {
+          if (code && typeof code === 'string' && code.length === 2) {
+            const c = code.toLowerCase();
+            return `<img src="https://flagcdn.com/24x18/${c}.png" style="width: 20px; height: 14px; border-radius: 2px; vertical-align: middle; margin-right: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.18); display: inline-block;" onerror="this.outerHTML='${emoji || '🌐'}';" alt="${code}">`;
+          }
+          return emoji ? `<span style="margin-right: 4px;">${emoji}</span>` : '🌐 ';
+        }
+
         listEl.innerHTML = res.conversations.map(c => {
           const unread = c.unread_count || c.unread_admin_count || 0;
-          const flag = c.flag_emoji || '🌐';
+          const flagHtml = renderFlagBadge(c.country_code, c.flag_emoji);
           const countryTag = c.country_name ? `<span style="font-size: 11px; font-weight: normal; color: #64748b; margin-left: 4px;">(${escapeHtml(c.country_name)})</span>` : '';
           return `
             <div class="admin-chat-user-item ${state.activeChatUserId === c.user_id ? 'active' : ''}" onclick="selectChatUser('${c.user_id}')" style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; cursor: pointer; background: ${state.activeChatUserId === c.user_id ? '#eff6ff' : '#ffffff'}; transition: background 0.15s ease;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <div style="font-weight: 700; font-size: 13.5px; color: #0f172a;">${flag} ${escapeHtml(c.user_name || 'Customer')} ${countryTag}</div>
+                <div style="font-weight: 700; font-size: 13.5px; color: #0f172a; display: flex; align-items: center;">${flagHtml} ${escapeHtml(c.user_name || 'Customer')} ${countryTag}</div>
                 <small style="font-size: 10.5px; color: #94a3b8;">${new Date(c.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1046,10 +1054,17 @@
     document.getElementById('adminChatMainContent').style.display = 'flex';
 
     if (userConv) {
-      const flag = userConv.flag_emoji || '🌐';
+      function renderFlagBadge(code, emoji) {
+        if (code && typeof code === 'string' && code.length === 2) {
+          const c = code.toLowerCase();
+          return `<img src="https://flagcdn.com/24x18/${c}.png" style="width: 20px; height: 14px; border-radius: 2px; vertical-align: middle; margin-right: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.18); display: inline-block;" onerror="this.outerHTML='${emoji || '🌐'}';" alt="${code}">`;
+        }
+        return emoji ? `<span style="margin-right: 4px;">${emoji}</span>` : '🌐 ';
+      }
+      const flagHtml = renderFlagBadge(userConv.country_code, userConv.flag_emoji);
       const country = userConv.country_name || 'Unknown';
       const ip = userConv.ip_address || userConv.last_ip || '127.0.0.1';
-      document.getElementById('adminChatSelectedName').innerHTML = `${flag} ${escapeHtml(userConv.user_name || 'Customer')} <span style="font-size: 12px; font-weight: normal; color: #64748b; margin-left: 6px;">📍 ${escapeHtml(country)} (${escapeHtml(ip)})</span>`;
+      document.getElementById('adminChatSelectedName').innerHTML = `<span style="display: inline-flex; align-items: center;">${flagHtml} ${escapeHtml(userConv.user_name || 'Customer')}</span> <span style="font-size: 12px; font-weight: normal; color: #64748b; margin-left: 6px;">📍 ${escapeHtml(country)} (${escapeHtml(ip)})</span>`;
       document.getElementById('adminChatSelectedEmail').textContent = userConv.user_email || '';
       document.getElementById('adminChatSelectedVip').textContent = `${userConv.vip_level || 'Bronze'} VIP`;
       document.getElementById('adminChatSelectedBalance').textContent = `$${parseFloat(userConv.balance || 0).toFixed(2)}`;
