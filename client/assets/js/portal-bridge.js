@@ -272,18 +272,18 @@
 
   // Strictly map VIP level to existing project badge assets: bronze.png, silver.png, gold.png, diamond.png
   function getVipBadgeImg(vipLevel, size = 22) {
-    const lvl = String(vipLevel || 'Bronze').toLowerCase();
+    const lvl = String(vipLevel || 'Bronze').toLowerCase().trim();
     let img = 'bronze.png';
-    if (lvl.includes('diamond') || lvl.includes('platinum') || lvl.includes('v4')) {
+    if (lvl.includes('diamond') || lvl.includes('platinum') || lvl.includes('v4') || lvl.includes('level 4') || lvl === '4' || lvl.includes('vip 4') || lvl.includes('vip4')) {
       img = 'diamond.png';
-    } else if (lvl.includes('gold') || lvl.includes('v3')) {
+    } else if (lvl.includes('gold') || lvl.includes('v3') || lvl.includes('level 3') || lvl === '3' || lvl.includes('vip 3') || lvl.includes('vip3')) {
       img = 'gold.png';
-    } else if (lvl.includes('silver') || lvl.includes('v2')) {
+    } else if (lvl.includes('silver') || lvl.includes('v2') || lvl.includes('level 2') || lvl === '2' || lvl.includes('vip 2') || lvl.includes('vip2')) {
       img = 'silver.png';
     } else {
       img = 'bronze.png';
     }
-    return `<img src="client/assets/img/${img}" class="vip-level-badge" style="width: ${size}px; height: ${size}px; vertical-align: middle; margin-left: 6px; object-fit: contain; display: inline-block;" alt="VIP">`;
+    return `<img src="/client/assets/img/${img}" onerror="if(this.src.indexOf('/client/')!==-1){this.src='client/assets/img/${img}';}" class="vip-level-badge" style="width: ${size}px; height: ${size}px; vertical-align: middle; margin-left: 6px; object-fit: contain; display: inline-block;" alt="VIP">`;
   }
 
   // Populate dynamic user data across header, balance boxes, profile names
@@ -392,6 +392,11 @@
     `).forEach(el => {
       el.textContent = `USD ${frozenBal}`;
     });
+
+    const startFrozenContainer = document.getElementById('start-frozen-container');
+    if (startFrozenContainer) {
+      startFrozenContainer.style.display = frozenBalNum > 0 ? 'block' : 'none';
+    }
 
     document.querySelectorAll('.user-vip, #userVip, .vip-badge').forEach(el => {
       el.textContent = `${user.vip_level || 'Bronze'} VIP`;
@@ -638,6 +643,10 @@
     document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {
       el.textContent = `USD ${frozBal.toFixed(2)}`;
     });
+    const taskFrozenContainer = document.getElementById('start-frozen-container');
+    if (taskFrozenContainer) {
+      taskFrozenContainer.style.display = frozBal > 0 ? 'block' : 'none';
+    }
     document.querySelectorAll('.task-profit, #todayProfitVal, .user-today-profit, #todayProfit, #start-todays-profit-text, #profile-total-profit').forEach(el => {
       el.textContent = `USD ${profitVal.toFixed(2)}`;
     });

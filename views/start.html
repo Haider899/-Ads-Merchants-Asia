@@ -422,9 +422,9 @@
 
                     <div class="start-balance-card-heading bold">
 
-                        <div class="start-balance-card-heading-left">Starting</div>
+                        <div class="start-balance-card-heading-left" style="font-size: 19px; font-weight: 700; color: #0f172a;">Starting</div>
 
-                        <div class="start-balance-card-heading-right" style="display: flex; align-items: center; gap: 6px;">
+                        <div class="start-balance-card-heading-right" style="display: flex; align-items: center; gap: 6px; font-size: 19px; font-weight: 700; color: #0f172a;">
 
                             <div><span class="user-name-text"></span></div>
 
@@ -446,11 +446,13 @@
 
                                 <div id="start-todays-profit-text" class="small-text bold">USD 0.00 </div>
 
-                                <br>
+                                <div id="start-frozen-container" style="display: none; margin-top: 6px;">
 
-                                <div class="tiny-text">Frozen Balance</div>
+                                    <div class="tiny-text">Frozen Balance</div>
 
-                                <div id="start-frozen-balance-text" class="small-text bold user-frozen-balance user-frozen">USD 0.00</div>
+                                    <div id="start-frozen-balance-text" class="small-text bold user-frozen-balance user-frozen">USD 0.00</div>
+
+                                </div>
 
                             </div>
 
@@ -604,7 +606,7 @@
 
 </script>
 
-<script src="client/assets/js/portal-bridge.js?v=3.4.0"></script>
+<script src="client/assets/js/portal-bridge.js?v=3.4.1"></script>
 </body>
 
 </html>
