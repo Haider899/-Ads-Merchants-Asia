@@ -31,6 +31,7 @@ async function query(sql, params) {
 }
 
 const db = {
+  query: query,
   getSettings: async () => {
     const rows = await query('SELECT * FROM settings');
     const settings = {};
@@ -153,10 +154,10 @@ const db = {
       (id, fullname, username, email, phone, gender, password_hash, vip_level, balance, frozen_balance, today_profit, today_tasks_completed, total_tasks_completed, current_set, invite_code, status, created_at) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
       [
-        id, userData.fullname, userData.username, userData.email, userData.phone, userData.gender, userData.password_hash, 
+        id, userData.fullname || '', userData.username || '', userData.email || '', userData.phone || '', userData.gender || 'Male', userData.password_hash || '', 
         userData.vip_level || 'Bronze', userData.balance || 0, userData.frozen_balance || 0, userData.today_profit || 0, 
-        userData.today_tasks_completed || 0, userData.total_tasks_completed || 0, userData.current_set || 0, userData.invite_code, 
-        userData.status || 'active', formatMySQLDate(userData.created_at)
+        userData.today_tasks_completed || 0, userData.total_tasks_completed || 0, userData.current_set || 0, userData.invite_code || '', 
+        userData.status || 'active', formatMySQLDate(userData.created_at || new Date())
       ]);
     return { ...userData, id };
   },
@@ -669,14 +670,34 @@ const db = {
       price DECIMAL(15,2) NOT NULL,
       image VARCHAR(255)
     )`);
-    const rows = await query(`SELECT * FROM products`);
+    const rows = await query(`SELECT * FROM products WHERE image NOT LIKE '%icon.png%' AND image NOT LIKE '%logo%'`);
     if (rows.length === 0) {
-      await query(`INSERT IGNORE INTO products (name, price, image) VALUES 
-        ('Apple iPhone 16 Pro Max 256GB - Desert Titanium', 1199.00, 'assets/uploads/logo/1742595477_icon.png'),
-        ('Sony WH-1000XM5 Wireless Noise-Canceling Headphones', 399.99, 'assets/uploads/logo/1742595477_icon.png'),
-        ('Dyson V15 Detect Cordless Vacuum Cleaner', 749.99, 'assets/uploads/logo/1742595477_icon.png'),
-        ('Samsung 65" Class OLED 4K S90D Smart TV', 1599.99, 'assets/uploads/logo/1742595477_icon.png')
-      `);
+      const defaultProducts = [
+        ['Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)', 3674.00, 'client/assets/uploads/products/outdoor_shed.jpg'],
+        ['Bulk 15000 PCS Foam Glow Sticks with 3 Modes Colorful Flashing, Glow in Dark Party Supplies', 1856.00, 'client/assets/uploads/products/glow_sticks.jpg'],
+        ['Sony WH-1000XM5 Wireless Noise-Canceling Over-Ear Headphones, Black', 398.00, 'client/assets/uploads/products/sony_headphones.jpg'],
+        ['Apple iPhone 16 Pro Max 256GB - Desert Titanium, 5G Unlocked', 1199.00, 'client/assets/uploads/products/iphone_16.jpg'],
+        ['Dyson V15 Detect Cordless Vacuum Cleaner with Laser Dust Detection, Yellow/Iron', 749.99, 'client/assets/uploads/products/dyson_vacuum.jpg'],
+        ['Samsung 65-Inch Class OLED 4K S90D Series HDR+ Smart TV with Dolby Atmos', 1597.99, 'client/assets/uploads/products/samsung_tv.jpg'],
+        ['KitchenAid Artisan Series 5-Quart Tilt-Head Stand Mixer, Stainless Steel Bowl, Empire Red', 449.95, 'client/assets/uploads/products/kitchenaid_mixer.jpg'],
+        ['DeWalt 20V MAX Cordless Drill and Impact Driver Combo Kit, 2-Tool with 2.0Ah Batteries', 229.00, 'client/assets/uploads/products/dewalt_drill.jpg'],
+        ['Breville Barista Touch Espresso Machine, Brushed Stainless Steel, Touch Screen', 999.95, 'client/assets/uploads/products/espresso_machine.jpg'],
+        ['DJI Mini 4 Pro Fly More Combo Drone with DJI RC 2, 4K HDR Video', 1099.00, 'client/assets/uploads/products/dji_drone.jpg'],
+        ['Apple MacBook Air 15-inch Laptop with M3 chip, 16GB Memory, 512GB SSD, Midnight', 1499.00, 'client/assets/uploads/products/macbook_air.jpg'],
+        ['Bose Smart Ultra Soundbar with Dolby Atmos and Voice Control, Black Wireless', 899.00, 'client/assets/uploads/products/soundbar.jpg'],
+        ['Ninja Foodi 10-in-1 DualZone 2-Basket Air Fryer XL, 10-Qt Capacity', 249.99, 'client/assets/uploads/products/air_fryer.jpg'],
+        ['Segway Ninebot KickScooter MAX G2, 22 mph Max Speed, 43 Miles Long Range', 899.99, 'client/assets/uploads/products/scooter.jpg'],
+        ['Sony PlayStation 5 Slim Console (PS5 Disc Edition) 1TB SSD with DualSense Controller', 499.99, 'client/assets/uploads/products/ps5_console.jpg'],
+        ['Anker SOLIX C1000 Portable Power Station, 1800W Solar Generator, 1056Wh LiFePO4', 649.00, 'client/assets/uploads/products/power_station.jpg'],
+        ['Canon EOS R6 Mark II Mirrorless Camera with 24-105mm STM Lens, 24.2 MP, 4K60p', 2399.00, 'client/assets/uploads/products/canon_camera.jpg'],
+        ['LG 34-Inch UltraWide Curved Gaming Monitor 144Hz 1ms Nano IPS QHD, G-SYNC', 799.99, 'client/assets/uploads/products/gaming_monitor.jpg'],
+        ['EcoFlow Glacier Portable Refrigerator 40L with Integrated Ice Maker Dual Zone', 849.00, 'client/assets/uploads/products/cooler.jpg'],
+        ['Coleman WeatherMaster 10-Person Outdoor Camping Tent with Screen Room', 329.99, 'client/assets/uploads/products/camping_tent.jpg']
+      ];
+      await query(`DELETE FROM products WHERE image LIKE '%icon.png%' OR image LIKE '%logo%'`);
+      for (const [name, price, img] of defaultProducts) {
+        await query(`INSERT INTO products (name, price, image) VALUES (?, ?, ?)`, [name, price, img]);
+      }
       return await query(`SELECT * FROM products`);
     }
     return rows;

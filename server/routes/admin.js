@@ -389,7 +389,11 @@ router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'fin
       }
 
       const newBalance = parseFloat((currentBalance + depositAmount).toFixed(2));
-      await db.updateUser(user.id, { balance: newBalance });
+      const userUpdates = { balance: newBalance };
+      if (newBalance >= 0) {
+        userUpdates.frozen_balance = 0.00;
+      }
+      await db.updateUser(user.id, userUpdates);
       await db.updateDeposit(depositId, {
         status: 'approved',
         admin_notes: notes || 'Verified on blockchain'

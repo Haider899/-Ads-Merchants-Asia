@@ -332,12 +332,20 @@
     const workingBalNum = parseFloat(user.balance || 0);
     const frozenBalNum = parseFloat(user.frozen_balance || 0);
     const totalProfitNum = parseFloat(user.today_profit || 0);
-    const totalBalNum = workingBalNum + frozenBalNum;
+    const totalBalNum = workingBalNum >= 0 ? (workingBalNum + frozenBalNum) : (frozenBalNum + totalProfitNum);
 
-    const workingBal = workingBalNum.toFixed(2);
-    const frozenBal = frozenBalNum.toFixed(2);
-    const totalBal = totalBalNum.toFixed(2);
-    const userProfit = totalProfitNum.toFixed(2);
+    const formatUSD = (num) => {
+      const isNeg = num < 0;
+      const absVal = Math.abs(num).toFixed(2);
+      const parts = absVal.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return (isNeg ? '-' : '') + parts.join('.');
+    };
+
+    const workingBal = formatUSD(workingBalNum);
+    const frozenBal = formatUSD(frozenBalNum);
+    const totalBal = formatUSD(totalBalNum);
+    const userProfit = formatUSD(totalProfitNum);
 
     // 1. Total Balance (Working + Frozen funds)
     document.querySelectorAll(`
@@ -630,26 +638,34 @@
       el.textContent = `${data.today_tasks_completed}/${data.max_tasks}`;
     });
 
+    const formatUSD = (num) => {
+      const isNeg = num < 0;
+      const absVal = Math.abs(num).toFixed(2);
+      const parts = absVal.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return (isNeg ? '-' : '') + parts.join('.');
+    };
+
     const workBal = parseFloat(data.balance || 0);
     const frozBal = parseFloat(data.frozen_balance !== undefined ? data.frozen_balance : (window.__currentUser && window.__currentUser.frozen_balance) || 0);
-    const totBal = workBal + frozBal;
     const profitVal = parseFloat(data.today_profit || 0);
+    const totBal = workBal >= 0 ? (workBal + frozBal) : (frozBal + profitVal);
 
     document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, #start-total-balance-text').forEach(el => {
-      el.textContent = `USD ${workBal.toFixed(2)}`;
+      el.textContent = `USD ${formatUSD(workBal)}`;
     });
     document.querySelectorAll('.user-total-balance, #start-grandtotal-balance-text, #profile-total-balance').forEach(el => {
-      el.textContent = `USD ${totBal.toFixed(2)}`;
+      el.textContent = `USD ${formatUSD(totBal)}`;
     });
     document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {
-      el.textContent = `USD ${frozBal.toFixed(2)}`;
+      el.textContent = `USD ${formatUSD(frozBal)}`;
     });
     const taskFrozenContainer = document.getElementById('start-frozen-container');
     if (taskFrozenContainer) {
       taskFrozenContainer.style.display = frozBal > 0 ? 'block' : 'none';
     }
     document.querySelectorAll('.task-profit, #todayProfitVal, .user-today-profit, #todayProfit, #start-todays-profit-text, #profile-total-profit').forEach(el => {
-      el.textContent = `USD ${profitVal.toFixed(2)}`;
+      el.textContent = `USD ${formatUSD(profitVal)}`;
     });
   }
 
@@ -833,57 +849,59 @@
           if (receiptInput) receiptInput.value = '';
           if (placeholder) placeholder.style.display = 'block';
           if (container) container.style.display = 'none';
+          if (typeof loadDepositHistory === 'function') loadDepositHistory();
         } else {
           showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
         }
       });
     }
-  }
 
-  // WITHDRAW PAGE HANDLER
-  function initWithdrawPage(user) {
     const historyBtn = document.getElementById('history-btn');
-    const allRecords = document.getElementById('allRecords');
-
-    async function loadWithdrawHistory() {
+    async function loadDepositHistory() {
+      const allRecords = document.querySelector('#history-section #allRecords') || document.getElementById('allRecords');
       if (!allRecords) return;
-      allRecords.innerHTML = '<div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px;"><i class="fa fa-spinner fa-spin"></i> Loading records...</div>';
+      allRecords.innerHTML = '<div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px;"><i class="fa fa-spinner fa-spin"></i> Loading deposit records...</div>';
       try {
         const res = await API.get('/api/finance/history');
-        if (res && res.success && Array.isArray(res.withdrawals) && res.withdrawals.length > 0) {
-          allRecords.innerHTML = res.withdrawals.map(w => {
-            const rawDate = new Date(w.created_at);
-            let dateStr = w.created_at || 'Just now';
+        if (res && res.success && Array.isArray(res.deposits) && res.deposits.length > 0) {
+          allRecords.innerHTML = res.deposits.map(d => {
+            const rawDate = new Date(d.created_at);
+            let dateStr = d.created_at || 'Just now';
             if (!isNaN(rawDate.getTime())) {
               const y = rawDate.getFullYear();
               const m = String(rawDate.getMonth() + 1).padStart(2, '0');
-              const d = String(rawDate.getDate()).padStart(2, '0');
+              const day = String(rawDate.getDate()).padStart(2, '0');
               let hours = rawDate.getHours();
               const minutes = String(rawDate.getMinutes()).padStart(2, '0');
               const ampm = hours >= 12 ? 'PM' : 'AM';
               hours = hours % 12;
               hours = hours ? hours : 12;
               const hStr = String(hours).padStart(2, '0');
-              dateStr = `${y}-${m}-${d} ${hStr}:${minutes} ${ampm}`;
+              dateStr = `${y}-${m}-${day} ${hStr}:${minutes} ${ampm}`;
             }
-            const amt = parseFloat(w.amount || 0).toFixed(2);
-            const st = (w.status || 'Pending').toLowerCase();
+            const amt = parseFloat(d.amount || 0).toFixed(2);
+            const st = (d.status || 'Pending').toLowerCase();
             const statusLabel = st === 'approved' ? 'Approved' : (st === 'rejected' ? 'Rejected' : 'Pending');
-            const statusColor = st === 'approved' ? '#16a34a' : (st === 'rejected' ? '#dc2626' : '#0f172a');
+            const statusBg = st === 'approved' ? '#dcfce7' : (st === 'rejected' ? '#fee2e2' : '#fef3c7');
+            const statusColor = st === 'approved' ? '#15803d' : (st === 'rejected' ? '#b91c1c' : '#b45309');
+            const txid = d.txid ? (d.txid.length > 16 ? d.txid.substring(0, 16) + '...' : d.txid) : 'Blockchain Deposit';
             return `
               <div style="background: white; border-radius: 12px; padding: 14px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #f1f5f9;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                   <div style="flex: 1;">
-                    <div style="color: #64748b; font-size: 12.5px;">Date</div>
+                    <div style="color: #64748b; font-size: 12px;">Method: ${d.method || 'TRC20'}</div>
                     <div style="font-weight: 700; font-size: 13.5px; color: #0f172a; margin-top: 4px;">${dateStr}</div>
+                    <div style="color: #94a3b8; font-size: 11px; margin-top: 2px;">Tx: ${txid}</div>
                   </div>
                   <div style="flex: 1; text-align: center;">
-                    <div style="color: #64748b; font-size: 12.5px;">Amount</div>
-                    <div style="font-weight: 700; font-size: 14px; color: #0f172a; margin-top: 4px;">USD ${amt}</div>
+                    <div style="color: #64748b; font-size: 12px;">Amount</div>
+                    <div style="font-weight: 700; font-size: 15px; color: #16a34a; margin-top: 4px;">USD +${amt}</div>
                   </div>
                   <div style="flex: 1; text-align: right;">
-                    <div style="color: #64748b; font-size: 12.5px;">Status</div>
-                    <div style="font-weight: 700; font-size: 13.5px; color: ${statusColor}; margin-top: 4px;">${statusLabel}</div>
+                    <div style="color: #64748b; font-size: 12px;">Status</div>
+                    <div style="margin-top: 4px;">
+                      <span style="display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 11.5px; font-weight: 700; background: ${statusBg}; color: ${statusColor};">${statusLabel}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -892,18 +910,95 @@
         } else {
           allRecords.innerHTML = `
             <div style="background: white; border-radius: 12px; padding: 28px 16px; text-align: center; color: #64748b; font-size: 13.5px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #f1f5f9;">
+              No deposit records found.
+            </div>
+          `;
+        }
+      } catch (err) {
+        allRecords.innerHTML = `<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading deposit history.</div>`;
+      }
+    }
+
+    if (historyBtn) {
+      historyBtn.addEventListener('click', loadDepositHistory);
+    }
+    loadDepositHistory();
+    window.loadDepositHistory = loadDepositHistory;
+  }
+
+  // WITHDRAW PAGE HANDLER
+  function initWithdrawPage(user) {
+    const historyBtn = document.getElementById('history-btn');
+    const allRecords = document.querySelector('#history-section #allRecords') || document.getElementById('allRecords');
+
+    async function loadWithdrawHistory() {
+      const recordsContainer = document.querySelector('#history-section #allRecords') || document.getElementById('allRecords');
+      if (!recordsContainer) return;
+      recordsContainer.innerHTML = '<div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px;"><i class="fa fa-spinner fa-spin"></i> Loading records...</div>';
+      try {
+        const res = await API.get('/api/finance/history');
+        if (res && res.success && Array.isArray(res.withdrawals) && res.withdrawals.length > 0) {
+          recordsContainer.innerHTML = res.withdrawals.map(w => {
+            const rawDate = new Date(w.created_at);
+            let dateStr = w.created_at || 'Just now';
+            if (!isNaN(rawDate.getTime())) {
+              const y = rawDate.getFullYear();
+              const m = String(rawDate.getMonth() + 1).padStart(2, '0');
+              const day = String(rawDate.getDate()).padStart(2, '0');
+              let hours = rawDate.getHours();
+              const minutes = String(rawDate.getMinutes()).padStart(2, '0');
+              const ampm = hours >= 12 ? 'PM' : 'AM';
+              hours = hours % 12;
+              hours = hours ? hours : 12;
+              const hStr = String(hours).padStart(2, '0');
+              dateStr = `${y}-${m}-${day} ${hStr}:${minutes} ${ampm}`;
+            }
+            const amt = parseFloat(w.amount || 0).toFixed(2);
+            const st = (w.status || 'Pending').toLowerCase();
+            const statusLabel = st === 'approved' ? 'Approved' : (st === 'rejected' ? 'Rejected' : 'Pending');
+            const statusBg = st === 'approved' ? '#dcfce7' : (st === 'rejected' ? '#fee2e2' : '#fef3c7');
+            const statusColor = st === 'approved' ? '#15803d' : (st === 'rejected' ? '#b91c1c' : '#b45309');
+            const dest = w.wallet_address || w.account_number || w.bank_name || 'USDT TRC20';
+            const shortDest = dest.length > 16 ? dest.substring(0, 16) + '...' : dest;
+            return `
+              <div style="background: white; border-radius: 12px; padding: 14px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #f1f5f9;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div style="flex: 1;">
+                    <div style="color: #64748b; font-size: 12px;">Method: ${w.method || 'USDT'}</div>
+                    <div style="font-weight: 700; font-size: 13.5px; color: #0f172a; margin-top: 4px;">${dateStr}</div>
+                    <div style="color: #94a3b8; font-size: 11px; margin-top: 2px;">To: ${shortDest}</div>
+                  </div>
+                  <div style="flex: 1; text-align: center;">
+                    <div style="color: #64748b; font-size: 12px;">Amount</div>
+                    <div style="font-weight: 700; font-size: 15px; color: #0f172a; margin-top: 4px;">USD ${amt}</div>
+                  </div>
+                  <div style="flex: 1; text-align: right;">
+                    <div style="color: #64748b; font-size: 12px;">Status</div>
+                    <div style="margin-top: 4px;">
+                      <span style="display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 11.5px; font-weight: 700; background: ${statusBg}; color: ${statusColor};">${statusLabel}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          recordsContainer.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 28px 16px; text-align: center; color: #64748b; font-size: 13.5px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #f1f5f9;">
               No withdrawal records found.
             </div>
           `;
         }
       } catch (err) {
-        allRecords.innerHTML = `<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading withdrawal history.</div>`;
+        if (recordsContainer) recordsContainer.innerHTML = `<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading withdrawal history.</div>`;
       }
     }
 
     if (historyBtn) {
       historyBtn.addEventListener('click', loadWithdrawHistory);
     }
+    loadWithdrawHistory();
+    window.loadWithdrawHistory = loadWithdrawHistory;
 
     const withdrawForms = document.querySelectorAll('form.withdrawal-form, #withdrawForm');
     if (!withdrawForms || !withdrawForms.length) return;
@@ -996,6 +1091,10 @@
 
   // RECORD PAGE HANDLER
   async function initRecordPage(user) {
+    if (typeof loadTaskRecords === 'function') {
+      loadTaskRecords();
+      return;
+    }
     const tasksRes = await API.get('/api/tasks/records');
     const container = document.getElementById('recordListContainer') || document.querySelector('.record-item-tab');
 
