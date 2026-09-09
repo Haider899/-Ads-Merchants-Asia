@@ -453,7 +453,8 @@ document.addEventListener("DOMContentLoaded", function () {
     })
     .catch(error => {
         console.error("Progress fetch failed:", error);
-        document.getElementById("start-button-submit").innerHTML = `Progress not available`;
+        const subBtn = document.getElementById("start-button-submit");
+        if (subBtn) subBtn.style.display = 'none';
     });
 });
 

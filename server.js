@@ -58,6 +58,53 @@ mainApp.use('/api/finance', financeRoutes);
 mainApp.use('/api/user', userRoutes);
 mainApp.use('/api/admin', adminRoutes);
 
+// Compatibility route for Amazon Asia dynamic sets (1st Set: 0/3, 2nd Set: 0/4, 3rd Set: 0/1)
+mainApp.all(['/get_task_progress', '/User/get_task_progress'], async (req, res) => {
+  try {
+    let user = null;
+    const token = req.cookies.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+    if (token) {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('./server/middleware/auth');
+      const decoded = jwt.verify(token, JWT_SECRET);
+      user = await db.findUserById(decoded.id);
+    }
+    const completed = (user && user.today_tasks_completed) || 0;
+    let setName = '1st Set';
+    let totalInSet = 3;
+    let currentInSet = completed;
+
+    if (completed < 3) {
+      setName = '1st Set';
+      totalInSet = 3;
+      currentInSet = completed;
+    } else if (completed < 7) {
+      setName = '2nd Set';
+      totalInSet = 4;
+      currentInSet = completed - 3;
+    } else {
+      setName = '3rd Set';
+      totalInSet = 1;
+      currentInSet = completed >= 8 ? 1 : (completed - 7);
+    }
+
+    res.json({
+      success: true,
+      set_name: setName,
+      current_count: currentInSet,
+      total_in_set: totalInSet,
+      today_completed: completed
+    });
+  } catch (_) {
+    res.json({
+      success: true,
+      set_name: '1st Set',
+      current_count: 0,
+      total_in_set: 3
+    });
+  }
+});
+
 // Helper to serve HTML files
 const servePage = (fileName) => (req, res) => {
   res.sendFile(path.join(__dirname, 'views', fileName));

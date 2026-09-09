@@ -1,4 +1,4 @@
-const db = require('d:/Ads Merchants Asia/server/db');
+const db = require('../server/db');
 
 const products = [
   // Tier 1: Budget / Everyday Accessories ($9 - $25)

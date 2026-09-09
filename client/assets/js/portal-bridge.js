@@ -667,6 +667,27 @@
     document.querySelectorAll('.task-profit, #todayProfitVal, .user-today-profit, #todayProfit, #start-todays-profit-text, #profile-total-profit').forEach(el => {
       el.textContent = `USD ${formatUSD(profitVal)}`;
     });
+
+    const completed = parseInt(data.today_tasks_completed || 0, 10);
+    let setName = '1st Set:';
+    let countText = `${completed} / 3`;
+    if (completed < 3) {
+      setName = '1st Set:';
+      countText = `${completed} / 3`;
+    } else if (completed < 7) {
+      setName = '2nd Set:';
+      countText = `${completed - 3} / 4`;
+    } else {
+      setName = '3rd Set:';
+      countText = `${completed >= 8 ? 1 : (completed - 7)} / 1`;
+    }
+
+    const setTextEl = document.getElementById('startSetText');
+    if (setTextEl) setTextEl.textContent = setName;
+    const countTextEl = document.getElementById('startTaskCountText');
+    if (countTextEl) countTextEl.textContent = countText;
+    const submitBtnEl = document.getElementById('start-button-submit');
+    if (submitBtnEl) submitBtnEl.style.display = 'none';
   }
 
   function showTaskModal(task) {
