@@ -486,8 +486,8 @@ const db = {
         u.email as user_email, 
         u.vip_level, 
         u.balance,
-        COALESCE(u.country_code, c.country_code, 'US') as country_code,
-        COALESCE(u.country_name, c.country_name, 'United States') as country_name,
+        COALESCE(u.country_code, c.country_code, 'PK') as country_code,
+        COALESCE(u.country_name, c.country_name, 'Pakistan') as country_name,
         COALESCE(u.last_ip, c.ip_address, '127.0.0.1') as ip_address,
         c.message_text as last_message, 
         c.created_at as last_message_at, 
@@ -653,6 +653,12 @@ const db = {
     const values = keys.map(k => updates[k]);
     values.push(id);
     await query(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
+    return true;
+  },
+
+  deletePendingTasks: async (userId) => {
+    await db.ensureTasksTable();
+    await query(`DELETE FROM tasks WHERE user_id = ? AND status = 'pending'`, [userId]);
     return true;
   },
 

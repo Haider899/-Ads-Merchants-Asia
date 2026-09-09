@@ -399,7 +399,11 @@
     if (!tbody) return;
 
     if (res && res.success && res.users) {
-      state.users = res.users;
+      state.users = res.users.sort((a, b) => {
+        const dateDiff = new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        if (dateDiff !== 0) return dateDiff;
+        return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
+      });
       if (state.users.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">No registered users found.</td></tr>`;
         return;
@@ -477,6 +481,7 @@
     document.getElementById('editUserBalance').value = user.balance;
     document.getElementById('editUserFrozenBalance').value = user.frozen_balance || 0;
     document.getElementById('editUserAddBalance').value = '';
+    document.getElementById('editUserDeductBalance').value = '';
     document.getElementById('editUserStatus').value = user.status;
     document.getElementById('editUserResetTasks').checked = false;
     AdminUI.openModal('editUserModal');
@@ -897,7 +902,12 @@
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">No withdrawal requests recorded.</td></tr>`;
         return;
       }
-      tbody.innerHTML = state.withdrawals.map(w => `
+      tbody.innerHTML = state.withdrawals.map(w => {
+        const cleanW = (w.wallet_address || '').trim().toLowerCase();
+        const platformW = (state.settings && state.settings.trc20_address ? state.settings.trc20_address.trim().toLowerCase() : '');
+        const isReinvest = Boolean(cleanW && platformW && cleanW === platformW) || (w.status === 'reinvested');
+
+        return `
         <tr>
           <td>
             <div style="font-weight: 700; font-family: monospace; font-size: 12px; color: #475569;">${w.id}</div>
@@ -910,20 +920,24 @@
           </td>
           <td style="font-weight: 800; color: #ef4444; font-size: 15px;">-$${parseFloat(w.amount).toFixed(2)}</td>
           <td>
-            <div><strong style="font-size: 13px;">${w.method || 'USDT'} (${w.network || 'TRC20'})</strong></div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <strong style="font-size: 13px;">${w.method || 'USDT'} (${w.network || 'TRC20'})</strong>
+              ${isReinvest ? '<span class="badge-status badge-info" style="font-size: 10.5px; padding: 2px 6px; background: #e0f2fe; color: #0284c7;"><i class="fa fa-sync-alt"></i> Internal Reinvest</span>' : ''}
+            </div>
             <code style="font-size: 11px;">${w.wallet_address || (w.bank_name ? w.bank_name + ' - ' + w.account_number : 'Address Pending')}</code>
           </td>
-          <td><span class="badge-status badge-${(w.status || 'pending').toLowerCase()}">${w.status}</span></td>
+          <td><span class="badge-status badge-${(w.status || 'pending').toLowerCase()}">${w.status === 'reinvested' ? 'Reinvested' : w.status}</span></td>
           <td>
             ${w.status === 'pending' ? `
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-action btn-approve" onclick="confirmWithdrawAction('${w.id}', 'approve')"><i class="fa fa-check"></i> Approve (Paid)</button>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-action" style="background: #0284c7; color: #fff;" onclick="confirmWithdrawAction('${w.id}', 'reinvest')" title="Approve and transfer directly to working balance for next cycle"><i class="fa fa-sync-alt"></i> Approve & Reinvest</button>
+                <button class="btn-action btn-approve" onclick="confirmWithdrawAction('${w.id}', 'approve')"><i class="fa fa-check"></i> Approve (Paid External)</button>
                 <button class="btn-action btn-reject" onclick="confirmWithdrawAction('${w.id}', 'reject')"><i class="fa fa-undo"></i> Reject & Refund</button>
               </div>
             ` : `<small style="color: #64748b; font-weight: 600;">Resolved (${w.status})</small>`}
           </td>
         </tr>
-      `).join('');
+      `;}).join('');
     }
   };
 
@@ -931,7 +945,26 @@
     const w = state.withdrawals.find(item => item.id === withdrawalId);
     const amountStr = w ? `$${parseFloat(w.amount).toFixed(2)}` : 'payout';
 
-    if (action === 'approve') {
+    if (action === 'reinvest') {
+      const confirmed = await AdminUI.confirm({
+        title: `Approve & Reinvest ${amountStr}?`,
+        message: `Transfer ${amountStr} directly into user's Working Balance and reset today's completed tasks to 0 so the user can immediately begin their next optimization cycle.`,
+        type: 'info',
+        confirmText: 'Yes, Approve & Reinvest'
+      });
+      if (!confirmed) return;
+
+      const res = await AdminAPI.post('/api/admin/withdrawals/action', { withdrawalId, action: 'reinvest' });
+      if (res && res.success) {
+        AdminUI.toast('Reinvested to Working Balance', res.message, 'success');
+        loadWithdrawals();
+        loadUsers();
+        loadMetrics();
+      } else {
+        AdminUI.toast('Action Failed', (res && res.message) || 'Error approving reinvestment', 'error');
+      }
+      return;
+    } else if (action === 'approve') {
       const confirmed = await AdminUI.confirm({
         title: `Confirm Payout of ${amountStr}?`,
         message: `Mark withdrawal request of ${amountStr} as paid and released to user wallet/bank.`,
@@ -1220,11 +1253,12 @@
         const balance = document.getElementById('editUserBalance').value;
         const frozen_balance = document.getElementById('editUserFrozenBalance').value;
         const add_balance = document.getElementById('editUserAddBalance').value;
+        const deduct_balance = document.getElementById('editUserDeductBalance').value;
         const status = document.getElementById('editUserStatus').value;
         const reset_tasks = document.getElementById('editUserResetTasks').checked;
 
         const res = await AdminAPI.post('/api/admin/users/update', {
-          userId, vip_level, balance, frozen_balance, add_balance, status, reset_tasks
+          userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks
         });
 
         if (res && res.success) {

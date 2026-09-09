@@ -1094,10 +1094,10 @@
                     <div class="form-group">
                         <label>VIP Tier</label>
                         <select id="editUserVip" class="form-control">
-                            <option value="Bronze">Bronze VIP (0.50% yield - 38 orders)</option>
-                            <option value="Silver">Silver VIP (0.80% yield - 45 orders)</option>
-                            <option value="Gold">Gold VIP (1.20% yield - 55 orders)</option>
-                            <option value="Platinum">Platinum VIP (1.80% yield - 65 orders)</option>
+                            <option value="Bronze">Bronze VIP (20% commission - 38 orders)</option>
+                            <option value="Silver">Silver VIP (30% commission - 45 orders)</option>
+                            <option value="Gold">Gold VIP (40% commission - 55 orders)</option>
+                            <option value="Diamond">Diamond VIP (50% commission - 65 orders)</option>
                         </select>
                     </div>
                     <div class="form-row">
@@ -1110,9 +1110,15 @@
                             <input type="number" step="0.01" id="editUserFrozenBalance" class="form-control" />
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Quick Add Balance ($) <small style="color: #64748b;">(Optional)</small></label>
-                        <input type="number" step="0.01" id="editUserAddBalance" class="form-control" placeholder="e.g. 50.00" />
+                    <div class="form-row" style="display: flex; gap: 12px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label style="color: #16a34a; font-weight: 700;"><i class="fa fa-plus-circle"></i> Add Balance (+ $)</label>
+                            <input type="number" step="0.01" id="editUserAddBalance" class="form-control" placeholder="e.g. 50.00" style="border-color: #86efac;" />
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label style="color: #dc2626; font-weight: 700;"><i class="fa fa-minus-circle"></i> Deduct / Minus Balance (- $)</label>
+                            <input type="number" step="0.01" id="editUserDeductBalance" class="form-control" placeholder="e.g. 25.00" style="border-color: #fca5a5;" />
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Account Status</label>

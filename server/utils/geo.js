@@ -41,6 +41,54 @@ const COUNTRY_NAMES = {
   RU: 'Russia'
 };
 
+// Map of common timezones to ISO 3166-1 alpha-2 codes
+const TIMEZONE_TO_COUNTRY = {
+  'Asia/Karachi': 'PK',
+  'Asia/Islamabad': 'PK',
+  'Asia/Lahore': 'PK',
+  'Asia/Kolkata': 'IN',
+  'Asia/Calcutta': 'IN',
+  'Asia/Dhaka': 'BD',
+  'Asia/Dubai': 'AE',
+  'Asia/Muscat': 'OM',
+  'Asia/Riyadh': 'SA',
+  'Asia/Qatar': 'QA',
+  'Asia/Kuwait': 'KW',
+  'Asia/Bahrain': 'BH',
+  'Asia/Kuala_Lumpur': 'MY',
+  'Asia/Singapore': 'SG',
+  'Asia/Bangkok': 'TH',
+  'Asia/Jakarta': 'ID',
+  'Asia/Manila': 'PH',
+  'Asia/Ho_Chi_Minh': 'VN',
+  'Asia/Tokyo': 'JP',
+  'Asia/Seoul': 'KR',
+  'Asia/Shanghai': 'CN',
+  'Asia/Hong_Kong': 'HK',
+  'Asia/Taipei': 'TW',
+  'Europe/London': 'GB',
+  'Europe/Berlin': 'DE',
+  'Europe/Paris': 'FR',
+  'Europe/Rome': 'IT',
+  'Europe/Madrid': 'ES',
+  'Europe/Amsterdam': 'NL',
+  'Europe/Istanbul': 'TR',
+  'Europe/Moscow': 'RU',
+  'America/New_York': 'US',
+  'America/Chicago': 'US',
+  'America/Denver': 'US',
+  'America/Los_Angeles': 'US',
+  'America/Phoenix': 'US',
+  'America/Toronto': 'CA',
+  'America/Vancouver': 'CA',
+  'Australia/Sydney': 'AU',
+  'Australia/Melbourne': 'AU',
+  'Africa/Johannesburg': 'ZA',
+  'Africa/Lagos': 'NG',
+  'Africa/Cairo': 'EG',
+  'America/Sao_Paulo': 'BR'
+};
+
 function getFlagEmoji(countryCode) {
   if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) {
     return '🌐';
@@ -67,26 +115,18 @@ function extractClientIp(req) {
   return req.headers['x-real-ip'] || (req.socket && req.socket.remoteAddress) || '127.0.0.1';
 }
 
-function lookupIp(ip) {
-  if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.')) {
-    return {
-      ip: ip || '127.0.0.1',
-      countryCode: 'US',
-      countryName: 'United States',
-      city: 'Local Session',
-      flagEmoji: '🇺🇸'
-    };
-  }
+function lookupIp(ip, timezone) {
+  const cleanIp = (ip || '127.0.0.1').replace(/^::ffff:/, '').trim();
+  const isLocal = !cleanIp || cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.') || cleanIp.startsWith('172.16.');
 
-  // Remove IPv6 prefix if mapped IPv4 (e.g. ::ffff:1.2.3.4)
-  const cleanIp = ip.replace(/^::ffff:/, '');
   let geo = null;
-  if (geoip && typeof geoip.lookup === 'function') {
+  if (!isLocal && geoip && typeof geoip.lookup === 'function') {
     try {
       geo = geoip.lookup(cleanIp);
     } catch (_) {}
   }
 
+  // 1. If public IP lookup succeeded, use that country
   if (geo && geo.country) {
     const code = geo.country.toUpperCase();
     return {
@@ -95,6 +135,40 @@ function lookupIp(ip) {
       countryName: getCountryName(code),
       city: geo.city || '',
       flagEmoji: getFlagEmoji(code)
+    };
+  }
+
+  // 2. Fallback to client browser timezone if local or unresolved
+  if (timezone && typeof timezone === 'string') {
+    const tzTrimmed = timezone.trim();
+    let matchedCode = TIMEZONE_TO_COUNTRY[tzTrimmed];
+    if (!matchedCode) {
+      if (tzTrimmed.includes('Karachi') || tzTrimmed.includes('Islamabad') || tzTrimmed.includes('Lahore')) matchedCode = 'PK';
+      else if (tzTrimmed.includes('Kolkata') || tzTrimmed.includes('Calcutta')) matchedCode = 'IN';
+      else if (tzTrimmed.includes('Dubai')) matchedCode = 'AE';
+      else if (tzTrimmed.includes('London')) matchedCode = 'GB';
+      else if (tzTrimmed.includes('New_York') || tzTrimmed.includes('Los_Angeles') || tzTrimmed.includes('Chicago')) matchedCode = 'US';
+    }
+
+    if (matchedCode) {
+      return {
+        ip: cleanIp,
+        countryCode: matchedCode,
+        countryName: getCountryName(matchedCode),
+        city: tzTrimmed.split('/').pop().replace(/_/g, ' '),
+        flagEmoji: getFlagEmoji(matchedCode)
+      };
+    }
+  }
+
+  // 3. Fallback for unresolvable IPs
+  if (isLocal) {
+    return {
+      ip: cleanIp,
+      countryCode: 'PK',
+      countryName: 'Pakistan',
+      city: 'Local Session',
+      flagEmoji: '🇵🇰'
     };
   }
 
@@ -111,5 +185,6 @@ module.exports = {
   getFlagEmoji,
   getCountryName,
   extractClientIp,
-  lookupIp
+  lookupIp,
+  TIMEZONE_TO_COUNTRY
 };

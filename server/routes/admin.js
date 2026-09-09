@@ -218,12 +218,31 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
     updates.current_set = 0;
   }
 
-  if (balance !== undefined && balance !== null && balance !== '') {
-    updates.balance = parseFloat(balance);
-  } else if (add_balance) {
-    updates.balance = parseFloat((user.balance + parseFloat(add_balance)).toFixed(2));
-  } else if (deduct_balance) {
-    updates.balance = parseFloat(Math.max(0, user.balance - parseFloat(deduct_balance)).toFixed(2));
+  const numAdd = (add_balance !== undefined && add_balance !== null && add_balance !== '') ? parseFloat(add_balance) : 0;
+  const numDeduct = (deduct_balance !== undefined && deduct_balance !== null && deduct_balance !== '') ? parseFloat(deduct_balance) : 0;
+
+  if (numDeduct > 0) {
+    updates.balance = parseFloat(Math.max(0, user.balance - numDeduct).toFixed(2));
+    try {
+      await db.createNotification({
+        user_id: user.id,
+        title: 'Balance Adjustment',
+        message: `$${numDeduct.toFixed(2)} was deducted from your balance by system administration. New Balance: $${updates.balance.toFixed(2)}`,
+        type: 'warning'
+      });
+    } catch (_) {}
+  } else if (numAdd > 0) {
+    updates.balance = parseFloat((user.balance + numAdd).toFixed(2));
+    try {
+      await db.createNotification({
+        user_id: user.id,
+        title: 'Balance Credited! 💰',
+        message: `$${numAdd.toFixed(2)} has been credited to your working balance by system administration. New Balance: $${updates.balance.toFixed(2)}`,
+        type: 'success'
+      });
+    } catch (_) {}
+  } else if (balance !== undefined && balance !== null && balance !== '') {
+    updates.balance = parseFloat(parseFloat(balance).toFixed(2));
   }
 
   const updated = await db.updateUser(userId, updates);
@@ -451,7 +470,46 @@ router.post('/withdrawals/action', adminAuthMiddleware, checkRole('sub_admin', '
     const currentFrozen = parseFloat(user.frozen_balance) || 0;
     const currentBalance = parseFloat(user.balance) || 0;
 
-    if (action === 'approve') {
+    const settings = await db.getSettings();
+    const cleanWallet = (withdrawal.wallet_address || '').trim().toLowerCase();
+    const isPlatformAddress = Boolean(
+      cleanWallet && (
+        (settings.trc20_address && cleanWallet === settings.trc20_address.trim().toLowerCase()) ||
+        (settings.erc20_address && cleanWallet === settings.erc20_address.trim().toLowerCase()) ||
+        (settings.btc_address && cleanWallet === settings.btc_address.trim().toLowerCase())
+      )
+    );
+
+    if (action === 'reinvest' || (action === 'approve' && isPlatformAddress)) {
+      // Transfer funds from frozen/withdrawal directly into user's working balance and reset task count
+      const newFrozen = parseFloat(Math.max(0, currentFrozen - withdrawAmount).toFixed(2));
+      const newBalance = parseFloat((currentBalance + withdrawAmount).toFixed(2));
+
+      await db.updateUser(user.id, {
+        balance: newBalance,
+        frozen_balance: newFrozen,
+        today_tasks_completed: 0,
+        current_set: 0
+      });
+
+      await db.updateWithdrawal(withdrawalId, {
+        status: 'reinvested',
+        admin_notes: notes || 'Internal Reinvestment to Working Balance (Cycle Reset)'
+      });
+
+      await db.createNotification({
+        user_id: user.id,
+        title: 'Reinvestment Approved! 🔄',
+        message: `Your withdrawal of $${withdrawAmount.toFixed(2)} has been transferred into your Working Balance! Daily optimization tasks have been reset to 0 so you can start your next cycle.`,
+        type: 'success'
+      });
+
+      return res.json({
+        success: true,
+        message: `Withdrawal of $${withdrawAmount.toFixed(2)} approved and reinvested into User Working Balance (New Balance: $${newBalance.toFixed(2)}, Tasks Reset: 0).`,
+        is_reinvest: true
+      });
+    } else if (action === 'approve') {
       const newFrozen = parseFloat(Math.max(0, currentFrozen - withdrawAmount).toFixed(2));
       await db.updateUser(user.id, { frozen_balance: newFrozen });
       await db.updateWithdrawal(withdrawalId, {
@@ -535,7 +593,7 @@ router.post('/tickets/reply', adminAuthMiddleware, checkRole('sub_admin', 'suppo
 router.get('/chat/conversations', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const conversations = await db.getChatConversations();
   const enriched = conversations.map(c => {
-    const code = (c.country_code || 'US').toUpperCase();
+    const code = (c.country_code || 'PK').toUpperCase();
     const name = c.country_name || geo.getCountryName(code);
     return {
       ...c,
@@ -554,7 +612,7 @@ router.get('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support
   const messages = await db.getChatMessages(userId);
   await db.markChatReadByAdmin(userId);
 
-  const code = (user && user.country_code ? user.country_code : 'US').toUpperCase();
+  const code = (user && user.country_code ? user.country_code : 'PK').toUpperCase();
   const name = (user && user.country_name) ? user.country_name : geo.getCountryName(code);
   const flag = geo.getFlagEmoji(code);
 
@@ -767,6 +825,9 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     };
 
     await db.updateUser(userId, updates);
+    // Invalidate any uncompleted normal pending task so next click immediately generates the deficit order
+    await db.deletePendingTasks(userId);
+
     res.json({
       success: true,
       message: `Assigned custom task (Order #${updates.custom_order_num}, Deficit: $${updates.custom_deficit_amount}) successfully.`,

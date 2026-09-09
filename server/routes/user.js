@@ -221,7 +221,8 @@ router.post('/chat', authMiddleware, async (req, res) => {
     }
 
     const clientIp = geo.extractClientIp(req);
-    const geoInfo = geo.lookupIp(clientIp);
+    const clientTimezone = req.body.timezone || req.headers['x-client-timezone'];
+    const geoInfo = geo.lookupIp(clientIp, clientTimezone);
 
     const message = await db.createChatMessage({
       userId: user.id,

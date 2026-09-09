@@ -13,6 +13,9 @@ const adminRoutes = require('./server/routes/admin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Enable reverse proxy support so req.ip and req.headers['x-forwarded-for'] reflect real client IP
+app.set('trust proxy', true);
+
 // Middleware (Global for all vhosts)
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -27,6 +30,7 @@ app.use('/js', express.static(path.join(__dirname, 'js')));
 
 // --- ADMIN SUBDOMAIN APP ---
 const adminApp = express();
+adminApp.set('trust proxy', true);
 
 // Admin API Routes
 adminApp.use('/api/admin', adminRoutes);
@@ -45,6 +49,7 @@ adminApp.use((req, res) => {
 
 // --- MAIN (USER) APP ---
 const mainApp = express();
+mainApp.set('trust proxy', true);
 
 // User API Routes
 mainApp.use('/api/auth', authRoutes);

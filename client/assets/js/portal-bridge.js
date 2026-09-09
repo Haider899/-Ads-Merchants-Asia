@@ -446,7 +446,8 @@
       }
 
       try {
-        const res = await API.post('/api/auth/login', { identifier, password });
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const res = await API.post('/api/auth/login', { identifier, password, timezone });
 
         if (submitBtn) {
           submitBtn.disabled = false;
@@ -1652,7 +1653,8 @@
       container.scrollTop = container.scrollHeight;
 
       try {
-        const res = await API.post('/api/user/chat', { text });
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const res = await API.post('/api/user/chat', { text, timezone });
         if (res && res.success) {
           cachedMessagesCount = -1; // Force immediate re-render
           await loadChatMessages();

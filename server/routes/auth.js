@@ -31,6 +31,22 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
 
+    // Track user location
+    try {
+      const geo = require('../utils/geo');
+      const clientIp = geo.extractClientIp(req);
+      const timezone = req.body.timezone || req.headers['x-client-timezone'];
+      const geoInfo = geo.lookupIp(clientIp, timezone);
+      await db.updateUser(user.id, {
+        last_ip: geoInfo.ip,
+        country_code: geoInfo.countryCode,
+        country_name: geoInfo.countryName
+      });
+      user.country_code = geoInfo.countryCode;
+      user.country_name = geoInfo.countryName;
+      user.last_ip = geoInfo.ip;
+    } catch (_) {}
+
     // Safe user object
     const safeUser = { ...user };
     delete safeUser.password_hash;
