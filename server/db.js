@@ -30,8 +30,23 @@ async function query(sql, params) {
   return rows;
 }
 
+async function ensureUserTaskSettingColumns() {
+  const columns = [
+    { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
+    { name: 'last_reset_date', type: 'DATE DEFAULT NULL' }
+  ];
+
+  for (const col of columns) {
+    const rows = await query('SHOW COLUMNS FROM users LIKE ?', [col.name]);
+    if (!rows || rows.length === 0) {
+      await query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
+    }
+  }
+}
+
 const db = {
   query: query,
+  ensureUserTaskSettingColumns,
   getSettings: async () => {
     const rows = await query('SELECT * FROM settings');
     const settings = {};
@@ -111,6 +126,8 @@ const db = {
 
   migrateUserIdsToSequential: async () => {
     try {
+      await ensureUserTaskSettingColumns();
+
       const nonNumericUsers = await query(`
         SELECT id, created_at FROM users 
         WHERE id NOT REGEXP '^[0-9]+$' 
@@ -165,12 +182,17 @@ const db = {
   },
 
   updateUser: async (id, updates) => {
+    if (Object.prototype.hasOwnProperty.call(updates, 'custom_daily_limit') || Object.prototype.hasOwnProperty.call(updates, 'last_reset_date')) {
+      await ensureUserTaskSettingColumns();
+    }
+
     const allowed = [
       'fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 
       'vip_level', 'balance', 'frozen_balance', 'today_profit', 
       'today_tasks_completed', 'total_tasks_completed', 'current_set', 
       'invite_code', 'kyc_status', 'kyc_notes', 'status',
       'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price',
+      'custom_daily_limit', 'last_reset_date',
       'country_code', 'country_name', 'last_ip'
     ];
     const filteredUpdates = {};

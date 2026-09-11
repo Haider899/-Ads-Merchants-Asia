@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
   custom_deficit_amount DECIMAL(15,2) DEFAULT NULL,
   custom_product_name VARCHAR(255) DEFAULT NULL,
   custom_product_price DECIMAL(15,2) DEFAULT NULL,
+  custom_daily_limit INT DEFAULT NULL,
+  last_reset_date DATE DEFAULT NULL,
   country_code VARCHAR(10) DEFAULT NULL,
   country_name VARCHAR(100) DEFAULT NULL,
   last_ip VARCHAR(60) DEFAULT NULL,
