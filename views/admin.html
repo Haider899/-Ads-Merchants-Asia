@@ -804,6 +804,7 @@
         <!-- Navigation Tabs -->
         <div class="admin-tabs">
             <button id="tabBtnUsers" class="admin-tab-btn active" data-tab="tabUsers"><i class="fa fa-users"></i> Users & Balances</button>
+            <button id="tabBtnSessions" class="admin-tab-btn" data-tab="tabSessions"><i class="fa fa-signal"></i> Active Sessions <span id="adminOnlineBadge" class="badge-status" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#10b981; color:#fff; font-weight:700;">0</span></button>
             <button id="tabBtnStaff" class="admin-tab-btn" data-tab="tabStaff"><i class="fa fa-user-shield"></i> Sub-Admins & Staff</button>
             <button id="tabBtnChat" class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#ef4444; color:#fff; font-weight:700;">0</span></button>
             <button id="tabBtnKyc" class="admin-tab-btn" data-tab="tabKyc"><i class="fa fa-id-card"></i> KYC / Documents Review <span id="adminKycUnreadBadge" class="badge-status badge-warning ml-1" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#f59e0b; color:#fff; font-weight:700;">0</span></button>
@@ -836,6 +837,40 @@
                         </thead>
                         <tbody id="usersTableBody">
                             <tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">Loading user accounts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 1.5: Active Sessions & Online Merchants -->
+        <div id="tabSessions" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-signal" style="color: #10b981;"></i> Live Active Sessions & Online Merchants</h5>
+                        <p style="font-size: 12.5px; color: #64748b; margin: 4px 0 0 0;">Real-time heartbeat monitoring of merchants currently browsing and grabbing orders on the platform.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn-refresh" onclick="loadSessions()"><i class="fa fa-sync-alt"></i> Refresh Live</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Merchant Profile</th>
+                                <th>IP & Location</th>
+                                <th>Device / Browser</th>
+                                <th>Current Page</th>
+                                <th>Last Ping</th>
+                                <th>Working Balance</th>
+                                <th>Quick Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody">
+                            <tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;">Loading active sessions...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1100,6 +1135,22 @@
                             <option value="Diamond">Diamond VIP (50% commission - 65 orders)</option>
                         </select>
                     </div>
+                    <!-- Reinvestment / Self-Balancing Control Card -->
+                    <div style="margin-bottom: 14px; padding: 12px 14px; background: #ecfdf5; border-radius: 12px; border: 1px solid #a7f3d0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <span style="font-size: 12px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Today's Accumulated Profit</span>
+                                <div id="editUserTodayProfit" style="font-size: 18px; font-weight: 800; color: #059669;">$0.00</div>
+                            </div>
+                            <button type="button" class="btn-action" style="background: #10b981; color: white; padding: 8px 14px; font-size: 12.5px; font-weight: 700; border-radius: 8px;" onclick="reinvestProfitToBalance()">
+                                <i class="fa fa-sync-alt mr-1"></i> Reinvest Profit to Working Balance
+                            </button>
+                        </div>
+                        <small style="color: #047857; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.4;">
+                            Transfers user's earned profit into Working Balance & resets task count to 0 so they can continue a full new cycle of orders without depositing fresh crypto.
+                        </small>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label>Working Balance ($)</label>
@@ -1132,6 +1183,23 @@
                         <label for="editUserResetTasks" style="font-size: 13px; font-weight: 700; color: #334155; margin: 0; cursor: pointer;">
                             Reset Today Completed Tasks Count to 0 (Allow full new round of orders)
                         </label>
+                    </div>
+                    <!-- Daily Task Limit Override -->
+                    <div style="margin-bottom: 18px; padding: 14px; background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border-radius: 12px; border: 1px solid #bfdbfe;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i class="fa fa-tasks" style="color: #2563eb; font-size: 14px;"></i>
+                            <span style="font-size: 12px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">Custom Daily Task Limit</span>
+                            <span id="editCurrentDailyLimit" style="font-size: 11px; background: #2563eb; color: white; border-radius: 20px; padding: 2px 8px; font-weight: 700; display: none;"></span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" min="1" max="200" id="editUserDailyLimit" class="form-control" placeholder="e.g. 10 (leave empty to use VIP default)" style="flex: 1; border-color: #93c5fd;" />
+                            <button type="button" onclick="clearDailyLimit()" style="padding: 8px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; white-space: nowrap;">
+                                <i class="fa fa-times"></i> Clear
+                            </button>
+                        </div>
+                        <small style="color: #3730a3; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.5;">
+                            Override this user's daily task cap. Leave <strong>empty</strong> to use VIP tier default (Bronze=38, Silver=45, Gold=55). Resets automatically every day at midnight.
+                        </small>
                     </div>
                     <button type="submit" class="btn-action btn-edit" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
                         <i class="fa fa-save"></i> Save Changes
@@ -1249,40 +1317,78 @@
 
     <!-- Smart Task & Negative Balance Assignment Modal -->
     <div id="assignTaskModal" class="admin-modal-backdrop">
-        <div class="admin-modal-dialog">
+        <div class="admin-modal-dialog" style="max-width: 560px;">
             <div class="admin-modal-header">
-                <h5 class="admin-modal-title"><i class="fa fa-tasks" style="color: #f59e0b;"></i> Smart Task & Deficit Override</h5>
+                <h5 class="admin-modal-title"><i class="fa fa-tasks" style="color: #f59e0b;"></i> Smart Task & Forced Deficit Assignment</h5>
                 <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('assignTaskModal')">&times;</button>
             </div>
             <div class="admin-modal-body">
+                <!-- Preset Amazon Products Quick Select -->
+                <div style="margin-bottom: 16px; padding: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #92400e; display: block; margin-bottom: 8px; text-transform: uppercase;">
+                        ⚡ Quick Authentic Product Presets (Click to Auto-fill):
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <button type="button" class="btn-action" style="background: #ffffff; border: 1px solid #f59e0b; color: #b45309; font-size: 11.5px; padding: 5px 10px;" onclick="selectPresetTaskProduct('Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)', 3674.00, 3674.00)">
+                            📦 Outdoor Shed ($3,674)
+                        </button>
+                        <button type="button" class="btn-action" style="background: #ffffff; border: 1px solid #f59e0b; color: #b45309; font-size: 11.5px; padding: 5px 10px;" onclick="selectPresetTaskProduct('100 Pcs Glow Sticks Bulk Party Favors 8 Inch Glow in the Dark Party Supplies', 1856.00, 1856.00)">
+                            🎉 Glow Sticks ($1,856)
+                        </button>
+                        <button type="button" class="btn-action" style="background: #ffffff; border: 1px solid #0284c7; color: #0369a1; font-size: 11.5px; padding: 5px 10px;" onclick="selectPresetTaskProduct('Modoker Convertible Garment Bag with Shoulder Strap, 45L Foldable Suit Bag', 11.89, 25.00)">
+                            🧳 Garment Bag ($11.89)
+                        </button>
+                        <button type="button" class="btn-action" style="background: #ffffff; border: 1px solid #10b981; color: #047857; font-size: 11.5px; padding: 5px 10px;" onclick="selectPresetTaskProduct('Diamond Tennis Bracelet 14K Gold Plated Sparkling Cubic Zirconia', 9.50, 20.00)">
+                            💎 Diamond Bracelet ($9.50)
+                        </button>
+                    </div>
+                </div>
+
                 <form id="assignTaskForm">
                     <input type="hidden" id="assignTaskUserId" />
                     <div class="form-group">
                         <label>Target User</label>
-                        <input type="text" id="assignTaskUserName" class="form-control" readonly style="background: #f8fafc;" />
+                        <input type="text" id="assignTaskUserName" class="form-control" readonly style="background: #f8fafc; font-weight: 600;" />
                     </div>
+
+                    <!-- Push Mode Checkbox -->
+                    <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 700; color: #0f172a; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="assignTaskPushImmediate" checked style="width: 19px; height: 19px; accent-color: #f59e0b; cursor: pointer;" />
+                            <span style="font-size: 13.5px; line-height: 1.3;">
+                                ⚡ <span style="color: #b45309;">Push Immediately as Pending Task</span>
+                                <small style="display: block; font-weight: 400; color: #64748b; margin-top: 2px;">Immediately places order in user queue and deducts Working Balance into negative deficit if price > balance.</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Target Order Number <small style="color: #64748b;">(e.g., 5)</small></label>
+                            <input type="number" id="assignTaskOrderNum" class="form-control" min="1" max="100" value="5" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Forced Deficit Amount ($) <small style="color: #64748b;">(Deficit to clear)</small></label>
+                            <input type="number" step="0.01" id="assignTaskDeficitAmount" class="form-control" min="0" value="25.00" required />
+                        </div>
+                    </div>
+
                     <div class="form-group">
-                        <label>Target Order Number <small style="color: #64748b;">(e.g., 5 for 5th order forced deficit)</small></label>
-                        <input type="number" id="assignTaskOrderNum" class="form-control" min="1" max="100" value="5" required />
+                        <label>Product Name <small style="color: #64748b;">(Optional - auto-assigned if empty)</small></label>
+                        <input type="text" id="assignTaskProductName" class="form-control" placeholder="e.g. Lifetime 9446 Outdoor Storage Shed" />
                     </div>
+
                     <div class="form-group">
-                        <label>Forced Deficit Amount (USDT) <small style="color: #64748b;">(Deficit amount required to clear, e.g. 25.00)</small></label>
-                        <input type="number" step="0.01" id="assignTaskDeficitAmount" class="form-control" min="0" value="25.00" required />
+                        <label>Product Price ($) <small style="color: #64748b;">(e.g., 2000.00 or 3674.00)</small></label>
+                        <input type="number" step="0.01" id="assignTaskProductPrice" class="form-control" placeholder="Leave empty for auto-calculated (Balance + Deficit)" />
                     </div>
-                    <div class="form-group">
-                        <label>Custom Product Name <small style="color: #64748b;">(Optional)</small></label>
-                        <input type="text" id="assignTaskProductName" class="form-control" placeholder="Automatic smart product if left empty" />
-                    </div>
-                    <div class="form-group">
-                        <label>Custom Product Price (USDT) <small style="color: #64748b;">(Optional - overrides calculated balance + deficit)</small></label>
-                        <input type="number" step="0.01" id="assignTaskProductPrice" class="form-control" placeholder="Leave empty for auto-calculated deficit" />
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-top: 18px;">
-                        <button type="button" class="btn-action" style="background: #e2e8f0; color: #475569; flex: 1; justify-content: center;" onclick="clearUserCustomTask()">
+
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="clearUserCustomTask()">
                             Clear Override
                         </button>
-                        <button type="submit" class="btn-action" style="background: #f59e0b; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700;">
-                            <i class="fa fa-save"></i> Save Task Override
+                        <button type="submit" class="btn-action" style="background: #f59e0b; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700; font-size: 14px;">
+                            <i class="fa fa-tasks mr-1"></i> Assign / Push Task
                         </button>
                     </div>
                 </form>
@@ -1322,6 +1428,6 @@
     </div>
 
     <!-- Dedicated Admin Script -->
-    <script src="/client/assets/js/admin.js?v=3.4.2"></script>
+    <script src="/client/assets/js/admin.js?v=3.5.0"></script>
 </body>
 </html>

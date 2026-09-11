@@ -228,6 +228,7 @@
 
     const allTabs = {
       tabUsers: document.getElementById('tabBtnUsers'),
+      tabSessions: document.getElementById('tabBtnSessions'),
       tabStaff: document.getElementById('tabBtnStaff'),
       tabChat: document.getElementById('tabBtnChat'),
       tabKyc: document.getElementById('tabBtnKyc'),
@@ -240,21 +241,21 @@
     let roleTitle = 'Master Authority';
 
     if (r === 'super_admin') {
-      allowedTabIds = ['tabUsers', 'tabStaff', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals', 'tabSettings'];
+      allowedTabIds = ['tabUsers', 'tabSessions', 'tabStaff', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals', 'tabSettings'];
       roleTitle = 'Master Authority';
     } else if (r === 'sub_admin') {
-      allowedTabIds = ['tabUsers', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals'];
+      allowedTabIds = ['tabUsers', 'tabSessions', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals'];
       roleTitle = 'Sub-Admin Manager';
     } else if (r === 'support' || r === 'support_operator') {
-      // Support Operator: Live Chat & KYC Review + Customer profiles
-      allowedTabIds = ['tabChat', 'tabKyc', 'tabUsers'];
+      // Support Operator: Live Chat & KYC Review + Customer profiles + Sessions
+      allowedTabIds = ['tabChat', 'tabSessions', 'tabKyc', 'tabUsers'];
       roleTitle = 'Support & KYC Officer';
     } else if (r === 'finance' || r === 'finance_officer') {
-      // Finance Officer: Deposits & Withdrawals + User balances
-      allowedTabIds = ['tabDeposits', 'tabWithdrawals', 'tabUsers'];
+      // Finance Officer: Deposits & Withdrawals + User balances + Sessions
+      allowedTabIds = ['tabDeposits', 'tabWithdrawals', 'tabSessions', 'tabUsers'];
       roleTitle = 'Finance & Treasury Officer';
     } else {
-      allowedTabIds = ['tabUsers', 'tabChat'];
+      allowedTabIds = ['tabUsers', 'tabSessions', 'tabChat'];
       roleTitle = 'Staff Member';
     }
 
@@ -324,6 +325,7 @@
       loadSettings();
     }
     loadUsers();
+    loadSessions();
   };
 
   // 2. Metrics & Dashboard Stats
@@ -399,11 +401,23 @@
     if (!tbody) return;
 
     if (res && res.success && res.users) {
+      // Sort online users to the top, then sort by latest creation date
       state.users = res.users.sort((a, b) => {
+        if (a.is_online && !b.is_online) return -1;
+        if (!a.is_online && b.is_online) return 1;
         const dateDiff = new Date(b.created_at || 0) - new Date(a.created_at || 0);
         if (dateDiff !== 0) return dateDiff;
         return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
       });
+
+      // Update online badge if available
+      const onlineCount = state.users.filter(u => u.is_online).length;
+      const onlineBadge = document.getElementById('adminOnlineBadge');
+      if (onlineBadge) {
+        onlineBadge.textContent = onlineCount;
+        onlineBadge.style.display = onlineCount > 0 ? 'inline-block' : 'none';
+      }
+
       if (state.users.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">No registered users found.</td></tr>`;
         return;
@@ -413,12 +427,18 @@
       tbody.innerHTML = state.users.map(u => {
         let actionButtonsHtml = '';
         if (role === 'support' || role === 'support_operator') {
-          actionButtonsHtml = `<span style="font-size: 11.5px; color: #64748b; font-weight: 600;"><i class="fa fa-eye mr-1"></i> Customer Profile</span>`;
-        } else if (role === 'finance' || role === 'finance_officer') {
           actionButtonsHtml = `
             <div style="display: flex; gap: 6px;">
-              <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')">
-                <i class="fa fa-wallet"></i> Adjust Balance
+              <button class="btn-action btn-edit" onclick="openChatWithUser('${u.id}', '${escapeHtml(u.username || u.fullname)}')" title="Open Chat">
+                <i class="fa fa-comment"></i> Chat
+              </button>
+            </div>
+          `;
+        } else if (role === 'finance' || role === 'finance_officer') {
+          actionButtonsHtml = `
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')" title="Adjust Balance">
+                <i class="fa fa-wallet"></i> Balance
               </button>
               <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Smart Task / Deficit">
                 <i class="fa fa-tasks"></i> Task
@@ -428,31 +448,45 @@
         } else {
           actionButtonsHtml = `
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')">
+              <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')" title="Edit Balance & User Details">
                 <i class="fa fa-pen"></i> Edit
               </button>
-              <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Smart Task / Deficit">
-                <i class="fa fa-tasks"></i> Task
+              <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Assign Smart Task & Deficit">
+                <i class="fa fa-tasks"></i> Assign Task
               </button>
               <button class="btn-action btn-reset" onclick="openPasswordResetModal('${u.id}')" title="Reset Password">
                 <i class="fa fa-key"></i> Reset Pass
+              </button>
+              <button class="btn-action btn-reject" onclick="deleteUser('${u.id}', '${escapeHtml(u.fullname || u.username)}')" title="Permanently Delete User" style="background: #ef4444; color: white;">
+                <i class="fa fa-trash"></i> Delete
               </button>
             </div>
           `;
         }
 
+        const bal = parseFloat(u.balance || 0);
+
         return `
           <tr>
             <td>
-              <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(u.fullname || u.username || 'User')}</div>
-              <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(u.username || 'user')}</div>
-              <small style="color: #94a3b8; font-size: 11px;">ID: ${u.id}</small>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                ${u.is_online 
+                  ? `<span style="display:inline-block; width:10px; height:10px; min-width:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;" title="🟢 Online Now (Active Session)"></span>` 
+                  : `<span style="display:inline-block; width:8px; height:8px; min-width:8px; border-radius:50%; background:#cbd5e1;" title="Offline"></span>`
+                }
+                <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(u.fullname || u.username || 'User')}</div>
+              </div>
+              <div style="font-size: 12px; color: #0284c7; font-weight: 600; margin-left: ${u.is_online ? '16px' : '14px'};">@${escapeHtml(u.username || 'user')}</div>
+              <small style="color: #94a3b8; font-size: 11px; margin-left: ${u.is_online ? '16px' : '14px'};">ID: ${u.id}</small>
             </td>
             <td>
               <div style="font-weight: 600; color: #334155;">${escapeHtml(u.email)}</div>
+              ${u.phone ? `<small style="color: #64748b;"><i class="fa fa-phone mr-1"></i>${escapeHtml(u.phone)}</small>` : ''}
             </td>
             <td><span class="badge-status badge-primary">${u.vip_level} VIP</span></td>
-            <td style="font-weight: 800; color: #10b981; font-size: 14.5px;">$${parseFloat(u.balance || 0).toFixed(2)}</td>
+            <td style="font-weight: 800; color: ${bal < 0 ? '#ef4444' : '#10b981'}; font-size: 14.5px;">
+              ${bal < 0 ? '-' : ''}$${Math.abs(bal).toFixed(2)}
+            </td>
             <td style="font-weight: 700; color: #64748b;">$${parseFloat(u.frozen_balance || 0).toFixed(2)}</td>
             <td style="font-weight: 700; color: #0284c7;">+$${parseFloat(u.today_profit || 0).toFixed(2)}</td>
             <td>
@@ -480,11 +514,32 @@
     document.getElementById('editUserVip').value = user.vip_level;
     document.getElementById('editUserBalance').value = user.balance;
     document.getElementById('editUserFrozenBalance').value = user.frozen_balance || 0;
+    const profitEl = document.getElementById('editUserTodayProfit');
+    if (profitEl) profitEl.textContent = `$${parseFloat(user.today_profit || 0).toFixed(2)}`;
     document.getElementById('editUserAddBalance').value = '';
     document.getElementById('editUserDeductBalance').value = '';
     document.getElementById('editUserStatus').value = user.status;
     document.getElementById('editUserResetTasks').checked = false;
+    // Populate custom daily limit
+    const dailyLimitEl = document.getElementById('editUserDailyLimit');
+    const currentLimitBadge = document.getElementById('editCurrentDailyLimit');
+    if (dailyLimitEl) dailyLimitEl.value = user.custom_daily_limit || '';
+    if (currentLimitBadge) {
+      if (user.custom_daily_limit) {
+        currentLimitBadge.textContent = `Active: ${user.custom_daily_limit} tasks/day`;
+        currentLimitBadge.style.display = 'inline-block';
+      } else {
+        currentLimitBadge.style.display = 'none';
+      }
+    }
     AdminUI.openModal('editUserModal');
+  };
+
+  window.clearDailyLimit = function() {
+    const el = document.getElementById('editUserDailyLimit');
+    if (el) el.value = '';
+    const badge = document.getElementById('editCurrentDailyLimit');
+    if (badge) badge.style.display = 'none';
   };
 
   window.openPasswordResetModal = function(userId) {
@@ -500,12 +555,23 @@
     const user = state.users.find(u => u.id === userId);
     if (!user) return;
     document.getElementById('assignTaskUserId').value = user.id;
-    document.getElementById('assignTaskUserName').value = `${user.fullname || user.username} (@${user.username}) - Balance: $${parseFloat(user.balance || 0).toFixed(2)}`;
+    const bal = parseFloat(user.balance || 0);
+    document.getElementById('assignTaskUserName').value = `${user.fullname || user.username} (@${user.username}) - Working Balance: $${bal.toFixed(2)}`;
     document.getElementById('assignTaskOrderNum').value = user.custom_order_num || (user.today_tasks_completed + 1 || 5);
     document.getElementById('assignTaskDeficitAmount').value = (user.custom_deficit_amount !== null && user.custom_deficit_amount !== undefined) ? user.custom_deficit_amount : '25.00';
     document.getElementById('assignTaskProductName').value = user.custom_product_name || '';
     document.getElementById('assignTaskProductPrice').value = user.custom_product_price || '';
+    const pushImm = document.getElementById('assignTaskPushImmediate');
+    if (pushImm) pushImm.checked = true;
     AdminUI.openModal('assignTaskModal');
+  };
+
+  window.selectPresetTaskProduct = function(name, price, deficit) {
+    document.getElementById('assignTaskProductName').value = name;
+    document.getElementById('assignTaskProductPrice').value = price.toFixed(2);
+    if (deficit !== undefined) {
+      document.getElementById('assignTaskDeficitAmount').value = deficit.toFixed(2);
+    }
   };
 
   window.clearUserCustomTask = async function() {
@@ -519,6 +585,154 @@
       loadUsers();
     } else {
       AdminUI.toast('Error', (res && res.message) || 'Could not clear override', 'error');
+    }
+  };
+
+  // Helper: format time ago for live pings
+  function formatTimeAgo(timestamp) {
+    if (!timestamp) return 'Unknown';
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 10) return 'Just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    const mins = Math.floor(seconds / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    return `${hours}h ago`;
+  }
+
+  // 3.5 Active Sessions Management (Real-time live merchants tracking)
+  window.loadSessions = async function() {
+    const tbody = document.getElementById('sessionsTableBody');
+    if (!tbody) return;
+
+    const res = await AdminAPI.get('/api/admin/sessions');
+    if (res && res.success && Array.isArray(res.sessions)) {
+      state.sessions = res.sessions;
+      const count = res.count || res.sessions.length;
+      
+      const badge = document.getElementById('adminOnlineBadge');
+      if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'inline-block' : 'none';
+      }
+
+      if (state.sessions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;"><i class="fa fa-info-circle mr-1"></i> No active merchant sessions in the last 3 minutes.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = state.sessions.map(s => {
+        const timeAgo = formatTimeAgo(s.last_seen);
+        const bal = parseFloat(s.balance || 0);
+        return `
+          <tr>
+            <td>
+              <span style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#16a34a; background:#dcfce7; padding:4px 10px; border-radius:20px; font-size:12px;">
+                <span style="width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 6px #22c55e;"></span> Online
+              </span>
+            </td>
+            <td>
+              <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(s.fullname || s.username || 'Merchant')}</div>
+              <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(s.username || 'user')}</div>
+              <small style="color: #94a3b8; font-size: 11px;">ID: ${s.userId} | ${s.vip_level || 'Bronze'} VIP</small>
+            </td>
+            <td>
+              <div style="font-weight: 600; color: #334155; font-size: 13px;">${s.flagEmoji || '🌐'} ${escapeHtml(s.city ? s.city + ', ' : '')}${escapeHtml(s.countryName || 'Unknown')}</div>
+              <code style="font-size: 11.5px; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${escapeHtml(s.ip || '127.0.0.1')}</code>
+            </td>
+            <td>
+              <div style="font-size: 12.5px; color: #334155; font-weight: 500; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(s.user_agent || '')}">
+                ${escapeHtml(s.user_agent ? (s.user_agent.includes('Mobile') ? '📱 Mobile Device' : '💻 Desktop') : 'Browser')}
+              </div>
+            </td>
+            <td>
+              <span style="font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 3px 8px; border-radius: 6px; font-size: 12px;">
+                /${escapeHtml(s.path || 'home')}
+              </span>
+            </td>
+            <td style="font-size: 12.5px; color: #475569; font-weight: 500;">${timeAgo}</td>
+            <td style="font-weight: 800; font-size: 14px; color: ${bal < 0 ? '#ef4444' : '#10b981'};">
+              ${bal < 0 ? '-' : ''}$${Math.abs(bal).toFixed(2)}
+            </td>
+            <td>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${s.userId}')" title="Assign Task">
+                  <i class="fa fa-tasks"></i> Task
+                </button>
+                <button class="btn-action btn-edit" onclick="openChatWithUser('${s.userId}', '${escapeHtml(s.username || s.fullname)}')" title="Live Chat">
+                  <i class="fa fa-comment"></i> Chat
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  };
+
+  // Permanently delete user
+  window.deleteUser = async function(userId, name) {
+    if (!userId) return;
+    const confirmed = await AdminUI.confirm({
+      title: 'Permanently Delete User?',
+      message: `Are you sure you want to permanently delete merchant "${name}" (ID: ${userId})? This will completely delete their account, tasks, orders, deposits, withdrawals, and chat records. This action CANNOT be undone.`,
+      type: 'danger',
+      confirmText: 'Yes, Delete Permanently'
+    });
+    if (!confirmed) return;
+
+    const res = await AdminAPI.post('/api/admin/users/delete', { userId });
+    if (res && res.success) {
+      AdminUI.toast('User Deleted', res.message || 'User account successfully deleted.', 'success');
+      loadUsers();
+      loadMetrics();
+      loadSessions();
+    } else {
+      AdminUI.toast('Delete Failed', (res && res.message) || 'Error deleting user', 'error');
+    }
+  };
+
+  // Quick Chat opener
+  window.openChatWithUser = function(userId, userName) {
+    switchAdminTab('tabChat');
+    setTimeout(() => {
+      if (typeof selectUserChat === 'function') {
+        selectUserChat(userId, userName);
+      }
+    }, 200);
+  };
+
+  // Self-Balancing / Reinvest profit into working balance
+  window.reinvestProfitToBalance = async function() {
+    const userId = document.getElementById('editUserId').value;
+    if (!userId) return;
+    const user = state.users.find(u => u.id === userId);
+    const profit = user ? parseFloat(user.today_profit || 0) : 0;
+    if (profit <= 0) {
+      AdminUI.toast('No Profit', 'This merchant currently has $0.00 accumulated profit to transfer.', 'warning');
+      return;
+    }
+
+    const confirmed = await AdminUI.confirm({
+      title: 'Reinvest Profit to Working Balance?',
+      message: `Transfer $${profit.toFixed(2)} accumulated today's profit directly into Working Balance for merchant "${user.fullname || user.username}"? Their today's tasks will also be reset to 0 so they can continue a full new order cycle.`,
+      type: 'success',
+      confirmText: 'Yes, Transfer & Reset Tasks'
+    });
+    if (!confirmed) return;
+
+    const res = await AdminAPI.post('/api/admin/users/update', {
+      userId,
+      reinvest_profit: true
+    });
+
+    if (res && res.success) {
+      AdminUI.toast('Profit Reinvested', res.message || 'Profit moved to working balance successfully.', 'success');
+      AdminUI.closeModal('editUserModal');
+      loadUsers();
+      loadMetrics();
+    } else {
+      AdminUI.toast('Reinvest Failed', (res && res.message) || 'Error transferring profit', 'error');
     }
   };
 
@@ -1183,6 +1397,8 @@
         btn.classList.add('active');
         const target = document.getElementById(tabId);
         if (target) target.style.display = 'block';
+        if (tabId === 'tabSessions') loadSessions();
+        if (tabId === 'tabUsers') loadUsers();
       });
     });
 
@@ -1256,9 +1472,11 @@
         const deduct_balance = document.getElementById('editUserDeductBalance').value;
         const status = document.getElementById('editUserStatus').value;
         const reset_tasks = document.getElementById('editUserResetTasks').checked;
+        const customDailyEl = document.getElementById('editUserDailyLimit');
+        const custom_daily_limit = customDailyEl ? customDailyEl.value : '';
 
         const res = await AdminAPI.post('/api/admin/users/update', {
-          userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks
+          userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit
         });
 
         if (res && res.success) {
@@ -1322,21 +1540,25 @@
         const deficitAmount = document.getElementById('assignTaskDeficitAmount').value;
         const productName = document.getElementById('assignTaskProductName').value;
         const productPrice = document.getElementById('assignTaskProductPrice').value;
+        const pushImmediate = document.getElementById('assignTaskPushImmediate')?.checked || false;
 
         const res = await AdminAPI.post('/api/admin/users/assign-task', {
           userId,
           orderNum,
           deficitAmount,
           productName,
-          productPrice
+          productPrice,
+          pushImmediate
         });
 
         if (res && res.success) {
           AdminUI.closeModal('assignTaskModal');
-          AdminUI.toast('Task Override Saved', res.message, 'success');
+          AdminUI.toast('Task Assigned', res.message, 'success');
           loadUsers();
+          loadSessions();
+          loadMetrics();
         } else {
-          AdminUI.toast('Override Failed', (res && res.message) || 'Error saving task override', 'error');
+          AdminUI.toast('Assignment Failed', (res && res.message) || 'Error saving task override', 'error');
         }
       });
     }
@@ -1415,9 +1637,10 @@
     // Check Authentication & Load Data
     checkAuthAndLoad();
 
-    // Auto-poll metrics and chat every 4 seconds
+    // Auto-poll metrics, sessions and chat every 4 seconds
     setInterval(() => {
       loadMetrics();
+      loadSessions();
       loadChatConversations();
       const chatTab = document.getElementById('tabChat');
       if (chatTab && chatTab.style.display !== 'none' && state.activeChatUserId) {

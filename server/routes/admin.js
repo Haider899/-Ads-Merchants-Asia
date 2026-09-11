@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
-const { adminAuthMiddleware, JWT_SECRET } = require('../middleware/auth');
+const { adminAuthMiddleware, isUserOnline, getActiveSessions, JWT_SECRET } = require('../middleware/auth');
 const geo = require('../utils/geo');
 
 // Role-based permission guard helper
@@ -182,26 +182,92 @@ router.get('/metrics', adminAuthMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/admin/users
+// GET /api/admin/users - List users with online presence & sorted priority
 router.get('/users', adminAuthMiddleware, async (req, res) => {
   try {
     const usersList = await db.getUsers();
+    const activeSessions = getActiveSessions();
+    const activeMap = new Map(activeSessions.map(s => [String(s.userId), s]));
+
     const users = usersList.map(u => {
       const safe = { ...u };
       delete safe.password_hash;
-      delete safe.phone;
+      const session = activeMap.get(String(u.id));
+      safe.is_online = Boolean(session || isUserOnline(u.id));
+      safe.session_info = session || null;
       return safe;
     });
-    res.json({ success: true, users });
+
+    // Sort online users to the TOP, then sort by latest creation date
+    users.sort((a, b) => {
+      if (a.is_online && !b.is_online) return -1;
+      if (!a.is_online && b.is_online) return 1;
+      const dateDiff = new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      if (dateDiff !== 0) return dateDiff;
+      return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
+    });
+
+    res.json({
+      success: true,
+      users,
+      online_count: users.filter(u => u.is_online).length
+    });
   } catch (err) {
     console.error('Admin Users Error:', err);
     res.status(500).json({ success: false, message: 'Error fetching users' });
   }
 });
 
+// GET /api/admin/sessions - Active sessions with IP, location, device & last ping
+router.get('/sessions', adminAuthMiddleware, async (req, res) => {
+  try {
+    const sessions = getActiveSessions();
+    res.json({
+      success: true,
+      count: sessions.length,
+      sessions
+    });
+  } catch (err) {
+    console.error('Admin Sessions Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching active sessions' });
+  }
+});
+
+// POST /api/admin/users/delete - Permanently delete a merchant account and all associated records
+router.post('/users/delete', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+
+    const user = await db.findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    // Clean up all related records from DB
+    await db.query('DELETE FROM tasks WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM deposits WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM withdrawals WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM kyc_submissions WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM notifications WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM chat_messages WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM users WHERE id = ?', [userId]);
+
+    res.json({
+      success: true,
+      message: `User account "${user.fullname || user.username}" (ID: ${userId}) has been permanently deleted.`
+    });
+  } catch (err) {
+    console.error('Delete User Error:', err);
+    res.status(500).json({ success: false, message: 'Error deleting user account: ' + err.message });
+  }
+});
+
 // POST /api/admin/users/update
 router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
-  const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks } = req.body;
+  const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit } = req.body;
   const user = await db.findUserById(userId);
 
   if (!user) {
@@ -213,16 +279,44 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
   if (status) updates.status = status;
   if (frozen_balance !== undefined && frozen_balance !== '') updates.frozen_balance = parseFloat(frozen_balance);
 
+  // Admin custom daily task limit (0 or empty = clear/use VIP default)
+  if (custom_daily_limit !== undefined && custom_daily_limit !== '') {
+    const cdl = parseInt(custom_daily_limit, 10);
+    updates.custom_daily_limit = (!isNaN(cdl) && cdl > 0) ? cdl : null;
+  }
+
   if (reset_tasks) {
     updates.today_tasks_completed = 0;
     updates.current_set = 0;
+    updates.last_reset_date = new Date().toISOString().slice(0, 10);
+  }
+
+  // Self-Balancing / Reinvestment: Move Today's Profit into Working Balance & Reset tasks count
+  if (reinvest_profit) {
+    const profit = parseFloat(user.today_profit || 0);
+    if (profit > 0) {
+      const baseBal = parseFloat(user.balance || 0);
+      updates.balance = parseFloat((baseBal + profit).toFixed(2));
+      updates.today_profit = 0.00;
+      updates.today_tasks_completed = 0;
+      updates.current_set = 0;
+      try {
+        await db.createNotification({
+          user_id: user.id,
+          title: 'Profit Reinvested! 🚀',
+          message: `$${profit.toFixed(2)} accumulated profit has been moved into your Working Balance (Self-Balancing Reinvestment). You can now grab your next cycle of orders!`,
+          type: 'success'
+        });
+      } catch (_) {}
+    }
   }
 
   const numAdd = (add_balance !== undefined && add_balance !== null && add_balance !== '') ? parseFloat(add_balance) : 0;
   const numDeduct = (deduct_balance !== undefined && deduct_balance !== null && deduct_balance !== '') ? parseFloat(deduct_balance) : 0;
 
   if (numDeduct > 0) {
-    updates.balance = parseFloat(Math.max(0, user.balance - numDeduct).toFixed(2));
+    const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
+    updates.balance = parseFloat(Math.max(0, currentBase - numDeduct).toFixed(2));
     try {
       await db.createNotification({
         user_id: user.id,
@@ -232,7 +326,8 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
       });
     } catch (_) {}
   } else if (numAdd > 0) {
-    updates.balance = parseFloat((user.balance + numAdd).toFixed(2));
+    const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
+    updates.balance = parseFloat((currentBase + numAdd).toFixed(2));
     try {
       await db.createNotification({
         user_id: user.id,
@@ -241,7 +336,7 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
         type: 'success'
       });
     } catch (_) {}
-  } else if (balance !== undefined && balance !== null && balance !== '') {
+  } else if (!reinvest_profit && balance !== undefined && balance !== null && balance !== '') {
     updates.balance = parseFloat(parseFloat(balance).toFixed(2));
   }
 
@@ -251,7 +346,7 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
 
   res.json({
     success: true,
-    message: 'User updated successfully',
+    message: reinvest_profit ? 'Profit successfully reinvested into Working Balance.' : 'User updated successfully',
     user: safe
   });
 });
@@ -270,6 +365,131 @@ router.post('/users/reset-password', adminAuthMiddleware, checkRole('sub_admin')
     success: true,
     message: `Password for ${user.fullname} (${user.email}) successfully reset.`
   });
+});
+
+// POST /api/admin/users/assign-task - Assign / push task with forced deficit or schedule custom task
+router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
+  try {
+    const { userId, orderNum, deficitAmount, productName, productPrice, pushImmediate, clearCustom } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+
+    const user = await db.findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (clearCustom) {
+      await db.updateUser(userId, {
+        custom_order_num: null,
+        custom_deficit_amount: null,
+        custom_product_name: null,
+        custom_product_price: null
+      });
+      return res.json({ success: true, message: 'Custom task override successfully cleared for this user.' });
+    }
+
+    const targetOrder = parseInt(orderNum, 10) || (parseInt(user.today_tasks_completed, 10) || 0) + 1;
+    const defAmount = parseFloat(deficitAmount) || 25.00;
+    const settings = await db.getSettings();
+    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 38 };
+    const commissionRate = vipRate.commission || 0.20;
+
+    // Get catalog products to match images or fallback
+    const products = await db.getProducts();
+
+    let pName = (productName || '').trim();
+    let pPrice = parseFloat(productPrice) || 0;
+    let pImage = 'client/assets/uploads/products/outdoor_shed.jpg';
+
+    if (!pName) {
+      // Default to high-value deficit product matching client screenshots
+      if (pPrice > 2000 || defAmount >= 1000) {
+        pName = 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)';
+        pImage = 'client/assets/uploads/products/outdoor_shed.jpg';
+      } else if (pPrice > 1000 || defAmount >= 500) {
+        pName = '100 Pcs Glow Sticks Bulk Party Favors 8 Inch Glow in the Dark Party Supplies';
+        pImage = 'client/assets/uploads/products/glow_sticks.jpg';
+      } else {
+        pName = 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)';
+        pImage = 'client/assets/uploads/products/outdoor_shed.jpg';
+      }
+    } else {
+      const match = products.find(p => p.name.toLowerCase().includes(pName.toLowerCase()));
+      if (match && match.image) pImage = match.image;
+    }
+
+    if (!pPrice || pPrice <= 0) {
+      pPrice = parseFloat((parseFloat(user.balance || 0) + defAmount).toFixed(2));
+    }
+
+    const commEarned = parseFloat((pPrice * commissionRate).toFixed(2));
+
+    if (pushImmediate) {
+      // Push immediately as a pending order and deduct balance into deficit
+      const currentBalance = parseFloat(user.balance || 0);
+      const newBalance = parseFloat((currentBalance - pPrice).toFixed(2));
+      const frozenBal = newBalance < 0 ? Math.abs(newBalance) : (user.frozen_balance || 0);
+
+      // Check if user has an existing pending task - if so, delete it or replace it
+      const existingTasks = await db.getTasks(user.id);
+      const existingPending = existingTasks.find(t => t.status === 'pending');
+      if (existingPending) {
+        await db.query('DELETE FROM tasks WHERE id = ?', [existingPending.id]).catch(() => {});
+      }
+
+      const task = {
+        id: 'tsk_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        user_id: user.id,
+        product_name: pName,
+        product_image: pImage,
+        product_price: pPrice,
+        commission_rate: commissionRate,
+        commission_earned: commEarned,
+        commission_amount: commEarned,
+        status: 'pending',
+        order_num: targetOrder,
+        is_deficit: newBalance < 0 ? 1 : 0,
+        deficit_amount: newBalance < 0 ? Math.abs(newBalance) : 0,
+        created_at: new Date().toISOString()
+      };
+
+      await db.createTask(task);
+      await db.updateUser(user.id, {
+        balance: newBalance,
+        frozen_balance: frozenBal,
+        custom_order_num: null,
+        custom_deficit_amount: null,
+        custom_product_name: null,
+        custom_product_price: null
+      });
+
+      return res.json({
+        success: true,
+        message: `Task pushed immediately! User working balance is now $${newBalance.toFixed(2)}${newBalance < 0 ? ' (Deficit: $' + Math.abs(newBalance).toFixed(2) + ')' : ''}.`,
+        task,
+        new_balance: newBalance
+      });
+    } else {
+      // Schedule override for target order
+      await db.updateUser(userId, {
+        custom_order_num: targetOrder,
+        custom_deficit_amount: defAmount,
+        custom_product_name: pName,
+        custom_product_price: pPrice
+      });
+
+      return res.json({
+        success: true,
+        message: `Smart task override scheduled for Order #${targetOrder} (Deficit: $${defAmount.toFixed(2)}, Price: $${pPrice.toFixed(2)}).`
+      });
+    }
+  } catch (err) {
+    console.error('Assign Task Error:', err);
+    res.status(500).json({ success: false, message: 'Error assigning task: ' + err.message });
+  }
 });
 
 // GET /api/admin/kyc - Get KYC verification requests
@@ -799,47 +1019,6 @@ router.post('/staff/update', adminAuthMiddleware, checkRole('super_admin'), asyn
   } catch (err) {
     console.error('Update Staff Error:', err);
     res.status(500).json({ success: false, message: 'Error updating staff account' });
-  }
-});
-
-// POST /api/admin/users/assign-task - Override next order and assign deficit
-router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
-  try {
-    const { userId, orderNum, deficitAmount, productName, productPrice, clearCustom } = req.body;
-    const user = await db.findUserById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    if (clearCustom) {
-      await db.updateUser(userId, {
-        custom_order_num: null,
-        custom_deficit_amount: null,
-        custom_product_name: null,
-        custom_product_price: null
-      });
-      return res.json({ success: true, message: 'Custom task settings cleared for user.' });
-    }
-
-    const updates = {
-      custom_order_num: orderNum !== undefined && orderNum !== '' ? parseInt(orderNum) : (user.today_tasks_completed + 1),
-      custom_deficit_amount: deficitAmount !== undefined && deficitAmount !== '' ? parseFloat(deficitAmount) : 25.00,
-      custom_product_name: productName ? productName.trim() : null,
-      custom_product_price: productPrice ? parseFloat(productPrice) : null
-    };
-
-    await db.updateUser(userId, updates);
-    // Invalidate any uncompleted normal pending task so next click immediately generates the deficit order
-    await db.deletePendingTasks(userId);
-
-    res.json({
-      success: true,
-      message: `Assigned custom task (Order #${updates.custom_order_num}, Deficit: $${updates.custom_deficit_amount}) successfully.`,
-      custom: updates
-    });
-  } catch (err) {
-    console.error('Assign Task Error:', err);
-    res.status(500).json({ success: false, message: 'Could not assign task: ' + err.message });
   }
 });
 

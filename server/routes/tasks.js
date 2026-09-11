@@ -3,11 +3,34 @@ const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
+// Helper: auto-reset daily stats if date has changed
+async function autoResetIfNewDay(user) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const lastReset = user.last_reset_date ? String(user.last_reset_date).slice(0, 10) : null;
+  if (lastReset !== today) {
+    await db.updateUser(user.id, {
+      today_tasks_completed: 0,
+      today_profit: 0,
+      current_set: 0,
+      last_reset_date: today
+    });
+    // Return refreshed user
+    return await db.findUserById(user.id);
+  }
+  return user;
+}
+
 // GET /api/tasks/status - Get current user task statistics
 router.get('/status', authMiddleware, async (req, res) => {
-  const user = await db.findUserById(req.user.id);
+  let user = await db.findUserById(req.user.id);
+  user = await autoResetIfNewDay(user);
+
   const settings = await db.getSettings();
   const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.005, max_tasks: 38 };
+  // Admin-set custom daily limit takes priority over VIP default
+  const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
+    ? user.custom_daily_limit
+    : (vipRate.max_tasks || settings.daily_tasks_limit || 38);
 
   const userTasks = await db.getTasks(user.id);
 
@@ -18,7 +41,8 @@ router.get('/status', authMiddleware, async (req, res) => {
       frozen_balance: user.frozen_balance,
       today_profit: user.today_profit,
       today_tasks_completed: user.today_tasks_completed,
-      max_tasks: vipRate.max_tasks || settings.daily_tasks_limit || 38,
+      max_tasks: maxTasks,
+      custom_daily_limit: user.custom_daily_limit || null,
       vip_level: user.vip_level,
       commission_rate: vipRate.commission,
       recent_tasks: userTasks.slice(0, 10)
@@ -28,14 +52,21 @@ router.get('/status', authMiddleware, async (req, res) => {
 
 // POST /api/tasks/generate - Simulate product matching
 router.post('/generate', authMiddleware, async (req, res) => {
-  const user = await db.findUserById(req.user.id);
+  let user = await db.findUserById(req.user.id);
+  // Auto-reset daily stats if it's a new day
+  user = await autoResetIfNewDay(user);
+
   const settings = await db.getSettings();
   const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 38 };
+  // Admin-set custom daily limit takes priority over VIP default
+  const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
+    ? user.custom_daily_limit
+    : (vipRate.max_tasks || 38);
 
-  if (user.today_tasks_completed >= vipRate.max_tasks) {
+  if (user.today_tasks_completed >= maxTasks) {
     return res.status(400).json({
       success: false,
-      message: `You have completed all ${vipRate.max_tasks} daily optimization tasks for VIP ${user.vip_level}. Please upgrade VIP or return tomorrow!`
+      message: `You have completed all ${maxTasks} daily optimization tasks. Please return tomorrow!`
     });
   }
 
@@ -300,20 +331,28 @@ router.get('/records', authMiddleware, async (req, res) => {
     const userTasks = await db.getTasks(req.user.id);
     const userDeposits = await db.getDeposits(req.user.id);
     const userWithdrawals = await db.getWithdrawals(req.user.id);
+    const allProducts = await db.getProducts().catch(() => []);
 
-    const formattedTasks = userTasks.map(t => ({
-      id: t.id,
-      type: 'task',
-      title: t.product_name,
-      product_name: t.product_name,
-      product_image: t.product_image || 'client/assets/uploads/products/outdoor_shed.jpg',
-      product_price: parseFloat(t.product_price || 0).toFixed(2),
-      commission_amount: parseFloat(t.commission_amount !== undefined ? t.commission_amount : (t.commission_earned || 0)).toFixed(2),
-      order_num: t.order_num || 1,
-      amount: `+$${parseFloat(t.commission_amount !== undefined ? t.commission_amount : (t.commission_earned || 0)).toFixed(2)}`,
-      status: t.status,
-      created_at: t.created_at
-    }));
+    const formattedTasks = userTasks.map(t => {
+      let prodImage = t.product_image;
+      if (!prodImage || prodImage.includes('undefined')) {
+        const match = allProducts.find(p => p.name && t.product_name && (p.name.toLowerCase().includes(t.product_name.substring(0, 15).toLowerCase()) || t.product_name.toLowerCase().includes(p.name.substring(0, 15).toLowerCase())));
+        prodImage = (match && match.image) ? match.image : 'client/assets/uploads/products/outdoor_shed.jpg';
+      }
+      return {
+        id: t.id,
+        type: 'task',
+        title: t.product_name,
+        product_name: t.product_name,
+        product_image: prodImage,
+        product_price: parseFloat(t.product_price || 0).toFixed(2),
+        commission_amount: parseFloat(t.commission_amount !== undefined ? t.commission_amount : (t.commission_earned || 0)).toFixed(2),
+        order_num: t.order_num || 1,
+        amount: `+$${parseFloat(t.commission_amount !== undefined ? t.commission_amount : (t.commission_earned || 0)).toFixed(2)}`,
+        status: t.status,
+        created_at: t.created_at
+      };
+    });
 
     let filteredTasks = [...formattedTasks];
     if (statusFilter && statusFilter !== 'all') {

@@ -66,7 +66,9 @@ const db = {
       current_set: parseInt(u.current_set || 0, 10),
       custom_order_num: u.custom_order_num ? parseInt(u.custom_order_num, 10) : null,
       custom_deficit_amount: u.custom_deficit_amount !== null && u.custom_deficit_amount !== undefined ? parseFloat(u.custom_deficit_amount) : null,
-      custom_product_price: u.custom_product_price !== null && u.custom_product_price !== undefined ? parseFloat(u.custom_product_price) : null
+      custom_product_price: u.custom_product_price !== null && u.custom_product_price !== undefined ? parseFloat(u.custom_product_price) : null,
+      custom_daily_limit: u.custom_daily_limit !== null && u.custom_daily_limit !== undefined ? parseInt(u.custom_daily_limit, 10) : null,
+      last_reset_date: u.last_reset_date || null
     };
   },
 
