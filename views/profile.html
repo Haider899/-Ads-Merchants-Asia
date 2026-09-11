@@ -18,9 +18,7 @@
 
     <link rel="stylesheet" href="client/assets/css/home.css">
 
-    <link rel="stylesheet" href="client/assets/css/levels.css">
-
-        <link rel="stylesheet" href="client/assets/css/profile.css?v=3.4.0">
+        <link rel="stylesheet" href="client/assets/css/profile.css?v=3.7.0">
 
                 
 
@@ -192,134 +190,6 @@
 
 
 
-    .record-container{
-
-        display: flex;
-
-        flex-direction: column;
-
-        gap: 30px;
-
-        padding: 80px 15px 120px 15px;
-
-    }
-
-    .record-nav{
-
-        display: flex;
-
-        flex-direction: row;
-
-        justify-content: space-evenly;
-
-        cursor: pointer;
-
-    }
-
-    .record-nav-item{
-
-        color: grey;
-
-        width: 100%;
-
-        text-align: center;
-
-        padding: 10px 0px;
-
-        border-radius: 10px;
-
-    }
-
-    .record-nav-item-active{
-
-        background-color: rgba(255, 255, 255, 0.7);
-
-        color: black;
-
-    }
-
-    .record-item-tab{
-
-        display: flex;
-
-        flex-direction: column;
-
-        gap: 30px;
-
-    }
-
-    .record-item-tab-field{
-
-        background-color: white;
-
-        padding: 10px;
-
-        border-radius: 10px;
-
-        display: flex;
-
-        flex-direction: column;
-
-        gap: 10px;
-
-    }
-
-    .record-item-tab-field-up{
-
-        display: flex;
-
-        flex-direction: row;
-
-        gap: 20px;
-
-        align-items: center;
-
-    }
-
-
-
-    .record-item-description{
-
-        font-size: 16px;
-
-        font-weight: bold;
-
-    }
-
-    .record-item-tab-field-down{
-
-        display: flex;
-
-        flex-direction: row;
-
-        align-items: center;
-
-        padding: 10px 0px;
-
-        justify-content: space-between;
-
-        border-top: 1px solid #c3c3c3;
-
-        
-
-    }
-
-    .tiny-text{
-
-        font-size: 12px;
-
-    }
-
-    .small-text{
-
-        font-size: 14px;
-
-        font-weight: bold;
-
-    }
-
-   
-
     </style>
 
 </head>
@@ -406,21 +276,21 @@
 
             <div class="profile-container">
 
-            <div class="white-card">
+            <div class="balance-card-radius white-card" style="padding: 6px; border-radius: 22px; background: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
 
-                <div class="profile-card" style="border: 2.5px solid #ffffff; border-radius: 18px; padding: 18px 20px;">
+                <div class="profile-card" style="color: #0f172a; background: linear-gradient(135deg, #18b5e5 0%, #2bd0ec 45%, #4ce4b7 100%) !important; background-image: url(/client/assets/img/bg-2.png), url(client/assets/img/bg-2.png), linear-gradient(135deg, #18b5e5 0%, #2bd0ec 45%, #4ce4b7 100%) !important; background-size: cover !important; background-repeat: no-repeat !important; background-position: center !important; border-radius: 16px; padding: 20px 20px 18px 20px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 8px 24px rgba(24, 181, 229, 0.25);">
 
                     <div class="profile-info">
 
                         <div class="profile-info-left" style="display: flex; align-items: center; gap: 12px;">
 
-                            <div style="width: 44px; height: 44px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                            <div style="width: 44px; height: 44px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1); flex-shrink: 0;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="#cbd5e1">
                                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                                 </svg>
                             </div>
 
-                            <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 <div class="profile-name small-text user-name-text" style="font-size: 19px; font-weight: 700; color: #0f172a;"></div>
                                 <span class="profile-vip-badge"></span>
                             </div>
@@ -429,21 +299,21 @@
 
                     </div>
 
-                    <div class="profile-balances" style="display: flex; justify-content: space-between; align-items: flex-end; padding-top: 14px;">
+                    <div class="profile-balances" style="display: flex; justify-content: space-between; align-items: flex-end;">
 
                         <div class="profile-balance-box">
 
-                            <div class="tiny-text balance-label" style="font-size: 13.5px; color: #1e293b; font-weight: 500;">Total Profit</div>
+                            <div class="tiny-text balance-label" style="font-size: 13.5px; color: #1e293b; font-weight: 500; margin-bottom: 2px;">Total Profit</div>
 
-                            <div id="profile-total-profit" class="small-text bold profile-total-profit user-today-profit" style="font-size: 19px; font-weight: 800; color: #0f172a; margin-top: 4px;">USD 0.00</div>
+                            <div id="profile-total-profit" class="small-text bold profile-total-profit user-today-profit" style="font-size: 19px; font-weight: 800; color: #0f172a;">USD 0.00</div>
 
                         </div>
 
                         <div class="profile-balance-box" style="text-align: right;">
 
-                            <div class="tiny-text balance-label" style="font-size: 13.5px; color: #1e293b; font-weight: 500;">Total Balance</div>
+                            <div class="tiny-text balance-label" style="font-size: 13.5px; color: #1e293b; font-weight: 500; margin-bottom: 2px;">Total Balance</div>
 
-                            <div id="profile-total-balance" class="small-text bold profile-total-balance user-total-balance" style="font-size: 19px; font-weight: 800; color: #0f172a; margin-top: 4px;">USD 0.00</div>
+                            <div id="profile-total-balance" class="small-text bold profile-total-balance user-total-balance" style="font-size: 19px; font-weight: 800; color: #0f172a;">USD 0.00</div>
 
                         </div>
 
@@ -639,7 +509,7 @@
 
 </script>
 
-<script src="client/assets/js/portal-bridge.js?v=3.4.1"></script>
+<script src="client/assets/js/portal-bridge.js?v=3.7.0"></script>
 </body>
 
 </html>

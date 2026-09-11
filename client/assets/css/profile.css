@@ -20,20 +20,24 @@ body {
 }
 .white-card{
     background-color: white;
-    border-radius: 10px;
-    padding: 10px;
+    border-radius: 20px;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
 }
 .profile-card{
-    color: black;
-    background-image: url(../img/bg-2.png);
-    background-size: cover;
-    background-repeat: no-repeat;
-    border-radius: 10px;
+    color: #0f172a;
+    background: linear-gradient(135deg, #18b5e5 0%, #2bd0ec 45%, #4ce4b7 100%) !important;
+    background-image: url(/client/assets/img/bg-2.png), url(../img/bg-2.png), linear-gradient(135deg, #18b5e5 0%, #2bd0ec 45%, #4ce4b7 100%) !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    border-radius: 16px;
     border: 0px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 15px;
+    gap: 18px;
+    padding: 20px 20px 18px 20px;
+    box-shadow: 0 8px 24px rgba(24, 181, 229, 0.25);
 }
 .profile-info{
     display: flex;
@@ -69,34 +73,24 @@ body {
     gap: 3px;
 }
 .profile-balance-box .balance-label {
-    color: #64748b;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    color: #1e293b;
+    font-size: 13.5px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
 }
 .profile-balance-box .balance-value,
 .profile-balance-box .small-text {
-    font-size: 14px;
-    font-weight: 700;
-    word-break: break-all;
-}
-#profile-total-balance {
-    color: #0f172a;
-    font-size: 15px;
+    font-size: 19px;
     font-weight: 800;
+    word-break: break-all;
+    color: #0f172a;
 }
-#profile-working-balance {
-    color: #0284c7;
-    font-weight: 700;
-}
-#profile-frozen-balance {
-    color: #64748b;
-    font-weight: 700;
-}
+#profile-total-balance,
 #profile-total-profit {
-    color: #16a34a;
-    font-weight: 700;
+    color: #0f172a !important;
+    font-size: 19px !important;
+    font-weight: 800 !important;
 }
 .profile-info-right{
     display: flex;

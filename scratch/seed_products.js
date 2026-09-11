@@ -3,6 +3,16 @@ const db = require('../server/db');
 const products = [
   // Tier 1: Budget / Everyday Accessories ($9 - $25)
   {
+    name: 'DAIMOND PRODUCT 1',
+    price: 9.00,
+    image: 'client/assets/uploads/products/daimond_product_1.jpg'
+  },
+  {
+    name: 'Garment Bags for Travel, Convertible Carry on Garment Bag with Shoe Compartment, SOLOSAIC Garment Duffle Bags for Travel for Men Women, 2 in 1 Hanging Dress Suitcase Suit Bag with Toiletry Bag, Black',
+    price: 11.00,
+    image: 'client/assets/uploads/products/garment_bag.jpg'
+  },
+  {
     name: 'Stanley Quencher Reusable Straw Replacement Pack, BPA-Free Tritan (4-Pack)',
     price: 9.99,
     image: 'client/assets/uploads/products/stanley_straws.jpg'
@@ -217,7 +227,9 @@ const products = [
 
 async function seed() {
   try {
-    await db.ensureTasksTable();
+    if (typeof db.ensureTasksTable === 'function') {
+      await db.ensureTasksTable();
+    }
     await db.query(`CREATE TABLE IF NOT EXISTS products (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(255) NOT NULL,

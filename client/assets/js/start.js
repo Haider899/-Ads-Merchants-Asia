@@ -71,12 +71,14 @@ sleep(2000).then(() => {
         
         // Handling based on returned messages
         if (data.message === "You have reached the frozen limit." || data.message === "You have reached frozen balance limit.") {
+            const numVal = Math.abs(parseFloat(data.userFrozenBalance || 0));
+            const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const balanceText = document.getElementById('start-total-balance-text');
-            balanceText.innerHTML = `USDT -${data.userFrozenBalance}`;
+            if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
             Swal.fire({
                 title: "Account Limit Reached!",
                 icon: "info",
-                html: `Please contact <a target="_blank" href="contactData" autofocus>customer care service</a> to clear your balance of -${data.userFrozenBalance} USDT.`,
+                html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
                 focusConfirm: false,
                 confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
             }).then((result) => {
@@ -351,8 +353,15 @@ const updateTaskOrProduct = (task) => {
             }
 
 
-            todaysProfitText.innerHTML = `USDT ${data.todayProfit}`;
-            balanceText.innerHTML = `USDT ${data.balance}`;
+            const formatUSD = (num) => {
+                const isNeg = num < 0;
+                const absVal = Math.abs(num).toFixed(2);
+                const parts = absVal.split('.');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                return (isNeg ? '-' : '') + parts.join('.');
+            };
+            if (todaysProfitText) todaysProfitText.innerHTML = `USD ${formatUSD(parseFloat(data.todayProfit || 0))}`;
+            if (balanceText) balanceText.innerHTML = `USD ${formatUSD(parseFloat(data.balance || 0))}`;
 
             if(data.completed_tasks == data.total_tasks_in_set){
                 Swal.fire({

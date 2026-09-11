@@ -603,21 +603,22 @@
           } else {
             const froz = res && (res.userFrozenBalance || res.deficit_amount);
             if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
-              const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
+              const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
+              const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               const balanceText = document.getElementById('start-total-balance-text');
-              if (balanceText) balanceText.innerHTML = `USDT -${deficitVal}`;
+              if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
               if (typeof Swal !== 'undefined') {
                 Swal.fire({
                   title: "Account Limit Reached!",
                   icon: "info",
-                  html: `Please contact <a target="_blank" href="contactData" autofocus>customer care service</a> to clear your balance of -${deficitVal} USDT.`,
+                  html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
                   focusConfirm: false,
                   confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
                 }).then(() => {
                   window.location.href = "startData";
                 });
               } else {
-                alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${deficitVal} USDT.`);
+                alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
               }
               return;
             }
@@ -662,11 +663,30 @@
     });
     const taskFrozenContainer = document.getElementById('start-frozen-container');
     if (taskFrozenContainer) {
-      taskFrozenContainer.style.display = frozBal > 0 ? 'block' : 'none';
+      taskFrozenContainer.style.display = 'none'; // Keep clean matching original screenshot 07.10.31 & 07.10.33
     }
     document.querySelectorAll('.task-profit, #todayProfitVal, .user-today-profit, #todayProfit, #start-todays-profit-text, #profile-total-profit').forEach(el => {
       el.textContent = `USD ${formatUSD(profitVal)}`;
     });
+
+    // Populate VIP medal badge and user name
+    const userLevel = parseInt(data.level || data.vip_level || (window.__currentUser && (window.__currentUser.vip_level || window.__currentUser.level)) || 1, 10);
+    const badgeMap = {
+      1: '/client/assets/img/bronze.png',
+      2: '/client/assets/img/silver.png',
+      3: '/client/assets/img/gold.png',
+      4: '/client/assets/img/diamond.png'
+    };
+    const badgeSrc = badgeMap[userLevel] || badgeMap[1];
+    document.querySelectorAll('.start-vip-badge, .vip-badge, .user-vip-badge').forEach(el => {
+      el.innerHTML = `<img src="${badgeSrc}" alt="VIP Level" style="width: 24px; height: 24px; vertical-align: middle; object-fit: contain;" />`;
+    });
+    const userName = data.username || (window.__currentUser && window.__currentUser.username) || '';
+    if (userName) {
+      document.querySelectorAll('.user-name-text, .user-name').forEach(el => {
+        el.textContent = userName;
+      });
+    }
 
     const completed = parseInt(data.today_tasks_completed || 0, 10);
     let setName = '1st Set:';
@@ -771,21 +791,22 @@
           const froz = res && (res.userFrozenBalance || res.deficit_amount);
           if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
             modal.style.display = 'none';
-            const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
+            const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
+            const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const balanceText = document.getElementById('start-total-balance-text');
-            if (balanceText) balanceText.innerHTML = `USDT -${deficitVal}`;
+            if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
             if (typeof Swal !== 'undefined') {
               Swal.fire({
                 title: "Account Limit Reached!",
                 icon: "info",
-                html: `Please contact <a target="_blank" href="contactData" autofocus>customer care service</a> to clear your balance of -${deficitVal} USDT.`,
+                html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
                 focusConfirm: false,
                 confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
               }).then(() => {
                 window.location.href = "startData";
               });
             } else {
-              alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${deficitVal} USDT.`);
+              alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
             }
             return;
           }
@@ -1111,70 +1132,193 @@
   }
 
   // RECORD PAGE HANDLER
+  // RECORD PAGE HANDLER - Matches authentic WhatsApp Image 07.10.37.jpeg & 07.10.38.jpeg
   async function initRecordPage(user) {
-    if (typeof loadTaskRecords === 'function') {
-      loadTaskRecords();
-      return;
-    }
     const tasksRes = await API.get('/api/tasks/records');
-    const container = document.getElementById('recordListContainer') || document.querySelector('.record-item-tab');
+    const allContainer = document.getElementById('allRecords') || document.querySelector('.record-item-tab');
+    const pendingContainer = document.getElementById('pendingRecords');
+    const completedContainer = document.getElementById('completedRecords');
 
-    if (!container || !tasksRes || !tasksRes.tasks) return;
+    if (!tasksRes || !tasksRes.tasks) return;
 
-    function renderTasks(records) {
-      if (records.length === 0) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 40px 20px; color: #888;">
-            <i class="fa fa-inbox" style="font-size: 38px; margin-bottom: 10px; opacity: 0.5;"></i>
-            <div>No transaction records found.</div>
-          </div>
-        `;
-        return;
+    function renderTaskCard(task) {
+      const isCompleted = task.status === 'completed' || task.status === 'approved';
+      let imgUrl = task.product_image || 'client/assets/uploads/products/outdoor_shed.jpg';
+      if (!imgUrl.startsWith('/') && !imgUrl.startsWith('http')) {
+        imgUrl = '/' + imgUrl;
       }
 
-      container.innerHTML = records.map(r => {
-        const isDeposit = r.type === 'deposit';
-        const isWithdrawal = r.type === 'withdrawal';
-        const iconBg = isDeposit ? '#e8f5e9' : (isWithdrawal ? '#fff3e0' : '#f0f7ff');
-        const iconColor = isDeposit ? '#2e7d32' : (isWithdrawal ? '#e65100' : '#007bff');
-        const iconText = isDeposit ? 'DEP' : (isWithdrawal ? 'WTH' : `#${r.order_num || 1}`);
+      const totalAmount = parseFloat(task.product_price || 0).toFixed(2);
+      const profit = parseFloat(task.commission_amount !== undefined ? task.commission_amount : (task.commission_earned || 0)).toFixed(2);
+      
+      let dateStr = task.created_at || 'Just now';
+      try {
+        const d = new Date(task.created_at);
+        if (!isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          let hours = d.getHours();
+          const mins = String(d.getMinutes()).padStart(2, '0');
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12;
+          hours = hours ? hours : 12;
+          const hStr = String(hours).padStart(2, '0');
+          dateStr = `${y}-${m}-${day} ${hStr}:${mins} ${ampm}`;
+        }
+      } catch (_) {}
 
-        const isCompleted = r.status === 'completed' || r.status === 'approved';
-        const isPending = r.status === 'pending';
-        const statusColor = isCompleted ? '#28a745' : (isPending ? '#ff9800' : '#dc3545');
+      const statusPill = isCompleted
+        ? `<div class="completed-pill-outline" style="border: 1px solid #4b5563; border-radius: 20px; padding: 3px 18px; font-size: 12px; color: #374151; background: transparent; text-transform: lowercase; font-weight: 500;">completed</div>`
+        : `<button type="button" data-id="${task.id}" class="submit-btn submit-btn-${task.id}" style="background: #16a34a; color: #fff; border: none; border-radius: 20px; padding: 4px 20px; font-size: 12px; font-weight: 700; cursor: pointer;">Submit</button>`;
 
-        return `
-          <div style="background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; gap: 12px; align-items: center;">
-              <div style="width: 44px; height: 44px; background: ${iconBg}; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: ${iconColor}; font-weight: 700; font-size: 13px;">
-                ${iconText}
-              </div>
-              <div>
-                <div style="font-weight: 600; font-size: 14px; color: #222; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.title}</div>
-                <div style="font-size: 12px; color: #888;">${new Date(r.created_at).toLocaleString()}</div>
-              </div>
+      return `
+        <div class="record-item-tab-field" id="record-${task.id}" style="background: #ffffff; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #f1f5f9;">
+          <div class="record-item-tab-field-up" style="display: flex; gap: 14px; align-items: flex-start;">
+            <img src="${imgUrl}" alt="" class="record-item-image" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" style="width: 76px; height: 76px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0; background: #f8fafc;">
+            <div class="record-item-description" style="font-size: 13.5px; font-weight: 700; color: #0f172a; line-height: 1.35; flex: 1; word-break: break-word;">${escapeHtml(task.product_name || task.title)}</div>
+          </div>
+          <div class="record-item-tab-field-down" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; margin-top: 12px; padding-top: 10px;">
+            <div class="record-item-tab-field-down-item">
+              <div class="tiny-text" style="color: #64748b; font-size: 12px; margin-bottom: 2px;">Total Amount</div>
+              <div class="small-text" style="font-weight: 700; font-size: 14.5px; color: #0f172a;">USD ${totalAmount}</div>
             </div>
-            <div style="text-align: right;">
-              <div style="font-weight: 700; color: ${isWithdrawal ? '#e53935' : '#28a745'}; font-size: 15px;">${r.amount}</div>
-              <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: ${statusColor};">
-                ${r.status}
-              </div>
+            <div class="record-item-tab-field-down-item" style="text-align: right;">
+              <div class="tiny-text" style="color: #64748b; font-size: 12px; margin-bottom: 2px;">Profit</div>
+              <div class="small-text" style="font-weight: 700; font-size: 14.5px; color: #0f172a;">USD ${profit}</div>
             </div>
           </div>
-        `;
-      }).join('');
+          <div class="record-item-tab-title" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 4px;">
+            <div class="record-item-tab-title-left" style="font-size: 12.5px; color: #475569;">${dateStr}</div>
+            <div class="record-item-tab-title-right">
+              ${statusPill}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
-    renderTasks(tasksRes.tasks);
+    function renderEmpty(msg) {
+      return `
+        <div style="background: #ffffff; border-radius: 12px; padding: 36px 16px; text-align: center; color: #64748b; font-size: 13.5px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); border: 1px solid #f1f5f9;">
+          ${msg}
+        </div>
+      `;
+    }
 
-    document.querySelectorAll('.record-nav-item').forEach((tab, index) => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.record-nav-item').forEach(t => t.classList.remove('record-nav-item-active'));
-        tab.classList.add('record-nav-item-active');
+    const allTasks = tasksRes.all_tasks || tasksRes.tasks || [];
+    const pendingTasks = allTasks.filter(t => t.status === 'pending');
+    const completedTasks = allTasks.filter(t => t.status === 'completed' || t.status === 'approved');
 
-        if (index === 0) renderTasks(tasksRes.tasks);
-        else if (index === 1) renderTasks(tasksRes.tasks.filter(t => t.status === 'pending'));
-        else if (index === 2) renderTasks(tasksRes.tasks.filter(t => t.status === 'completed' || t.status === 'approved'));
+    if (allContainer) {
+      allContainer.innerHTML = allTasks.length > 0 ? allTasks.map(renderTaskCard).join('') : renderEmpty('No order records found.');
+    }
+    if (pendingContainer) {
+      pendingContainer.innerHTML = pendingTasks.length > 0 ? pendingTasks.map(renderTaskCard).join('') : renderEmpty('No pending orders.');
+    }
+    if (completedContainer) {
+      completedContainer.innerHTML = completedTasks.length > 0 ? completedTasks.map(renderTaskCard).join('') : renderEmpty('No completed orders.');
+    }
+
+    // Attach tab switching handlers
+    const allBtn = document.getElementById('allBtn');
+    const pendingBtn = document.getElementById('pendingBtn');
+    const completedBtn = document.getElementById('completedBtn');
+
+    function setActiveTab(activeBtn, showContainer) {
+      [allBtn, pendingBtn, completedBtn].forEach(b => {
+        if (b) {
+          b.classList.remove('record-nav-item-active');
+          b.style.backgroundColor = '';
+          b.style.color = '#64748b';
+        }
+      });
+      [allContainer, pendingContainer, completedContainer].forEach(c => {
+        if (c) c.style.display = 'none';
+      });
+
+      if (activeBtn) {
+        activeBtn.classList.add('record-nav-item-active');
+        activeBtn.style.backgroundColor = '#f7e3ba';
+        activeBtn.style.color = '#0f172a';
+      }
+      if (showContainer) {
+        showContainer.style.display = 'flex';
+        showContainer.style.flexDirection = 'column';
+        showContainer.style.gap = '14px';
+      }
+    }
+
+    if (allBtn) allBtn.onclick = () => setActiveTab(allBtn, allContainer);
+    if (pendingBtn) pendingBtn.onclick = () => setActiveTab(pendingBtn, pendingContainer);
+    if (completedBtn) completedBtn.onclick = () => setActiveTab(completedBtn, completedContainer);
+
+    // Initial state: All active
+    setActiveTab(allBtn, allContainer);
+
+    // Attach submit handlers for pending tasks
+    document.querySelectorAll('.submit-btn').forEach(btn => {
+      btn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const taskId = this.getAttribute('data-id');
+        if (!taskId) return;
+        this.disabled = true;
+        this.textContent = 'Submitting...';
+
+        try {
+          const res = await API.post('/api/tasks/submit', { taskId });
+          this.disabled = false;
+          this.textContent = 'Submit';
+
+          if (res && res.success) {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                title: 'Success!',
+                text: res.message || 'Your order submitted successfully.',
+                icon: 'success',
+                confirmButtonColor: '#16a34a'
+              }).then(() => { initRecordPage(user); });
+            } else {
+              alert(res.message || 'Your order submitted successfully.');
+              initRecordPage(user);
+            }
+          } else {
+            const froz = res && (res.userFrozenBalance || res.deficit_amount);
+            if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+              const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
+              const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  title: "Account Limit Reached!",
+                  icon: "info",
+                  html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
+                  focusConfirm: false,
+                  confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`
+                });
+              } else {
+                alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
+              }
+            } else {
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  title: 'Notice',
+                  text: (res && res.message) || 'Insufficient balance or task could not be submitted.',
+                  icon: 'warning'
+                });
+              } else {
+                alert((res && res.message) || 'Insufficient balance or task could not be submitted.');
+              }
+            }
+          }
+        } catch (err) {
+          this.disabled = false;
+          this.textContent = 'Submit';
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Error!', 'Network error processing your request.', 'error');
+          } else {
+            alert('Network error processing your request.');
+          }
+        }
       });
     });
   }
@@ -1384,8 +1528,9 @@
       #nativeChatFloatingBtn {
         position: fixed;
         right: 0;
-        top: 40%;
-        background: #00c853;
+        top: 45%;
+        transform: translateY(-50%);
+        background: #00a650;
         color: #ffffff;
         border-radius: 8px 0 0 8px;
         padding: 10px 6px 12px 6px;
@@ -1393,8 +1538,8 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        box-shadow: -3px 4px 14px rgba(0, 0, 0, 0.22);
+        gap: 3px;
+        box-shadow: -2px 4px 14px rgba(0, 166, 80, 0.35);
         cursor: pointer;
         z-index: 999998;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -1403,37 +1548,81 @@
         user-select: none;
       }
       #nativeChatFloatingBtn:hover {
-        transform: translateX(-4px);
-        box-shadow: -4px 6px 18px rgba(0, 200, 83, 0.45);
+        transform: translateY(-50%) translateX(-3px);
+        box-shadow: -3px 6px 18px rgba(0, 166, 80, 0.5);
       }
       #nativeChatFloatingBtn:active {
-        transform: scale(0.97);
+        transform: translateY(-50%) scale(0.97);
       }
       .native-chat-label {
         display: inline-block;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 14.5px;
         line-height: 1;
         color: #ffffff;
         writing-mode: vertical-rl;
         transform: rotate(180deg);
         letter-spacing: 0.5px;
-        margin: 4px 0;
+        margin: 4px 0 6px 0;
       }
       #nativeChatBadge {
-        background: #e11d48;
+        position: absolute;
+        top: -7px;
+        left: -7px;
+        background: #e02424;
         color: #fff;
         font-size: 11px;
         font-weight: 800;
-        width: 18px;
-        height: 18px;
+        width: 19px;
+        height: 19px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 1.5px solid #fff;
+        border: 2px solid #fff;
         box-shadow: 0 2px 5px rgba(0,0,0,0.25);
-        margin-bottom: 2px;
+      }
+      #nativeChatPromptBox {
+        position: fixed;
+        right: 46px;
+        top: 45%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-radius: 12px;
+        padding: 10px 14px 12px 14px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        z-index: 999997;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .native-chat-prompt-header {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #1f2937;
+        white-space: nowrap;
+        align-self: flex-start;
+      }
+      .native-chat-prompt-chip {
+        background: #ffffff;
+        border: 1.5px solid #00a650;
+        color: #00a650;
+        border-radius: 20px;
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        outline: none;
+      }
+      .native-chat-prompt-chip:hover, .native-chat-prompt-chip:active {
+        background: #00a650;
+        color: #ffffff;
       }
       #nativeChatWindow {
         position: fixed;
@@ -1455,9 +1644,21 @@
       }
       @media (max-width: 480px) {
         #nativeChatFloatingBtn {
-          top: 42%;
+          top: 45%;
           right: 0;
           padding: 8px 5px 10px 5px;
+        }
+        #nativeChatPromptBox {
+          right: 38px;
+          padding: 8px 10px 10px 10px;
+          gap: 6px;
+        }
+        .native-chat-prompt-header {
+          font-size: 12px;
+        }
+        .native-chat-prompt-chip {
+          font-size: 11px;
+          padding: 4px 10px;
         }
         #nativeChatWindow {
           bottom: 76px;
@@ -1493,21 +1694,21 @@
       }
       .native-chat-agent-name {
         font-weight: 700;
-        font-size: 15px;
-        line-height: 1.2;
+        font-size: 14.5px;
       }
       .native-chat-agent-status {
-        font-size: 11px;
+        font-size: 11.5px;
         opacity: 0.9;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 5px;
       }
       .native-chat-status-dot {
         width: 7px;
         height: 7px;
-        background: #4ade80;
         border-radius: 50%;
+        background: #22c55e;
+        display: inline-block;
       }
       .native-chat-actions button {
         background: none;
@@ -1515,18 +1716,19 @@
         color: #ffffff;
         font-size: 20px;
         cursor: pointer;
-        padding: 4px 6px;
-        opacity: 0.85;
+        padding: 2px 6px;
+        line-height: 1;
+        opacity: 0.8;
       }
       .native-chat-actions button:hover { opacity: 1; }
       .native-chat-messages {
         flex: 1;
         padding: 16px;
         overflow-y: auto;
-        background: #f8fafc;
         display: flex;
         flex-direction: column;
         gap: 12px;
+        background: #f8fafc;
       }
       .native-chat-bubble {
         max-width: 80%;
@@ -1595,18 +1797,26 @@
     `;
     document.head.appendChild(style);
 
-    // Create Floating Trigger Button with Reliable Crisp SVG Icon
+    // Create Floating Trigger Button with Authentic Right-Edge Vertical Tab
     const floatBtn = document.createElement('div');
     floatBtn.id = 'nativeChatFloatingBtn';
     floatBtn.title = 'Live Support Chat';
     floatBtn.innerHTML = `
       <span id="nativeChatBadge">1</span>
       <span class="native-chat-label">Chat</span>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-      </svg>
+      <img src="/client/assets/img/icons/chat_agent_avatar.png" alt="Support" style="width: 25px; height: 32px; object-fit: contain; margin-top: 3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));" onerror="this.src='/client/assets/img/icons/customer-service1.svg';">
     `;
     document.body.appendChild(floatBtn);
+
+    // Create Floating Prompt Box next to tab (matches WhatsApp Image 2026-09-07 at 07.10.28.jpeg)
+    const promptBox = document.createElement('div');
+    promptBox.id = 'nativeChatPromptBox';
+    promptBox.innerHTML = `
+      <div class="native-chat-prompt-header">👋 Hi! How can we help?</div>
+      <button type="button" class="native-chat-prompt-chip" id="nativeChatChipQuestion">I have a question</button>
+      <button type="button" class="native-chat-prompt-chip" id="nativeChatChipMore">Tell me more</button>
+    `;
+    document.body.appendChild(promptBox);
 
     // Create Chat Window with Reliable Crisp SVG Send Icon
     const chatWin = document.createElement('div');
@@ -1614,7 +1824,7 @@
     chatWin.innerHTML = `
       <div class="native-chat-header">
         <div class="native-chat-agent">
-          <img src="/client/assets/img/icons/customer-service1.svg" alt="Support Agent" onerror="this.style.display='none'" />
+          <img src="/client/assets/img/icons/chat_agent_avatar.png" alt="Support Agent" style="width: 38px; height: 38px; border-radius: 50%; background: #ffffff; object-fit: contain; padding: 2px;" onerror="this.src='/client/assets/img/icons/customer-service1.svg'" />
           <div class="native-chat-agent-info">
             <span class="native-chat-agent-name">Official Support</span>
             <span class="native-chat-agent-status"><span class="native-chat-status-dot"></span> Admin Online</span>
@@ -1649,6 +1859,7 @@
       chatWin.style.display = chatOpen ? 'flex' : 'none';
       if (chatOpen) {
         floatBtn.style.display = 'none';
+        if (promptBox) promptBox.style.display = 'none';
         const chatBadge = document.getElementById('nativeChatBadge');
         if (chatBadge) chatBadge.style.display = 'none';
         API.post('/api/user/chat/read', {});
@@ -1661,6 +1872,7 @@
         }, 100);
       } else {
         floatBtn.style.display = 'flex';
+        if (promptBox) promptBox.style.display = 'flex';
         if (pollInterval) {
           clearInterval(pollInterval);
           pollInterval = null;
@@ -1670,6 +1882,26 @@
 
     floatBtn.addEventListener('click', () => toggleChat(true));
     document.getElementById('nativeChatCloseBtn').addEventListener('click', () => toggleChat(false));
+
+    const chipQ = document.getElementById('nativeChatChipQuestion');
+    if (chipQ) {
+      chipQ.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleChat(true);
+        const input = document.getElementById('nativeChatTextInput');
+        if (input) { input.value = 'I have a question'; input.focus(); }
+      });
+    }
+
+    const chipM = document.getElementById('nativeChatChipMore');
+    if (chipM) {
+      chipM.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleChat(true);
+        const input = document.getElementById('nativeChatTextInput');
+        if (input) { input.value = 'Tell me more'; input.focus(); }
+      });
+    }
 
     // Also bind click on any element with id/class for online chat (e.g. on contact.html)
     document.querySelectorAll('.contact-item, #onlineChatTrigger, [onclick*="tawk"]').forEach(el => {
