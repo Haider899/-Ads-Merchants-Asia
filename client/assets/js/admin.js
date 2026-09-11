@@ -680,21 +680,95 @@
     const pushImm = document.getElementById('assignTaskPushImmediate');
     if (pushImm) pushImm.checked = true;
     AdminUI.openModal('assignTaskModal');
+    // Initialize the 10-category tab preset UI
+    setTimeout(() => window.initCategoryPresetTabs(savedCategory || 'outdoor'), 50);
   };
 
   window.selectPresetTaskProduct = function(name, price, deficit) {
-    const categoryEl = document.getElementById('assignTaskProductCategory');
-    const categoryProductEl = document.getElementById('assignTaskCategoryProduct');
-    if (categoryEl) categoryEl.value = '';
-    if (categoryProductEl) {
-      categoryProductEl.innerHTML = '<option value="">Select category first</option>';
-      categoryProductEl.disabled = true;
-    }
     document.getElementById('assignTaskProductName').value = name;
     document.getElementById('assignTaskProductPrice').value = price.toFixed(2);
     if (deficit !== undefined) {
       document.getElementById('assignTaskDeficitAmount').value = deficit.toFixed(2);
     }
+    // Visual feedback - flash the fields
+    ['assignTaskProductName', 'assignTaskProductPrice'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.background = '#fef3c7'; setTimeout(() => el.style.background = '', 600); }
+    });
+  };
+
+  // Category preset tab definitions
+  const PRESET_CATEGORIES = [
+    { key: 'outdoor',             emoji: '📦', label: 'Outdoor' },
+    { key: 'high_ticket',         emoji: '💎', label: 'High Ticket' },
+    { key: 'premium_electronics', emoji: '📱', label: 'Premium Tech' },
+    { key: 'mobile_audio',        emoji: '🎧', label: 'Audio' },
+    { key: 'home_kitchen',        emoji: '🏠', label: 'Home' },
+    { key: 'gaming_entertainment',emoji: '🎮', label: 'Gaming' },
+    { key: 'fashion_travel',      emoji: '👜', label: 'Fashion' },
+    { key: 'beauty_health',       emoji: '💄', label: 'Beauty' },
+    { key: 'tools',               emoji: '🔧', label: 'Tools' },
+    { key: 'budget',              emoji: '🛒', label: 'Budget' }
+  ];
+
+  window.initCategoryPresetTabs = function(defaultCat) {
+    const tabsRow = document.getElementById('categoryTabsRow');
+    if (!tabsRow) return;
+    tabsRow.innerHTML = '';
+    PRESET_CATEGORIES.forEach((cat, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.cat = cat.key;
+      const isFirst = i === 0;
+      btn.className = 'cat-tab-btn';
+      btn.textContent = `${cat.emoji} ${cat.label}`;
+      Object.assign(btn.style, {
+        padding: '4px 10px', fontSize: '11px', borderRadius: '20px',
+        border: '1.5px solid ' + (isFirst ? '#f59e0b' : '#cbd5e1'),
+        background: isFirst ? '#f59e0b' : '#fff',
+        color: isFirst ? '#fff' : '#475569',
+        fontWeight: isFirst ? '700' : '600', cursor: 'pointer', transition: 'all .15s'
+      });
+      btn.onclick = () => window.switchPresetCategory(btn, cat.key);
+      tabsRow.appendChild(btn);
+    });
+    window.switchPresetCategory(tabsRow.querySelector('[data-cat="' + (defaultCat || 'outdoor') + '"]') || tabsRow.firstChild, defaultCat || 'outdoor');
+  };
+
+  window.switchPresetCategory = function(btn, catKey) {
+    // Update tab styles
+    document.querySelectorAll('.cat-tab-btn').forEach(b => {
+      Object.assign(b.style, { background: '#fff', color: '#475569', border: '1.5px solid #cbd5e1', fontWeight: '600' });
+    });
+    if (btn) Object.assign(btn.style, { background: '#f59e0b', color: '#fff', border: '1.5px solid #f59e0b', fontWeight: '700' });
+
+    // Render products for this category
+    const row = document.getElementById('categoryProductsRow');
+    if (!row) return;
+    const cat = TASK_PRODUCT_CATEGORIES[catKey];
+    if (!cat || !cat.products || cat.products.length === 0) {
+      row.innerHTML = '<span style="color:#94a3b8;font-size:12px;">No products in this category.</span>';
+      return;
+    }
+    row.innerHTML = cat.products.map(([name, price]) => {
+      const shortName = name.length > 40 ? name.slice(0, 40) + '…' : name;
+      const encoded = encodeURIComponent(JSON.stringify([name, price]));
+      return `<button type="button" onclick="window._applyPreset(${JSON.stringify([name, price])})"
+        style="padding:5px 10px;font-size:11.5px;border-radius:8px;border:1px solid #f59e0b;background:#fff;
+        color:#b45309;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;"
+        onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#fff'"
+        title="${name.replace(/"/g,'&quot;')}">
+        $${price.toFixed(2)} &mdash; ${shortName}
+      </button>`;
+    }).join('');
+
+    // Also sync the form category dropdown
+    const catEl = document.getElementById('assignTaskProductCategory');
+    if (catEl) catEl.value = catKey;
+  };
+
+  window._applyPreset = function([name, price]) {
+    window.selectPresetTaskProduct(name, price, price);
   };
 
   window.populateAssignTaskCategoryProducts = function() {
