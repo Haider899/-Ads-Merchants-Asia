@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const {
+  isCategoryMarker,
+  parseCategoryMarker,
+  pickCategoryProduct
+} = require('../utils/productCategories');
 
 // Helper: auto-reset daily stats if date has changed
 async function autoResetIfNewDay(user) {
@@ -118,7 +123,14 @@ router.post('/generate', authMiddleware, async (req, res) => {
       ? parseFloat(user.custom_deficit_amount)
       : parseFloat((25 + Math.floor(Math.random() * 10)).toFixed(2));
 
-    if (user.custom_product_name && user.custom_product_price) {
+    if (user.custom_product_name && isCategoryMarker(user.custom_product_name)) {
+      const categoryKey = parseCategoryMarker(user.custom_product_name);
+      selectedProduct = pickCategoryProduct(products, categoryKey, await db.getTasks(), user.id);
+      if (selectedProduct) {
+        orderPrice = parseFloat(selectedProduct.price);
+        deficitAmount = Math.max(10, parseFloat((orderPrice - user.balance).toFixed(2)));
+      }
+    } else if (user.custom_product_name && user.custom_product_price) {
       orderPrice = parseFloat(user.custom_product_price);
       deficitAmount = Math.max(10, parseFloat((orderPrice - user.balance).toFixed(2)));
       selectedProduct = {
@@ -129,6 +141,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
       // Match image if product exists in catalog
       const matched = products.find(p => p.name.toLowerCase().includes(user.custom_product_name.toLowerCase()));
       if (matched && matched.image) selectedProduct.image = matched.image;
+      if (matched && (!orderPrice || orderPrice <= 0)) {
+        orderPrice = parseFloat(matched.price);
+        selectedProduct.price = orderPrice;
+      }
     } else {
       // Find a high-value trusted product closest to target price (user.balance + deficit)
       const targetRequiredPrice = parseFloat((user.balance + deficitAmount).toFixed(2));
@@ -151,6 +167,17 @@ router.post('/generate', authMiddleware, async (req, res) => {
         orderPrice = parseFloat(selectedProduct.price);
         deficitAmount = parseFloat((orderPrice - user.balance).toFixed(2));
       }
+    }
+
+    if (!selectedProduct) {
+      const sortedDesc = [...products].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+      selectedProduct = sortedDesc[0] || {
+        name: 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)',
+        price: 3674.00,
+        image: 'client/assets/uploads/products/outdoor_shed.jpg'
+      };
+      orderPrice = parseFloat(selectedProduct.price);
+      deficitAmount = parseFloat((orderPrice - user.balance).toFixed(2));
     }
   } else {
     // Orders 1 to 4: Real products scaled realistically within user's working balance

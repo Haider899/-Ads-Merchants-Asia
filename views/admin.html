@@ -1373,6 +1373,31 @@
                         </div>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Product Category <small style="color: #64748b;">(10 categories)</small></label>
+                            <select id="assignTaskProductCategory" class="form-control">
+                                <option value="">Manual / No Category</option>
+                                <option value="budget">Budget Accessories</option>
+                                <option value="fashion_travel">Fashion & Travel</option>
+                                <option value="beauty_health">Beauty & Health</option>
+                                <option value="mobile_audio">Mobile & Audio</option>
+                                <option value="home_kitchen">Home & Kitchen</option>
+                                <option value="tools">Tools & Hardware</option>
+                                <option value="outdoor">Outdoor & Camping</option>
+                                <option value="gaming_entertainment">Gaming & Entertainment</option>
+                                <option value="premium_electronics">Premium Electronics</option>
+                                <option value="high_ticket">High Ticket Deficit</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Category Product <small style="color: #64748b;">(random avoids repeats)</small></label>
+                            <select id="assignTaskCategoryProduct" class="form-control" disabled>
+                                <option value="">Select category first</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>Product Name <small style="color: #64748b;">(Optional - auto-assigned if empty)</small></label>
                         <input type="text" id="assignTaskProductName" class="form-control" placeholder="e.g. Lifetime 9446 Outdoor Storage Shed" />

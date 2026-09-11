@@ -5,6 +5,11 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { adminAuthMiddleware, isUserOnline, getActiveSessions, JWT_SECRET } = require('../middleware/auth');
 const geo = require('../utils/geo');
+const {
+  getCategory,
+  makeCategoryMarker,
+  pickCategoryProduct
+} = require('../utils/productCategories');
 
 // Role-based permission guard helper
 function checkRole(...allowedRoles) {
@@ -370,7 +375,7 @@ router.post('/users/reset-password', adminAuthMiddleware, checkRole('sub_admin')
 // POST /api/admin/users/assign-task - Assign / push task with forced deficit or schedule custom task
 router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
-    const { userId, orderNum, deficitAmount, productName, productPrice, pushImmediate, clearCustom } = req.body;
+    const { userId, orderNum, deficitAmount, productName, productPrice, productCategory, categoryProduct, pushImmediate, clearCustom } = req.body;
 
     if (!userId) {
       return res.status(400).json({ success: false, message: 'User ID is required.' });
@@ -399,10 +404,27 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
 
     // Get catalog products to match images or fallback
     const products = await db.getProducts();
+    const allTasks = await db.getTasks().catch(() => []);
+    const selectedCategory = getCategory(productCategory);
 
     let pName = (productName || '').trim();
     let pPrice = parseFloat(productPrice) || 0;
     let pImage = 'client/assets/uploads/products/outdoor_shed.jpg';
+    let categoryKey = selectedCategory ? productCategory : '';
+    const explicitCategoryProduct = categoryProduct && categoryProduct !== '__random__' ? String(categoryProduct).trim() : '';
+
+    if (categoryKey && explicitCategoryProduct && !pName) {
+      pName = explicitCategoryProduct;
+    }
+
+    if (categoryKey && !pName) {
+      const picked = pickCategoryProduct(products, categoryKey, allTasks, user.id);
+      if (picked) {
+        pName = picked.name;
+        pPrice = parseFloat(picked.price) || pPrice;
+        pImage = picked.image || pImage;
+      }
+    }
 
     if (!pName) {
       // Default to high-value deficit product matching client screenshots
@@ -418,7 +440,10 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
       }
     } else {
       const match = products.find(p => p.name.toLowerCase().includes(pName.toLowerCase()));
-      if (match && match.image) pImage = match.image;
+      if (match) {
+        if (match.image) pImage = match.image;
+        if (!pPrice || pPrice <= 0) pPrice = parseFloat(match.price) || pPrice;
+      }
     }
 
     if (!pPrice || pPrice <= 0) {
@@ -477,13 +502,15 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
       await db.updateUser(userId, {
         custom_order_num: targetOrder,
         custom_deficit_amount: defAmount,
-        custom_product_name: pName,
+        custom_product_name: categoryKey && !explicitCategoryProduct ? makeCategoryMarker(categoryKey) : pName,
         custom_product_price: pPrice
       });
 
       return res.json({
         success: true,
-        message: `Smart task override scheduled for Order #${targetOrder} (Deficit: $${defAmount.toFixed(2)}, Price: $${pPrice.toFixed(2)}).`
+        message: categoryKey && !explicitCategoryProduct
+          ? `Smart task override scheduled for Order #${targetOrder}. Product will be randomly selected from ${selectedCategory.label} without repeating where possible.`
+          : `Smart task override scheduled for Order #${targetOrder} (Deficit: $${defAmount.toFixed(2)}, Price: $${pPrice.toFixed(2)}).`
       });
     }
   } catch (err) {

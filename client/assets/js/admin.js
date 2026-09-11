@@ -6,6 +6,111 @@
 (function() {
   'use strict';
 
+  const CATEGORY_MARKER = '__CATEGORY__:';
+  const CATEGORY_RANDOM_VALUE = '__random__';
+  const TASK_PRODUCT_CATEGORIES = {
+    budget: {
+      label: 'Budget Accessories',
+      products: [
+        ['DAIMOND PRODUCT 1', 9.00],
+        ['Stanley Quencher Reusable Straw Replacement Pack, BPA-Free Tritan (4-Pack)', 9.99],
+        ['Logitech M185 Wireless Compact Mouse with Nano USB Receiver, 2.4GHz, Grey', 12.99],
+        ['Anker Powerline III USB-C to USB-C 100W Fast Charging Cable 6ft (2-Pack)', 14.99],
+        ['Ringke Onyx Heavy Duty Shockproof Matte Finish Protective Case for Smartphones', 16.99],
+        ['SanDisk 128GB Extreme PRO MicroSDXC UHS-I Memory Card with Adapter up to 200MB/s', 18.99],
+        ['Anker Nano 30W USB-C GaN Fast Charger, Compact Foldable Plug for Phones & Tablets', 22.99],
+        ['Contigo West Loop Stainless Steel Vacuum-Insulated Autoseal Travel Mug 20oz, Matte Black', 23.99],
+        ['Echo Pop Compact Smart Speaker with Full Sound and Alexa Built-in, Charcoal', 24.99]
+      ]
+    },
+    fashion_travel: {
+      label: 'Fashion & Travel',
+      products: [
+        ['Garment Bags for Travel, Convertible Carry on Garment Bag with Shoe Compartment, SOLOSAIC Garment Duffle Bags for Travel for Men Women, 2 in 1 Hanging Dress Suitcase Suit Bag with Toiletry Bag, Black', 11.00],
+        ['Levi\'s Men\'s The Trucker Denim Jacket, Standard Fit, Dark Stonewash', 79.99]
+      ]
+    },
+    beauty_health: {
+      label: 'Beauty & Health',
+      products: [
+        ['CeraVe Daily Moisturizing Lotion with Hyaluronic Acid for Normal to Dry Skin 16oz', 15.99],
+        ['L\'Oreal Paris Revitalift 1.5% Pure Hyaluronic Acid Face Serum for Anti-Aging 1 fl oz', 21.99],
+        ['Oral-B Pro 1000 CrossAction Electric Rechargeable Toothbrush with Pressure Sensor', 49.99]
+      ]
+    },
+    mobile_audio: {
+      label: 'Mobile & Audio',
+      products: [
+        ['JBL GO 4 Ultra-Portable Waterproof and Dustproof Bluetooth Speaker, Black', 39.95],
+        ['Amazon Fire TV Stick 4K Streaming Media Player with Alexa Voice Remote (Latest Gen)', 49.99],
+        ['Soundcore by Anker Life P3 Active Noise Cancelling True Wireless Earbuds, Black', 69.99],
+        ['Apple AirPods Pro (2nd Generation) Wireless Earbuds with MagSafe Case (USB-C)', 249.00],
+        ['Sony WH-1000XM5 Wireless Noise-Canceling Over-Ear Headphones, Black', 398.00],
+        ['Bose Smart Ultra Soundbar with Dolby Atmos and Voice Control, Black Wireless', 899.00]
+      ]
+    },
+    home_kitchen: {
+      label: 'Home & Kitchen',
+      products: [
+        ['Crock-Pot 7-Quart Oval Manual Slow Cooker, Brushed Stainless Steel Exterior', 49.99],
+        ['Shark NV360 Navigator Lift-Away Deluxe Upright Vacuum with Anti-Allergen Seal, Blue', 199.99],
+        ['Ninja Foodi 10-in-1 DualZone 2-Basket Air Fryer XL, 10-Qt Capacity', 249.99],
+        ['KitchenAid Artisan Series 5-Quart Tilt-Head Stand Mixer, Stainless Steel Bowl, Empire Red', 449.95],
+        ['Dyson V15 Detect Cordless Vacuum Cleaner with Laser Dust Detection, Yellow/Iron', 749.99],
+        ['Breville Barista Touch Espresso Machine, Brushed Stainless Steel, Touch Screen', 999.95]
+      ]
+    },
+    tools: {
+      label: 'Tools & Hardware',
+      products: [
+        ['BLACK+DECKER 20V MAX Cordless Drill and Driver Kit with 30-Piece Accessory Set', 49.99],
+        ['DeWalt 20V MAX Cordless Drill and Impact Driver Combo Kit, 2-Tool with 2.0Ah Batteries', 229.00]
+      ]
+    },
+    outdoor: {
+      label: 'Outdoor & Camping',
+      products: [
+        ['Coleman WeatherMaster 10-Person Outdoor Camping Tent with Screen Room', 329.99],
+        ['Anker SOLIX C1000 Portable Power Station, 1800W Solar Generator, 1056Wh LiFePO4', 649.00],
+        ['EcoFlow Glacier Portable Refrigerator 40L with Integrated Ice Maker Dual Zone', 849.00],
+        ['Segway Ninebot KickScooter MAX G2, 22 mph Max Speed, 43 Miles Long Range', 899.99],
+        ['Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)', 3674.00]
+      ]
+    },
+    gaming_entertainment: {
+      label: 'Gaming & Entertainment',
+      products: [
+        ['Sony PlayStation 5 Slim Console (PS5 Disc Edition) 1TB SSD with DualSense Controller', 499.99],
+        ['LG 34-Inch UltraWide Curved Gaming Monitor 144Hz 1ms Nano IPS QHD, G-SYNC', 799.99]
+      ]
+    },
+    premium_electronics: {
+      label: 'Premium Electronics',
+      products: [
+        ['DJI Mini 4 Pro Fly More Combo Drone with DJI RC 2, 4K HDR Video', 1099.00],
+        ['Apple iPhone 16 Pro Max 256GB - Desert Titanium, 5G Unlocked', 1199.00],
+        ['Apple MacBook Air 15-inch Laptop with M3 chip, 16GB Memory, 512GB SSD, Midnight', 1499.00],
+        ['Samsung 65-Inch Class OLED 4K S90D Series HDR+ Smart TV with Dolby Atmos', 1597.99],
+        ['Canon EOS R6 Mark II Mirrorless Camera with 24-105mm STM Lens, 24.2 MP, 4K60p', 2399.00]
+      ]
+    },
+    high_ticket: {
+      label: 'High Ticket Deficit',
+      products: [
+        ['Anker SOLIX C1000 Portable Power Station, 1800W Solar Generator, 1056Wh LiFePO4', 649.00],
+        ['Dyson V15 Detect Cordless Vacuum Cleaner with Laser Dust Detection, Yellow/Iron', 749.99],
+        ['Bose Smart Ultra Soundbar with Dolby Atmos and Voice Control, Black Wireless', 899.00],
+        ['Breville Barista Touch Espresso Machine, Brushed Stainless Steel, Touch Screen', 999.95],
+        ['DJI Mini 4 Pro Fly More Combo Drone with DJI RC 2, 4K HDR Video', 1099.00],
+        ['Apple iPhone 16 Pro Max 256GB - Desert Titanium, 5G Unlocked', 1199.00],
+        ['Samsung 65-Inch Class OLED 4K S90D Series HDR+ Smart TV with Dolby Atmos', 1597.99],
+        ['Bulk 15000 PCS Foam Glow Sticks with 3 Modes Colorful Flashing, Glow in Dark Party Supplies', 1856.00],
+        ['Canon EOS R6 Mark II Mirrorless Camera with 24-105mm STM Lens, 24.2 MP, 4K60p', 2399.00],
+        ['Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)', 3674.00]
+      ]
+    }
+  };
+
   // UI Dialog & Modal Controller
   window.AdminUI = {
     openModal: function(modalId) {
@@ -559,19 +664,84 @@
     document.getElementById('assignTaskUserName').value = `${user.fullname || user.username} (@${user.username}) - Working Balance: $${bal.toFixed(2)}`;
     document.getElementById('assignTaskOrderNum').value = user.custom_order_num || (user.today_tasks_completed + 1 || 5);
     document.getElementById('assignTaskDeficitAmount').value = (user.custom_deficit_amount !== null && user.custom_deficit_amount !== undefined) ? user.custom_deficit_amount : '25.00';
-    document.getElementById('assignTaskProductName').value = user.custom_product_name || '';
+    const customProductName = user.custom_product_name || '';
+    const savedCategory = customProductName.startsWith(CATEGORY_MARKER) ? customProductName.slice(CATEGORY_MARKER.length) : '';
+    document.getElementById('assignTaskProductName').value = savedCategory ? '' : customProductName;
     document.getElementById('assignTaskProductPrice').value = user.custom_product_price || '';
+    const categoryEl = document.getElementById('assignTaskProductCategory');
+    const categoryProductEl = document.getElementById('assignTaskCategoryProduct');
+    if (categoryEl) categoryEl.value = TASK_PRODUCT_CATEGORIES[savedCategory] ? savedCategory : '';
+    if (categoryEl && categoryEl.value) {
+      window.populateAssignTaskCategoryProducts();
+    } else if (categoryProductEl) {
+      categoryProductEl.innerHTML = '<option value="">Select category first</option>';
+      categoryProductEl.disabled = true;
+    }
     const pushImm = document.getElementById('assignTaskPushImmediate');
     if (pushImm) pushImm.checked = true;
     AdminUI.openModal('assignTaskModal');
   };
 
   window.selectPresetTaskProduct = function(name, price, deficit) {
+    const categoryEl = document.getElementById('assignTaskProductCategory');
+    const categoryProductEl = document.getElementById('assignTaskCategoryProduct');
+    if (categoryEl) categoryEl.value = '';
+    if (categoryProductEl) {
+      categoryProductEl.innerHTML = '<option value="">Select category first</option>';
+      categoryProductEl.disabled = true;
+    }
     document.getElementById('assignTaskProductName').value = name;
     document.getElementById('assignTaskProductPrice').value = price.toFixed(2);
     if (deficit !== undefined) {
       document.getElementById('assignTaskDeficitAmount').value = deficit.toFixed(2);
     }
+  };
+
+  window.populateAssignTaskCategoryProducts = function() {
+    const categoryEl = document.getElementById('assignTaskProductCategory');
+    const productEl = document.getElementById('assignTaskCategoryProduct');
+    const productNameEl = document.getElementById('assignTaskProductName');
+    const productPriceEl = document.getElementById('assignTaskProductPrice');
+    if (!categoryEl || !productEl) return;
+
+    const categoryKey = categoryEl.value;
+    const category = TASK_PRODUCT_CATEGORIES[categoryKey];
+    productEl.innerHTML = '';
+
+    if (!category) {
+      productEl.disabled = true;
+      productEl.innerHTML = '<option value="">Select category first</option>';
+      return;
+    }
+
+    productEl.disabled = false;
+    productEl.appendChild(new Option(`Random from ${category.label}`, CATEGORY_RANDOM_VALUE));
+    category.products.forEach(([name, price]) => {
+      productEl.appendChild(new Option(`${name.slice(0, 72)}${name.length > 72 ? '...' : ''} ($${price.toFixed(2)})`, name));
+    });
+
+    if (productNameEl) productNameEl.value = '';
+    if (productPriceEl) productPriceEl.value = '';
+  };
+
+  window.applyAssignTaskCategoryProduct = function() {
+    const categoryEl = document.getElementById('assignTaskProductCategory');
+    const productEl = document.getElementById('assignTaskCategoryProduct');
+    const productNameEl = document.getElementById('assignTaskProductName');
+    const productPriceEl = document.getElementById('assignTaskProductPrice');
+    if (!categoryEl || !productEl || !productNameEl || !productPriceEl) return;
+
+    const category = TASK_PRODUCT_CATEGORIES[categoryEl.value];
+    if (!category || !productEl.value || productEl.value === CATEGORY_RANDOM_VALUE) {
+      productNameEl.value = '';
+      productPriceEl.value = '';
+      return;
+    }
+
+    const selected = category.products.find(([name]) => name === productEl.value);
+    if (!selected) return;
+    productNameEl.value = selected[0];
+    productPriceEl.value = selected[1].toFixed(2);
   };
 
   window.clearUserCustomTask = async function() {
@@ -1533,6 +1703,15 @@
     // Assign Task / Deficit Form
     const assignTaskForm = document.getElementById('assignTaskForm');
     if (assignTaskForm) {
+      const assignTaskProductCategory = document.getElementById('assignTaskProductCategory');
+      const assignTaskCategoryProduct = document.getElementById('assignTaskCategoryProduct');
+      if (assignTaskProductCategory) {
+        assignTaskProductCategory.addEventListener('change', window.populateAssignTaskCategoryProducts);
+      }
+      if (assignTaskCategoryProduct) {
+        assignTaskCategoryProduct.addEventListener('change', window.applyAssignTaskCategoryProduct);
+      }
+
       assignTaskForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const userId = document.getElementById('assignTaskUserId').value;
@@ -1540,6 +1719,8 @@
         const deficitAmount = document.getElementById('assignTaskDeficitAmount').value;
         const productName = document.getElementById('assignTaskProductName').value;
         const productPrice = document.getElementById('assignTaskProductPrice').value;
+        const productCategory = document.getElementById('assignTaskProductCategory')?.value || '';
+        const categoryProduct = document.getElementById('assignTaskCategoryProduct')?.value || '';
         const pushImmediate = document.getElementById('assignTaskPushImmediate')?.checked || false;
 
         const res = await AdminAPI.post('/api/admin/users/assign-task', {
@@ -1548,6 +1729,8 @@
           deficitAmount,
           productName,
           productPrice,
+          productCategory,
+          categoryProduct,
           pushImmediate
         });
 
