@@ -333,6 +333,9 @@
 
     const allTabs = {
       tabUsers: document.getElementById('tabBtnUsers'),
+      tabOrders: document.getElementById('tabBtnOrders'),
+      tabProducts: document.getElementById('tabBtnProducts'),
+      tabAudit: document.getElementById('tabBtnAudit'),
       tabSessions: document.getElementById('tabBtnSessions'),
       tabStaff: document.getElementById('tabBtnStaff'),
       tabChat: document.getElementById('tabBtnChat'),
@@ -342,25 +345,19 @@
       tabSettings: document.getElementById('tabBtnSettings')
     };
 
-    let allowedTabIds = [];
+    // Full administrative capability across all modules
+    let allowedTabIds = ['tabUsers', 'tabSessions', 'tabOrders', 'tabProducts', 'tabAudit', 'tabStaff', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals', 'tabSettings'];
     let roleTitle = 'Master Authority';
 
     if (r === 'super_admin') {
-      allowedTabIds = ['tabUsers', 'tabSessions', 'tabStaff', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals', 'tabSettings'];
       roleTitle = 'Master Authority';
     } else if (r === 'sub_admin') {
-      allowedTabIds = ['tabUsers', 'tabSessions', 'tabChat', 'tabKyc', 'tabDeposits', 'tabWithdrawals'];
       roleTitle = 'Sub-Admin Manager';
     } else if (r === 'support' || r === 'support_operator') {
-      // Support Operator: Live Chat & KYC Review + Customer profiles + Sessions
-      allowedTabIds = ['tabChat', 'tabSessions', 'tabKyc', 'tabUsers'];
-      roleTitle = 'Support & KYC Officer';
+      roleTitle = 'Support & Operations Officer';
     } else if (r === 'finance' || r === 'finance_officer') {
-      // Finance Officer: Deposits & Withdrawals + User balances + Sessions
-      allowedTabIds = ['tabDeposits', 'tabWithdrawals', 'tabSessions', 'tabUsers'];
       roleTitle = 'Finance & Treasury Officer';
     } else {
-      allowedTabIds = ['tabUsers', 'tabSessions', 'tabChat'];
       roleTitle = 'Staff Member';
     }
 
@@ -530,44 +527,27 @@
       const role = (state.currentRole || 'super_admin').toLowerCase();
 
       tbody.innerHTML = state.users.map(u => {
-        let actionButtonsHtml = '';
-        if (role === 'support' || role === 'support_operator') {
-          actionButtonsHtml = `
-            <div style="display: flex; gap: 6px;">
-              <button class="btn-action btn-edit" onclick="openChatWithUser('${u.id}', '${escapeHtml(u.username || u.fullname)}')" title="Open Chat">
-                <i class="fa fa-comment"></i> Chat
+        const actionButtonsHtml = `
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')" title="Edit Balance & User Details">
+              <i class="fa fa-pen"></i> Edit
+            </button>
+            <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Assign Smart Task & Deficit Order">
+              <i class="fa fa-tasks"></i> Assign Task
+            </button>
+            <button class="btn-action btn-reset" onclick="openPasswordResetModal('${u.id}')" title="Reset Password">
+              <i class="fa fa-key"></i> Reset Pass
+            </button>
+            ${u.is_online ? `
+              <button class="btn-action" style="background: #64748b; color: white;" onclick="kickUserSession('${u.id}', '${escapeHtml(u.fullname || u.username)}')" title="End Active Session">
+                <i class="fa fa-power-off"></i> End Session
               </button>
-            </div>
-          `;
-        } else if (role === 'finance' || role === 'finance_officer') {
-          actionButtonsHtml = `
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')" title="Adjust Balance">
-                <i class="fa fa-wallet"></i> Balance
-              </button>
-              <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Smart Task / Deficit">
-                <i class="fa fa-tasks"></i> Task
-              </button>
-            </div>
-          `;
-        } else {
-          actionButtonsHtml = `
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')" title="Edit Balance & User Details">
-                <i class="fa fa-pen"></i> Edit
-              </button>
-              <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Assign Smart Task & Deficit">
-                <i class="fa fa-tasks"></i> Assign Task
-              </button>
-              <button class="btn-action btn-reset" onclick="openPasswordResetModal('${u.id}')" title="Reset Password">
-                <i class="fa fa-key"></i> Reset Pass
-              </button>
-              <button class="btn-action btn-reject" onclick="deleteUser('${u.id}', '${escapeHtml(u.fullname || u.username)}')" title="Permanently Delete User" style="background: #ef4444; color: white;">
-                <i class="fa fa-trash"></i> Delete
-              </button>
-            </div>
-          `;
-        }
+            ` : ''}
+            <button class="btn-action btn-reject" onclick="deleteUser('${u.id}', '${escapeHtml(u.fullname || u.username)}')" title="Permanently Delete User" style="background: #ef4444; color: white;">
+              <i class="fa fa-trash"></i> Delete
+            </button>
+          </div>
+        `;
 
         const bal = parseFloat(u.balance || 0);
 
@@ -599,7 +579,15 @@
                 ${(u.kyc_status || 'none').toUpperCase()}
               </span>
             </td>
-            <td><span class="badge-status badge-${u.status === 'active' ? 'active' : 'banned'}">${(u.status || 'active').toUpperCase()}</span></td>
+            <td>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span class="badge-status badge-${u.status === 'active' ? 'active' : 'banned'}">${(u.status || 'active').toUpperCase()}</span>
+                ${u.is_online 
+                  ? `<span class="badge-status" style="background: #dcfce7; color: #166534; font-size: 11px; font-weight: 700; border: 1px solid #86efac; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span> Active Session</span>` 
+                  : `<span class="badge-status" style="background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 600;">Offline</span>`
+                }
+              </div>
+            </td>
             <td>
               ${actionButtonsHtml}
             </td>
@@ -933,6 +921,30 @@
       loadSessions();
     } else {
       AdminUI.toast('Delete Failed', (res && res.message) || 'Error deleting user', 'error');
+    }
+  };
+
+  // Terminate active merchant session
+  window.kickUserSession = async function(userId, name) {
+    const confirmed = await AdminUI.confirm({
+      title: 'Terminate Active Session?',
+      message: `Are you sure you want to end the active session for "${name || 'User #' + userId}"? They will be logged out immediately.`,
+      type: 'warning',
+      confirmText: 'Yes, End Session'
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await AdminAPI.post('/api/admin/sessions/kick', { userId });
+      if (res && res.success) {
+        AdminUI.toast('Session Terminated', res.message || 'User session terminated.', 'success');
+        loadUsers();
+        if (typeof loadSessions === 'function') loadSessions();
+      } else {
+        AdminUI.toast('Error', (res && res.message) || 'Failed to end user session.', 'error');
+      }
+    } catch (err) {
+      AdminUI.toast('Error', 'Network error ending session.', 'error');
     }
   };
 

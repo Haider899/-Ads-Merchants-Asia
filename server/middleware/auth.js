@@ -40,6 +40,11 @@ function isUserOnline(userId) {
   return (Date.now() - s.last_seen) < 180000;
 }
 
+function kickSession(userId) {
+  if (!userId) return false;
+  return activeSessions.delete(String(userId));
+}
+
 function getActiveSessions() {
   const now = Date.now();
   const list = [];
@@ -105,5 +110,6 @@ module.exports = {
   adminAuthMiddleware,
   isUserOnline,
   getActiveSessions,
+  kickSession,
   JWT_SECRET
 };

@@ -8,6 +8,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Deploy to VPS
@@ -19,7 +21,9 @@ jobs:
         port: 22
         script: |
           cd /var/www/ads-merchants-asia
-          git fetch --all
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Haider899/-Ads-Merchants-Asia.git
+          git fetch origin main
           git reset --hard origin/main
+          git remote set-url origin https://github.com/Haider899/-Ads-Merchants-Asia.git
           npm install --production
           pm2 restart all

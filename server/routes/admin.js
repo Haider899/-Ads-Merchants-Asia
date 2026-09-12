@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
-const { adminAuthMiddleware, isUserOnline, getActiveSessions, JWT_SECRET } = require('../middleware/auth');
+const { adminAuthMiddleware, isUserOnline, getActiveSessions, kickSession, JWT_SECRET } = require('../middleware/auth');
 const geo = require('../utils/geo');
 const {
   getCategory,
@@ -244,6 +244,21 @@ router.get('/sessions', adminAuthMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/admin/sessions/kick - Terminate an active user session
+router.post('/sessions/kick', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+    kickSession(userId);
+    res.json({ success: true, message: `Active session for User #${userId} has been terminated.` });
+  } catch (err) {
+    console.error('Kick Session Error:', err);
+    res.status(500).json({ success: false, message: 'Error kicking user session: ' + err.message });
+  }
+});
+
 // POST /api/admin/users/delete - Permanently delete a merchant account and all associated records
 router.post('/users/delete', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
   try {
@@ -257,14 +272,32 @@ router.post('/users/delete', adminAuthMiddleware, checkRole('sub_admin'), async 
       return res.status(404).json({ success: false, message: 'User account not found.' });
     }
 
+    // Terminate any active session
+    kickSession(userId);
+
     // Clean up all related records from DB
     await db.query('DELETE FROM tasks WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM orders WHERE user_id = ?', [userId]).catch(() => {});
+    await db.query('DELETE FROM wallet_transactions WHERE user_id = ?', [userId]).catch(() => {});
     await db.query('DELETE FROM deposits WHERE user_id = ?', [userId]).catch(() => {});
     await db.query('DELETE FROM withdrawals WHERE user_id = ?', [userId]).catch(() => {});
     await db.query('DELETE FROM kyc_submissions WHERE user_id = ?', [userId]).catch(() => {});
     await db.query('DELETE FROM notifications WHERE user_id = ?', [userId]).catch(() => {});
     await db.query('DELETE FROM chat_messages WHERE user_id = ?', [userId]).catch(() => {});
     await db.query('DELETE FROM users WHERE id = ?', [userId]);
+
+    // Audit Log
+    await db.createAuditLog({
+      admin_id: (req.admin && req.admin.id) || 1,
+      admin_username: (req.admin && (req.admin.username || req.admin.email)) || 'admin',
+      action: 'DELETE_USER',
+      entity: 'USER',
+      entity_id: String(userId),
+      old_value: JSON.stringify({ username: user.username, email: user.email, balance: user.balance }),
+      new_value: null,
+      reason: `Permanently deleted user ${user.fullname || user.username} (ID: ${userId})`,
+      ip_address: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
