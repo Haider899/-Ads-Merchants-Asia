@@ -177,6 +177,12 @@ app.listen(PORT, () => {
   console.log(`🔗 Local Admin App: http://admin.localhost:${PORT}`);
   console.log(`=======================================================`);
   
+  if (db.ensureProductionSchema) {
+    db.ensureProductionSchema().catch(err => {
+      console.log('Production schema migration notice:', err.message);
+    });
+  }
+
   if (db.migrateUserIdsToSequential) {
     db.migrateUserIdsToSequential().catch(err => {
       console.log('Legacy User ID migration notice:', err.message);

@@ -725,7 +725,337 @@ const db = {
       return await query(`SELECT * FROM products`);
     }
     return rows;
+  },
+
+  ensureProductionSchema: async () => {
+    try {
+      await db.ensureTasksTable();
+
+      // 1. Orders table
+      await query(`CREATE TABLE IF NOT EXISTS orders (
+        id VARCHAR(50) PRIMARY KEY,
+        order_number VARCHAR(60) UNIQUE NOT NULL,
+        user_id VARCHAR(50) NOT NULL,
+        merchant_id VARCHAR(50) DEFAULT NULL,
+        task_id VARCHAR(50) DEFAULT NULL,
+        product_id INT DEFAULT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        product_image TEXT,
+        category VARCHAR(100) DEFAULT 'General',
+        unit_price DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        quantity INT NOT NULL DEFAULT 1,
+        subtotal DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        discount_rate DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
+        discount_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        tax_rate DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
+        tax_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        fee_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        gross_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        commission_rate DECIMAL(5,4) NOT NULL DEFAULT 0.2000,
+        commission_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        reward_rate DECIMAL(5,4) NOT NULL DEFAULT 0.2000,
+        reward_amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        user_deduction DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        payment_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        order_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        completed_at DATETIME DEFAULT NULL,
+        INDEX (user_id),
+        INDEX (order_status),
+        INDEX (created_at)
+      )`);
+
+      // 2. Wallet transactions table (immutable financial ledger)
+      await query(`CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id VARCHAR(60) PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        order_id VARCHAR(60) DEFAULT NULL,
+        task_id VARCHAR(60) DEFAULT NULL,
+        admin_id VARCHAR(50) DEFAULT NULL,
+        transaction_type VARCHAR(50) NOT NULL,
+        amount DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        balance_before DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        balance_after DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+        currency VARCHAR(10) DEFAULT 'USD',
+        reference VARCHAR(100) DEFAULT NULL,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id),
+        INDEX (transaction_type),
+        INDEX (created_at)
+      )`);
+
+      // 3. Admin audit logs table
+      await query(`CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        admin_id VARCHAR(50) NOT NULL,
+        action VARCHAR(100) NOT NULL,
+        entity VARCHAR(100) NOT NULL,
+        entity_id VARCHAR(100) DEFAULT NULL,
+        old_value TEXT,
+        new_value TEXT,
+        reason TEXT,
+        ip_address VARCHAR(60) DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX (admin_id),
+        INDEX (action),
+        INDEX (created_at)
+      )`);
+
+      // 4. Products table schema enhancement
+      try {
+        const prodCols = await query(`SHOW COLUMNS FROM products`);
+        const colNames = prodCols.map(c => c.Field.toLowerCase());
+        if (!colNames.includes('category')) {
+          await query(`ALTER TABLE products ADD COLUMN category VARCHAR(100) DEFAULT 'General'`);
+        }
+        if (!colNames.includes('sku')) {
+          await query(`ALTER TABLE products ADD COLUMN sku VARCHAR(100) DEFAULT NULL`);
+        }
+        if (!colNames.includes('is_active')) {
+          await query(`ALTER TABLE products ADD COLUMN is_active TINYINT(1) DEFAULT 1`);
+        }
+        if (!colNames.includes('commission_rate')) {
+          await query(`ALTER TABLE products ADD COLUMN commission_rate DECIMAL(5,4) DEFAULT 0.2000`);
+        }
+        if (!colNames.includes('reward_rate')) {
+          await query(`ALTER TABLE products ADD COLUMN reward_rate DECIMAL(5,4) DEFAULT 0.2000`);
+        }
+      } catch (_) {}
+
+    } catch (err) {
+      console.error('[DB] Schema migration notice:', err.message);
+    }
+  },
+
+  createOrder: async (orderData) => {
+    await db.ensureProductionSchema();
+    await query(`INSERT INTO orders (
+      id, order_number, user_id, merchant_id, task_id, product_id, product_name, product_image,
+      category, unit_price, quantity, subtotal, discount_rate, discount_amount, tax_rate, tax_amount,
+      fee_amount, gross_amount, commission_rate, commission_amount, reward_rate, reward_amount,
+      user_deduction, payment_status, order_status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      orderData.id,
+      orderData.order_number,
+      orderData.user_id,
+      orderData.merchant_id || null,
+      orderData.task_id || null,
+      orderData.product_id || null,
+      orderData.product_name,
+      orderData.product_image || null,
+      orderData.category || 'General',
+      orderData.unit_price || 0,
+      orderData.quantity || 1,
+      orderData.subtotal || 0,
+      orderData.discount_rate || 0,
+      orderData.discount_amount || 0,
+      orderData.tax_rate || 0,
+      orderData.tax_amount || 0,
+      orderData.fee_amount || 0,
+      orderData.gross_amount || 0,
+      orderData.commission_rate || 0.20,
+      orderData.commission_amount || 0,
+      orderData.reward_rate || 0.20,
+      orderData.reward_amount || 0,
+      orderData.user_deduction || 0,
+      orderData.payment_status || 'PENDING',
+      orderData.order_status || 'PENDING',
+      formatMySQLDate(orderData.created_at || new Date())
+    ]);
+    return orderData;
+  },
+
+  updateOrder: async (orderId, updates) => {
+    await db.ensureProductionSchema();
+    const allowed = [
+      'task_id', 'product_name', 'product_image', 'unit_price', 'quantity', 'subtotal',
+      'gross_amount', 'commission_amount', 'reward_amount', 'user_deduction',
+      'payment_status', 'order_status', 'completed_at'
+    ];
+    const keys = Object.keys(updates).filter(k => allowed.includes(k));
+    if (keys.length === 0) return true;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = keys.map(k => k === 'completed_at' ? formatMySQLDate(updates[k]) : updates[k]);
+    values.push(orderId);
+    await query(`UPDATE orders SET ${setClause} WHERE id = ? OR order_number = ?`, [...values, orderId]);
+    return true;
+  },
+
+  getOrders: async (filter = {}) => {
+    await db.ensureProductionSchema();
+    let sql = `
+      SELECT o.*, u.username, u.fullname, u.vip_level, u.country_name, u.country_code
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+    `;
+    const conditions = [];
+    const params = [];
+    if (filter.user_id) {
+      conditions.push(`o.user_id = ?`);
+      params.push(filter.user_id);
+    }
+    if (filter.order_status) {
+      conditions.push(`LOWER(o.order_status) = ?`);
+      params.push(filter.order_status.toLowerCase());
+    }
+    if (filter.order_number) {
+      conditions.push(`o.order_number LIKE ?`);
+      params.push(`%${filter.order_number}%`);
+    }
+    if (conditions.length > 0) {
+      sql += ` WHERE ` + conditions.join(' AND ');
+    }
+    sql += ` ORDER BY o.created_at DESC`;
+    const rows = await query(sql, params);
+    return rows.map(r => ({
+      ...r,
+      unit_price: parseFloat(r.unit_price || 0),
+      quantity: parseInt(r.quantity || 1, 10),
+      subtotal: parseFloat(r.subtotal || 0),
+      gross_amount: parseFloat(r.gross_amount || 0),
+      commission_rate: parseFloat(r.commission_rate || 0),
+      commission_amount: parseFloat(r.commission_amount || 0),
+      reward_rate: parseFloat(r.reward_rate || 0),
+      reward_amount: parseFloat(r.reward_amount || 0),
+      user_deduction: parseFloat(r.user_deduction || 0)
+    }));
+  },
+
+  createLedgerTransaction: async ({
+    userId,
+    orderId = null,
+    taskId = null,
+    adminId = null,
+    type,
+    amount,
+    balanceBefore,
+    balanceAfter,
+    currency = 'USD',
+    reference = null,
+    description = ''
+  }) => {
+    await db.ensureProductionSchema();
+    const id = 'txn_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
+    await query(`INSERT INTO wallet_transactions (
+      id, user_id, order_id, task_id, admin_id, transaction_type, amount, balance_before, balance_after, currency, reference, description, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      userId,
+      orderId,
+      taskId,
+      adminId,
+      type,
+      amount,
+      balanceBefore,
+      balanceAfter,
+      currency,
+      reference,
+      description,
+      formatMySQLDate(new Date())
+    ]);
+    return { id, userId, type, amount, balanceBefore, balanceAfter };
+  },
+
+  getLedgerTransactions: async (userId = null) => {
+    await db.ensureProductionSchema();
+    let sql = `
+      SELECT t.*, u.username, u.fullname
+      FROM wallet_transactions t
+      LEFT JOIN users u ON t.user_id = u.id
+    `;
+    const params = [];
+    if (userId) {
+      sql += ` WHERE t.user_id = ?`;
+      params.push(userId);
+    }
+    sql += ` ORDER BY t.created_at DESC LIMIT 200`;
+    const rows = await query(sql, params);
+    return rows.map(r => ({
+      ...r,
+      amount: parseFloat(r.amount || 0),
+      balance_before: parseFloat(r.balance_before || 0),
+      balance_after: parseFloat(r.balance_after || 0)
+    }));
+  },
+
+  createAuditLog: async ({
+    adminId,
+    action,
+    entity,
+    entityId = null,
+    oldValue = null,
+    newValue = null,
+    reason = null,
+    ip = null
+  }) => {
+    await db.ensureProductionSchema();
+    await query(`INSERT INTO admin_audit_logs (
+      admin_id, action, entity, entity_id, old_value, new_value, reason, ip_address, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      adminId,
+      action,
+      entity,
+      entityId ? String(entityId) : null,
+      typeof oldValue === 'object' ? JSON.stringify(oldValue) : (oldValue !== null ? String(oldValue) : null),
+      typeof newValue === 'object' ? JSON.stringify(newValue) : (newValue !== null ? String(newValue) : null),
+      reason,
+      ip,
+      formatMySQLDate(new Date())
+    ]);
+  },
+
+  getAuditLogs: async (limit = 100) => {
+    await db.ensureProductionSchema();
+    const rows = await query(`
+      SELECT l.*, a.fullname as admin_name, a.role as admin_role
+      FROM admin_audit_logs l
+      LEFT JOIN admins a ON l.admin_id = a.id
+      ORDER BY l.created_at DESC
+      LIMIT ?
+    `, [parseInt(limit, 10) || 100]);
+    return rows;
+  },
+
+  createProduct: async (productData) => {
+    await db.ensureProductionSchema();
+    const res = await query(`INSERT INTO products (
+      name, price, image, category, sku, is_active, commission_rate, reward_rate
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      productData.name,
+      productData.price,
+      productData.image || 'client/assets/uploads/products/outdoor_shed.jpg',
+      productData.category || 'General',
+      productData.sku || ('SKU-' + Date.now()),
+      productData.is_active !== undefined ? (productData.is_active ? 1 : 0) : 1,
+      productData.commission_rate || 0.20,
+      productData.reward_rate || 0.20
+    ]);
+    return { id: res.insertId, ...productData };
+  },
+
+  updateProduct: async (id, updates) => {
+    await db.ensureProductionSchema();
+    const allowed = ['name', 'price', 'image', 'category', 'sku', 'is_active', 'commission_rate', 'reward_rate'];
+    const keys = Object.keys(updates).filter(k => allowed.includes(k));
+    if (keys.length === 0) return true;
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = keys.map(k => updates[k]);
+    values.push(id);
+    await query(`UPDATE products SET ${setClause} WHERE id = ?`, values);
+    return true;
+  },
+
+  deleteProduct: async (id) => {
+    await db.ensureProductionSchema();
+    await query(`DELETE FROM products WHERE id = ?`, [id]);
+    return true;
   }
 };
 
 module.exports = db;
+

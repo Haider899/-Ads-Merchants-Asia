@@ -1,0 +1,628 @@
+BUILD THE ADMIN DASHBOARD AND ORDER/TASK MANAGEMENT SYSTEM
+
+Create a professional Admin Control Center for an order/task marketplace.
+
+The Admin dashboard must be functional, not just a visual mockup.
+
+==================================================
+1. ADMIN DASHBOARD
+==================================================
+
+Create a left sidebar:
+
+- Dashboard
+- Users & Balances
+- Orders
+- Tasks
+- Active Sessions
+- KYC / Documents
+- Deposits
+- Withdrawals
+- Live Chat / Tickets
+- Sub-Admins & Staff
+- Products
+- Commission Settings
+- Wallet / Payment Settings
+- Audit Logs
+- System Settings
+
+Top bar:
+
+- Admin name
+- Admin role
+- Notifications
+- Search
+- Logout
+
+Dashboard cards:
+
+TOTAL USERS
+TOTAL WORKING BALANCE
+TOTAL FROZEN BALANCE
+PENDING ORDERS
+PENDING TASKS
+PENDING DEPOSITS
+PENDING WITHDRAWALS
+ONLINE USERS
+
+==================================================
+2. USERS PAGE
+==================================================
+
+Display a table:
+
+User
+Country
+Online Status
+VIP Tier
+Working Balance
+Frozen Balance
+Today's Profit
+Completed Tasks
+Daily Task Limit
+KYC Status
+Account Status
+Actions
+
+Country must show:
+
+🇸🇬 Singapore
+🇦🇪 UAE
+🇺🇸 USA
+
+Store the ISO country code.
+
+Online status:
+
+🟢 Online
+⚪ Offline
+
+Determine online status from the user's authenticated session
+and heartbeat/last-seen system.
+
+Do NOT use fake online status.
+
+Actions:
+
+[View]
+[Edit]
+[Balance]
+[Orders]
+[Tasks]
+[Freeze]
+[Reset Password]
+
+==================================================
+3. USER PROFILE / BALANCE PAGE
+==================================================
+
+When Admin clicks a user, open:
+
+USER PROFILE
+
+Account Information
+- User ID
+- Name
+- Username
+- Email
+- Phone
+- Country
+- VIP Tier
+- KYC Status
+- Account Status
+- Last Login
+- Last Seen
+
+BALANCE
+
+Working Balance: $0.00
+Frozen Balance: $0.00
+Available Balance: $0.00
+Today's Profit: $0.00
+
+Admin controls:
+
+[+ Add Balance]
+[- Deduct Balance]
+
+[Freeze Account]
+[Unfreeze Account]
+
+[Reset Daily Task Count]
+
+Custom Daily Task Limit:
+[ ______ ]
+
+Every balance adjustment MUST create an
+audit/ledger record showing:
+
+- Admin
+- User
+- Amount
+- Previous balance
+- New balance
+- Reason
+- Date/time
+
+==================================================
+4. PRODUCT MANAGEMENT
+==================================================
+
+Admin can create products.
+
+Fields:
+
+Product Name
+Product Category
+SKU
+Image
+Unit Price
+Quantity
+Commission Rate
+Reward Rate
+Tax Rate
+Service Fee
+Active/Inactive
+
+Buttons:
+
+[Create Product]
+[Edit]
+[Deactivate]
+
+==================================================
+5. CREATE ORDER
+==================================================
+
+Admin clicks:
+
+[CREATE ORDER]
+
+Open a modal/page:
+
+CREATE NEW ORDER
+
+STEP 1 — SELECT USER
+
+Search user by:
+
+- Username
+- Email
+- User ID
+
+Admin MUST explicitly select one user.
+
+Show:
+
+User
+Country
+VIP Tier
+Working Balance
+Frozen Balance
+Available Balance
+Daily Task Limit
+Tasks Completed Today
+
+==================================================
+6. SELECT PRODUCT
+==================================================
+
+Product Category
+[Select]
+
+Product
+[Select]
+
+Product Name
+[Auto-filled]
+
+Unit Price
+[$____]
+
+Quantity
+[____]
+
+Admin may override the price only if the
+Admin has permission.
+
+==================================================
+7. ORDER CALCULATION
+==================================================
+
+Calculate everything automatically.
+
+Subtotal:
+
+Unit Price × Quantity
+
+Discount:
+
+Subtotal × Discount Rate
+
+Tax:
+
+Taxable Amount × Tax Rate
+
+Service Fee:
+
+Configured Fee
+
+ORDER TOTAL:
+
+Subtotal
+- Discount
++ Tax
++ Service Fee
+
+Display the calculation before creating
+the order.
+
+Example:
+
+Product Price       $500.00
+Quantity                 1
+-----------------------------
+Subtotal             $500.00
+Discount               $0.00
+Tax                    $0.00
+Service Fee             $0.00
+-----------------------------
+ORDER TOTAL          $500.00
+
+==================================================
+8. COMMISSION / REWARD
+==================================================
+
+Do NOT mix commission with the order value.
+
+Show separately:
+
+Commission Rate: 5%
+
+Commission Amount:
+
+Eligible Amount × 5%
+
+User Reward/Profit:
+
+Eligible Amount × configured reward rate
+
+Example:
+
+Order Total:          $500
+Commission Rate:        5%
+Commission:             $25
+
+User reward:            $X
+
+The exact rate must be configurable from
+Commission Settings.
+
+The order must store a snapshot of the rate
+used at the time the order was created.
+
+==================================================
+9. BALANCE CHECK
+==================================================
+
+After calculating the order:
+
+Available Balance: $300
+Order Requirement: $500
+
+System calculates:
+
+Shortfall = $500 - $300
+Shortfall = $200
+
+Display clearly:
+
+AVAILABLE BALANCE       $300
+ORDER REQUIREMENT       $500
+FUNDING SHORTFALL       $200
+
+Do NOT secretly create a negative balance.
+
+If the business allows credit/deficit,
+show it explicitly to both Admin and User:
+
+"Additional funds required: $200"
+
+The user must know why funds are required.
+
+==================================================
+10. ORDER CREATION
+==================================================
+
+Admin sees a final confirmation:
+
+CREATE ORDER
+
+User:
+John123
+
+Product:
+Example Product
+
+Order Value:
+$500
+
+Commission:
+$25
+
+Reward:
+$X
+
+Available Balance:
+$300
+
+Additional Funds Required:
+$200
+
+[Cancel]
+
+[CREATE ORDER]
+
+After clicking CREATE ORDER:
+
+1. Validate Admin permission.
+2. Validate selected user.
+3. Validate product.
+4. Recalculate order on backend.
+5. Validate balance.
+6. Create order.
+7. Assign order to EXACT selected user.
+8. Create task.
+9. Create ledger entries.
+10. Notify user.
+11. Write Admin audit log.
+
+==================================================
+11. TASK PAGE
+==================================================
+
+Every order can have an associated task.
+
+Task table:
+
+Task ID
+Order Number
+User
+Product
+Order Value
+Commission
+Reward
+Status
+Created
+Accepted
+Completed
+Actions
+
+Statuses:
+
+PENDING
+ACCEPTED
+IN_PROGRESS
+COMPLETED
+CANCELLED
+EXPIRED
+
+Admin can:
+
+[View]
+[Cancel]
+[Refund]
+[Open User]
+[View Ledger]
+
+Admin should NOT be able to mark a task completed
+without recording the required settlement information.
+
+==================================================
+12. USER TASK OWNERSHIP
+==================================================
+
+A task assigned to User A MUST NOT appear
+for User B.
+
+Backend must use authenticated user ID.
+
+Never trust:
+
+?user_id=123
+
+from the browser.
+
+Every task must contain:
+
+assigned_user_id
+
+The backend must verify:
+
+authenticated_user_id == assigned_user_id
+
+before allowing the user to view or complete it.
+
+==================================================
+13. BALANCE / LEDGER SYSTEM
+==================================================
+
+Create an immutable transaction ledger.
+
+Transaction types:
+
+DEPOSIT
+WITHDRAWAL
+ORDER_RESERVE
+ORDER_RELEASE
+ORDER_DEDUCTION
+ORDER_REFUND
+COMMISSION
+REWARD
+ADMIN_CREDIT
+ADMIN_DEBIT
+ADJUSTMENT
+
+Every transaction stores:
+
+transaction_id
+user_id
+order_id
+type
+amount
+balance_before
+balance_after
+admin_id
+description
+created_at
+
+Never simply overwrite a balance without
+creating a ledger entry.
+
+==================================================
+14. ORDER COMPLETION
+==================================================
+
+User opens task.
+
+System verifies:
+
+- Correct user
+- Task exists
+- Task is active
+- Order has not already been completed
+- Required conditions are satisfied
+
+When completed:
+
+1. Mark task COMPLETED.
+2. Mark order COMPLETED.
+3. Release/resettle reserved funds according
+   to the configured business rules.
+4. Record commission.
+5. Record user reward/profit.
+6. Create ledger entries.
+7. Update today's task count.
+8. Create audit record.
+
+All operations must happen inside a database
+transaction.
+
+==================================================
+15. ADMIN ORDER SEARCH
+==================================================
+
+Admin can filter by:
+
+User
+Order ID
+Task ID
+Status
+Date
+Product
+Category
+VIP Tier
+Country
+
+Search:
+
+[Search Orders]
+
+==================================================
+16. ADMIN AUDIT LOG
+==================================================
+
+Record every important Admin action:
+
+Admin
+Action
+User
+Order
+Previous Value
+New Value
+Reason
+IP
+Timestamp
+
+Examples:
+
+Admin changed balance
+Admin created order
+Admin changed order price
+Admin assigned task
+Admin cancelled order
+Admin approved deposit
+Admin approved withdrawal
+
+Audit logs cannot be edited by normal Admins.
+
+==================================================
+17. SECURITY
+==================================================
+
+All calculations must happen on the backend.
+
+Never trust prices, commission,
+balance or task status sent from frontend.
+
+Use decimal/integer-money arithmetic.
+
+Prevent:
+
+- Double completion
+- Double deduction
+- Double refund
+- Duplicate order creation
+- Unauthorized task access
+- Unauthorized balance modification
+
+Use database transactions and idempotency.
+
+==================================================
+18. FINAL ADMIN WORKFLOW
+==================================================
+
+Admin:
+
+Users
+ ↓
+Select exact user
+ ↓
+Create Order
+ ↓
+Select Product
+ ↓
+Set quantity/authorized price
+ ↓
+Backend calculates order
+ ↓
+Calculate commission
+ ↓
+Calculate reward
+ ↓
+Check available balance
+ ↓
+Show any funding shortfall transparently
+ ↓
+Admin confirms
+ ↓
+Order created
+ ↓
+Task assigned to exact user
+ ↓
+User completes task
+ ↓
+Settlement
+ ↓
+Commission/reward recorded
+ ↓
+Ledger updated
+ ↓
+Audit log created
+
+The Admin dashboard must make every amount,
+calculation and status visible.
+
+Do not use hidden deductions, hidden negative
+balances, fake order values, or undisclosed
+funding requirements.

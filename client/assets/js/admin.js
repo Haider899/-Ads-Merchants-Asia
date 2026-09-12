@@ -1628,6 +1628,622 @@
     }
   };
 
+  // ==========================================
+  // ORDERS & TASKS CONTROL CENTER
+  // ==========================================
+  state.orders = [];
+  state.tasks = [];
+  state.products = [];
+
+  window.loadOrders = async function() {
+    const tbody = document.getElementById('ordersTableBody');
+    if (!tbody) return;
+
+    const statusFilter = (document.getElementById('orderStatusFilter') || {}).value || 'ALL';
+    let url = '/api/admin/orders';
+    if (statusFilter && statusFilter !== 'ALL') url += `?status=${encodeURIComponent(statusFilter)}`;
+
+    const res = await AdminAPI.get(url);
+    if (res && res.success && Array.isArray(res.orders)) {
+      state.orders = res.orders;
+      renderOrdersTable(state.orders);
+    } else {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load orders.</td></tr>`;
+    }
+  };
+
+  window.filterOrdersTable = function() {
+    const q = (document.getElementById('orderSearchInput') || {}).value || '';
+    const cleanQ = q.trim().toLowerCase();
+    if (!cleanQ) {
+      renderOrdersTable(state.orders);
+      return;
+    }
+    const filtered = (state.orders || []).filter(o => 
+      (o.order_number && o.order_number.toLowerCase().includes(cleanQ)) ||
+      (o.username && o.username.toLowerCase().includes(cleanQ)) ||
+      (o.product_name && o.product_name.toLowerCase().includes(cleanQ))
+    );
+    renderOrdersTable(filtered);
+  };
+
+  function renderOrdersTable(orders) {
+    const tbody = document.getElementById('ordersTableBody');
+    if (!tbody) return;
+
+    if (!orders || orders.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">No matching orders found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = orders.map(o => {
+      let statusBadge = '<span class="badge-status badge-secondary">Pending</span>';
+      const st = (o.order_status || '').toUpperCase();
+      if (st === 'COMPLETED') {
+        statusBadge = '<span class="badge-status" style="background:#10b981; color:#fff;">COMPLETED</span>';
+      } else if (st === 'PROCESSING') {
+        statusBadge = '<span class="badge-status" style="background:#3b82f6; color:#fff;">PROCESSING</span>';
+      } else if (st === 'SHORTFALL' || (o.payment_status || '').toUpperCase() === 'SHORTFALL') {
+        statusBadge = '<span class="badge-status" style="background:#ef4444; color:#fff;">SHORTFALL / DEFICIT</span>';
+      } else if (st === 'CANCELLED') {
+        statusBadge = '<span class="badge-status" style="background:#64748b; color:#fff;">CANCELLED</span>';
+      }
+
+      const img = o.product_image || '/client/assets/uploads/products/outdoor_shed.jpg';
+      const unitPr = parseFloat(o.unit_price || 0).toFixed(2);
+      const gross = parseFloat(o.gross_amount || 0).toFixed(2);
+      const comm = parseFloat(o.commission_amount || 0).toFixed(2);
+      const dateStr = formatDate(o.created_at);
+
+      let actionBtns = '';
+      if (st === 'PROCESSING' || st === 'PENDING' || st === 'SHORTFALL') {
+        actionBtns += `
+          <button class="btn-action" style="background:#ef4444; color:white; padding:4px 8px; font-size:11px;" onclick="cancelOrder('${o.id}', true)">
+            Cancel & Refund
+          </button>
+        `;
+      }
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 700; font-family: monospace; color: #1e293b;">${escapeHtml(o.order_number)}</div>
+            <small style="color: #64748b;">ID: ${escapeHtml(o.id)}</small>
+          </td>
+          <td>
+            <div style="font-weight: 700; color: #0f172a;">${escapeHtml(o.username || 'User #' + o.user_id)}</div>
+            <div style="font-size: 11px; color: #2563eb; font-weight: 600;">${escapeHtml(o.vip_level || 'Bronze')} VIP</div>
+          </td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <img src="${img}" style="width: 44px; height: 44px; border-radius: 6px; object-fit: cover; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" />
+              <div style="max-width: 200px; font-size: 12.5px; font-weight: 600; color: #1e293b; line-height: 1.3;">
+                ${escapeHtml(o.product_name)}
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight: 700;">$${unitPr}</div>
+            <small style="color: #64748b;">Qty: ${o.quantity || 1}</small>
+          </td>
+          <td>
+            <div style="font-weight: 800; color: #0f172a;">$${gross}</div>
+            ${o.payment_status === 'SHORTFALL' ? '<span style="font-size: 10.5px; color: #ef4444; font-weight: 700;">Deficit Active</span>' : ''}
+          </td>
+          <td>
+            <div style="font-weight: 700; color: #16a34a;">+$${comm}</div>
+            <small style="color: #64748b;">${(parseFloat(o.commission_rate || 0.20) * 100).toFixed(0)}%</small>
+          </td>
+          <td>${statusBadge}</td>
+          <td><small style="color: #475569;">${dateStr}</small></td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              ${actionBtns || '<span style="color:#94a3b8; font-size:12px;">--</span>'}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.cancelOrder = async function(orderId, refundUser = true) {
+    if (!confirm('Are you sure you want to cancel this order? If confirmed, reserved balance will be refunded to user.')) return;
+    try {
+      const res = await AdminAPI.post(`/api/admin/orders/${orderId}/status`, { status: 'CANCELLED', refundUser });
+      if (res && res.success) {
+        showToast('Order Cancelled', res.message, 'success');
+        loadOrders();
+        loadTasks();
+        loadUsers();
+      } else {
+        showToast('Cancellation Failed', (res && res.message) || 'Error cancelling order', 'error');
+      }
+    } catch (err) {
+      showToast('Error', err.message, 'error');
+    }
+  };
+
+  // -------------------------------------------------------------
+  // TASKS QUEUE
+  // -------------------------------------------------------------
+  window.loadTasks = async function() {
+    const tbody = document.getElementById('tasksTableBody');
+    if (!tbody) return;
+
+    const res = await AdminAPI.get('/api/admin/tasks');
+    if (res && res.success && Array.isArray(res.tasks)) {
+      state.tasks = res.tasks;
+      renderTasksTable(state.tasks);
+    } else {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load user tasks.</td></tr>`;
+    }
+  };
+
+  function renderTasksTable(tasks) {
+    const tbody = document.getElementById('tasksTableBody');
+    if (!tbody) return;
+
+    if (!tasks || tasks.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">No active tasks in user queues.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = tasks.map(t => {
+      const isCompleted = t.status === 'completed';
+      const statusBadge = isCompleted
+        ? '<span class="badge-status" style="background:#10b981; color:#fff;">COMPLETED</span>'
+        : '<span class="badge-status" style="background:#f59e0b; color:#fff;">PENDING REVIEW</span>';
+
+      const pr = parseFloat(t.product_price || 0).toFixed(2);
+      const comm = parseFloat(t.commission_amount || 0).toFixed(2);
+      const deficitBadge = t.is_deficit
+        ? `<span class="badge-status" style="background:#fee2e2; color:#b91c1c; font-weight:700;">Deficit: $${parseFloat(t.deficit_amount || 0).toFixed(2)}</span>`
+        : '<span style="color:#64748b; font-size:11.5px;">Normal</span>';
+
+      return `
+        <tr>
+          <td><code style="font-size:11.5px; color:#475569;">${escapeHtml(t.id)}</code></td>
+          <td><strong>${escapeHtml(t.order_number || 'N/A')}</strong></td>
+          <td>
+            <div style="font-weight:700;">${escapeHtml(t.username || 'User #' + t.user_id)}</div>
+            <small style="color:#64748b;">Bal: $${parseFloat(t.user_balance || 0).toFixed(2)}</small>
+          </td>
+          <td>
+            <div style="max-width: 220px; font-size: 12.5px; font-weight:600;">${escapeHtml(t.product_name)}</div>
+          </td>
+          <td><strong>$${pr}</strong></td>
+          <td><strong style="color:#16a34a;">+$${comm}</strong></td>
+          <td>${deficitBadge}</td>
+          <td>${statusBadge}</td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              ${!isCompleted ? `
+                <button class="btn-action" style="background:#10b981; color:white; padding:4px 8px; font-size:11px;" onclick="forceCompleteTask('${t.id}')">
+                  <i class="fa fa-check"></i> Complete
+                </button>
+                <button class="btn-action" style="background:#ef4444; color:white; padding:4px 8px; font-size:11px;" onclick="deleteTask('${t.id}')">
+                  <i class="fa fa-trash"></i> Cancel & Refund
+                </button>
+              ` : '<span style="color:#94a3b8; font-size:12px;">Completed</span>'}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.forceCompleteTask = async function(taskId) {
+    if (!confirm('Force complete this optimization task? This will release the principal order price + commission reward directly to the user.')) return;
+    try {
+      const res = await AdminAPI.post(`/api/admin/tasks/${taskId}/complete`);
+      if (res && res.success) {
+        showToast('Task Completed', res.message, 'success');
+        loadTasks();
+        loadOrders();
+        loadUsers();
+      } else {
+        showToast('Failed', (res && res.message) || 'Error completing task', 'error');
+      }
+    } catch (err) {
+      showToast('Error', err.message, 'error');
+    }
+  };
+
+  window.deleteTask = async function(taskId) {
+    if (!confirm('Are you sure you want to cancel & delete this task? If pending, the reserved balance will be refunded to user.')) return;
+    try {
+      const res = await AdminAPI.delete(`/api/admin/tasks/${taskId}`);
+      if (res && res.success) {
+        showToast('Task Deleted', res.message, 'success');
+        loadTasks();
+        loadOrders();
+        loadUsers();
+      } else {
+        showToast('Failed', (res && res.message) || 'Error deleting task', 'error');
+      }
+    } catch (err) {
+      showToast('Error', err.message, 'error');
+    }
+  };
+
+  // -------------------------------------------------------------
+  // PRODUCTS CATALOG
+  // -------------------------------------------------------------
+  window.loadProducts = async function() {
+    const tbody = document.getElementById('productsTableBody');
+    if (!tbody) return;
+
+    const res = await AdminAPI.get('/api/admin/products');
+    if (res && res.success && Array.isArray(res.products)) {
+      state.products = res.products;
+      renderProductsTable(state.products);
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load products.</td></tr>`;
+    }
+  };
+
+  function renderProductsTable(products) {
+    const tbody = document.getElementById('productsTableBody');
+    if (!tbody) return;
+
+    if (!products || products.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">No products found in catalog.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = products.map(p => {
+      const img = p.image || '/client/assets/uploads/products/outdoor_shed.jpg';
+      const activePill = p.is_active
+        ? '<span class="badge-status" style="background:#10b981; color:#fff;">ACTIVE</span>'
+        : '<span class="badge-status" style="background:#94a3b8; color:#fff;">INACTIVE</span>';
+
+      return `
+        <tr>
+          <td>
+            <img src="${img}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" />
+          </td>
+          <td>
+            <div style="font-weight: 700; color: #0f172a; max-width: 320px;">${escapeHtml(p.name)}</div>
+          </td>
+          <td><span class="badge-status" style="background:#f1f5f9; color:#475569;">${escapeHtml(p.category || 'General')}</span></td>
+          <td><strong style="font-size: 15px; color: #0f172a;">$${parseFloat(p.price || 0).toFixed(2)}</strong></td>
+          <td>${activePill}</td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-action" style="background: #2563eb; color: white; padding: 4px 10px; font-size: 12px;" onclick="editProduct('${p.id}')">
+                <i class="fa fa-edit"></i> Edit
+              </button>
+              <button class="btn-action" style="background: #ef4444; color: white; padding: 4px 10px; font-size: 12px;" onclick="deleteProduct('${p.id}')">
+                <i class="fa fa-trash"></i> Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.openProductModal = function(prod = null) {
+    document.getElementById('productForm').reset();
+    document.getElementById('productId').value = prod ? prod.id : '';
+    document.getElementById('productModalTitle').innerHTML = prod 
+      ? '<i class="fa fa-edit" style="color:#2563eb;"></i> Edit Product'
+      : '<i class="fa fa-box-open" style="color:#10b981;"></i> Add New Product';
+
+    if (prod) {
+      document.getElementById('prodName').value = prod.name || '';
+      document.getElementById('prodPrice').value = prod.price || '';
+      document.getElementById('prodCategory').value = prod.category || '';
+      document.getElementById('prodImage').value = prod.image || '';
+      document.getElementById('prodActive').checked = Boolean(prod.is_active);
+    } else {
+      document.getElementById('prodActive').checked = true;
+    }
+
+    AdminUI.openModal('productModal');
+  };
+
+  window.editProduct = function(prodId) {
+    const prod = (state.products || []).find(p => String(p.id) === String(prodId));
+    if (prod) openProductModal(prod);
+  };
+
+  window.submitProductForm = async function(e) {
+    if (e) e.preventDefault();
+    const id = document.getElementById('productId').value;
+    const data = {
+      name: document.getElementById('prodName').value,
+      price: parseFloat(document.getElementById('prodPrice').value),
+      category: document.getElementById('prodCategory').value,
+      image: document.getElementById('prodImage').value,
+      is_active: document.getElementById('prodActive').checked ? 1 : 0
+    };
+
+    try {
+      let res;
+      if (id) {
+        res = await AdminAPI.put(`/api/admin/products/${id}`, data);
+      } else {
+        res = await AdminAPI.post('/api/admin/products', data);
+      }
+      if (res && res.success) {
+        showToast('Product Saved', res.message || 'Product catalog updated', 'success');
+        AdminUI.closeModal('productModal');
+        loadProducts();
+      } else {
+        showToast('Error', (res && res.message) || 'Error saving product', 'error');
+      }
+    } catch (err) {
+      showToast('Error', err.message, 'error');
+    }
+  };
+
+  window.deleteProduct = async function(prodId) {
+    if (!confirm('Are you sure you want to delete this product from the catalog?')) return;
+    try {
+      const res = await AdminAPI.delete(`/api/admin/products/${prodId}`);
+      if (res && res.success) {
+        showToast('Product Deleted', res.message, 'success');
+        loadProducts();
+      } else {
+        showToast('Error', (res && res.message) || 'Error deleting product', 'error');
+      }
+    } catch (err) {
+      showToast('Error', err.message, 'error');
+    }
+  };
+
+  // -------------------------------------------------------------
+  // LEDGER & AUDIT LOGS
+  // -------------------------------------------------------------
+  window.loadLedger = async function() {
+    const tbody = document.getElementById('ledgerTableBody');
+    if (!tbody) return;
+
+    const res = await AdminAPI.get('/api/admin/ledger');
+    if (res && res.success && Array.isArray(res.transactions)) {
+      renderLedgerTable(res.transactions);
+    } else {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load financial ledger.</td></tr>`;
+    }
+  };
+
+  function renderLedgerTable(transactions) {
+    const tbody = document.getElementById('ledgerTableBody');
+    if (!tbody) return;
+
+    if (!transactions || transactions.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;">No wallet ledger transactions recorded yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = transactions.map(t => {
+      const amt = parseFloat(t.amount || 0);
+      const isPos = amt >= 0;
+      const amtColor = isPos ? '#16a34a' : '#dc2626';
+      const amtStr = (isPos ? '+' : '') + amt.toFixed(2);
+
+      let badgeColor = '#64748b';
+      if (t.transaction_type === 'ORDER_RESERVE') badgeColor = '#b45309';
+      else if (t.transaction_type === 'ORDER_RELEASE') badgeColor = '#2563eb';
+      else if (t.transaction_type === 'REWARD') badgeColor = '#16a34a';
+      else if (t.transaction_type === 'DEPOSIT') badgeColor = '#10b981';
+      else if (t.transaction_type === 'WITHDRAWAL') badgeColor = '#ef4444';
+      else if (t.transaction_type === 'ADMIN_CREDIT') badgeColor = '#059669';
+      else if (t.transaction_type === 'ADMIN_DEBIT') badgeColor = '#dc2626';
+
+      return `
+        <tr>
+          <td><code style="font-size:11.5px;">${escapeHtml(t.id)}</code></td>
+          <td><strong>${escapeHtml(t.username || 'User #' + t.user_id)}</strong></td>
+          <td><span class="badge-status" style="background:${badgeColor}; color:#fff; font-size:10.5px;">${escapeHtml(t.transaction_type)}</span></td>
+          <td><strong style="color:${amtColor}; font-size:14px;">${amtStr} USD</strong></td>
+          <td>
+            <span style="color:#64748b; font-size:12px;">$${parseFloat(t.balance_before || 0).toFixed(2)}</span>
+            <i class="fa fa-arrow-right" style="font-size:10px; color:#94a3b8; margin:0 4px;"></i>
+            <strong style="color:#0f172a; font-size:12.5px;">$${parseFloat(t.balance_after || 0).toFixed(2)}</strong>
+          </td>
+          <td><code style="font-size:11px; color:#475569;">${escapeHtml(t.reference || '--')}</code></td>
+          <td><small style="color:#475569;">${escapeHtml(t.description || '--')}</small></td>
+          <td><small style="color:#64748b;">${formatDate(t.created_at)}</small></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.loadAuditLogs = async function() {
+    const tbody = document.getElementById('auditLogsTableBody');
+    if (!tbody) return;
+
+    const res = await AdminAPI.get('/api/admin/audit-logs');
+    if (res && res.success && Array.isArray(res.logs)) {
+      renderAuditLogsTable(res.logs);
+    } else {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load audit logs.</td></tr>`;
+    }
+  };
+
+  function renderAuditLogsTable(logs) {
+    const tbody = document.getElementById('auditLogsTableBody');
+    if (!tbody) return;
+
+    if (!logs || logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">No admin audit logs recorded.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = logs.map(l => {
+      let detailsStr = '';
+      if (l.new_value) {
+        try {
+          detailsStr = typeof l.new_value === 'string' ? l.new_value : JSON.stringify(l.new_value);
+        } catch (_) { detailsStr = String(l.new_value); }
+      }
+
+      return `
+        <tr>
+          <td><small style="color:#64748b;">${formatDate(l.created_at)}</small></td>
+          <td><strong>${escapeHtml(l.admin_name || 'Admin #' + l.admin_id)}</strong></td>
+          <td><span class="badge-status" style="background:#3b82f6; color:#fff; font-size:11px;">${escapeHtml(l.action)}</span></td>
+          <td><span class="badge-status" style="background:#f1f5f9; color:#475569;">${escapeHtml(l.entity)}</span></td>
+          <td><code style="font-size:11px;">${escapeHtml(l.entity_id || '--')}</code></td>
+          <td><div style="max-width:280px; font-size:11.5px; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(detailsStr)}">${escapeHtml(detailsStr || '--')}</div></td>
+          <td><small style="color:#64748b;">${escapeHtml(l.ip_address || '--')}</small></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // -------------------------------------------------------------
+  // CREATE ORDER & PUSH TASK MODAL
+  // -------------------------------------------------------------
+  window.openCreateOrderModal = async function(preselectedUserId = null) {
+    document.getElementById('createOrderForm').reset();
+    document.getElementById('orderModalQuantity').value = 1;
+    document.getElementById('orderModalCommissionRate').value = 20;
+    document.getElementById('orderModalPushTask').checked = true;
+
+    // Populate Users dropdown
+    const userSelect = document.getElementById('orderModalUserId');
+    if (userSelect) {
+      if (!state.users || state.users.length === 0) {
+        await loadUsers();
+      }
+      userSelect.innerHTML = '<option value="">Select target merchant...</option>' + 
+        (state.users || []).map(u => `
+          <option value="${u.id}" ${preselectedUserId && String(u.id) === String(preselectedUserId) ? 'selected' : ''}>
+            ${escapeHtml(u.fullname || u.username)} (${u.email}) - Bal: $${parseFloat(u.balance || 0).toFixed(2)} - ${u.vip_level || 'Bronze'} VIP
+          </option>
+        `).join('');
+    }
+
+    // Populate Products dropdown
+    const prodSelect = document.getElementById('orderModalProductSelect');
+    if (prodSelect) {
+      if (!state.products || state.products.length === 0) {
+        await loadProducts();
+      }
+      prodSelect.innerHTML = '<option value="">Custom Product / Manual Entry</option>' + 
+        (state.products || []).map(p => `
+          <option value="${p.id}" data-price="${p.price}" data-name="${escapeHtml(p.name)}" data-image="${escapeHtml(p.image || '')}" data-category="${escapeHtml(p.category || 'General')}">
+            ${escapeHtml(p.name)} - $${parseFloat(p.price).toFixed(2)}
+          </option>
+        `).join('');
+    }
+
+    onOrderUserChange();
+    recalcOrderModal();
+    AdminUI.openModal('createOrderModal');
+  };
+
+  window.onOrderUserChange = function() {
+    const userSelect = document.getElementById('orderModalUserId');
+    const statsCard = document.getElementById('orderUserStatsCard');
+    if (!userSelect || !statsCard) return;
+
+    const selectedId = userSelect.value;
+    const user = (state.users || []).find(u => String(u.id) === String(selectedId));
+
+    if (user) {
+      statsCard.style.display = 'block';
+      const bal = parseFloat(user.balance || 0);
+      document.getElementById('orderUserWorkingBal').textContent = `$${bal.toFixed(2)}`;
+      document.getElementById('orderUserWorkingBal').style.color = bal < 0 ? '#ef4444' : '#0f172a';
+      document.getElementById('orderUserVip').textContent = `${user.vip_level || 'Bronze'} VIP`;
+      document.getElementById('orderUserTasks').textContent = `${user.today_tasks_completed || 0} / 38`;
+
+      // Pre-fill VIP commission rate
+      const vipRates = { Bronze: 20, Silver: 30, Gold: 40, Diamond: 50 };
+      const commRate = vipRates[user.vip_level] || 20;
+      document.getElementById('orderModalCommissionRate').value = commRate;
+    } else {
+      statsCard.style.display = 'none';
+    }
+
+    recalcOrderModal();
+  };
+
+  window.onOrderProductSelect = function() {
+    const prodSelect = document.getElementById('orderModalProductSelect');
+    if (!prodSelect) return;
+    const selectedOpt = prodSelect.options[prodSelect.selectedIndex];
+
+    if (selectedOpt && selectedOpt.value) {
+      document.getElementById('orderModalProductName').value = selectedOpt.getAttribute('data-name') || '';
+      document.getElementById('orderModalUnitPrice').value = selectedOpt.getAttribute('data-price') || '';
+      document.getElementById('orderModalCategory').value = selectedOpt.getAttribute('data-category') || 'General';
+      document.getElementById('orderModalImage').value = selectedOpt.getAttribute('data-image') || '';
+    }
+    recalcOrderModal();
+  };
+
+  window.recalcOrderModal = function() {
+    const unitPrice = parseFloat(document.getElementById('orderModalUnitPrice').value) || 0;
+    const qty = parseInt(document.getElementById('orderModalQuantity').value, 10) || 1;
+    const commRate = (parseFloat(document.getElementById('orderModalCommissionRate').value) || 20) / 100;
+
+    const subtotal = Math.round(unitPrice * qty * 100) / 100;
+    const gross = subtotal;
+    const comm = Math.round(subtotal * commRate * 100) / 100;
+
+    const userSelect = document.getElementById('orderModalUserId');
+    const selectedId = userSelect ? userSelect.value : null;
+    const user = (state.users || []).find(u => String(u.id) === String(selectedId));
+    const availBal = user ? parseFloat(user.balance || 0) : 0;
+
+    const shortfall = gross > availBal ? Math.round((gross - availBal) * 100) / 100 : 0.00;
+
+    document.getElementById('orderBreakdownSubtotal').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('orderBreakdownGross').textContent = `$${gross.toFixed(2)}`;
+    document.getElementById('orderBreakdownAvailable').textContent = `$${availBal.toFixed(2)}`;
+    
+    const shortfallEl = document.getElementById('orderBreakdownShortfall');
+    shortfallEl.textContent = `$${shortfall.toFixed(2)}`;
+    shortfallEl.style.color = shortfall > 0 ? '#ef4444' : '#10b981';
+
+    document.getElementById('orderBreakdownCommission').textContent = `+$${comm.toFixed(2)}`;
+  };
+
+  window.submitCreateOrder = async function(e) {
+    if (e) e.preventDefault();
+    const btn = document.getElementById('btnSubmitCreateOrder');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Creating Order...';
+    }
+
+    const payload = {
+      userId: document.getElementById('orderModalUserId').value,
+      productName: document.getElementById('orderModalProductName').value,
+      category: document.getElementById('orderModalCategory').value || 'General',
+      unitPrice: parseFloat(document.getElementById('orderModalUnitPrice').value),
+      quantity: parseInt(document.getElementById('orderModalQuantity').value, 10) || 1,
+      commissionRate: (parseFloat(document.getElementById('orderModalCommissionRate').value) || 20) / 100,
+      productImage: document.getElementById('orderModalImage').value,
+      pushAsTask: document.getElementById('orderModalPushTask').checked
+    };
+
+    try {
+      const res = await AdminAPI.post('/api/admin/orders/create', payload);
+      if (res && res.success) {
+        showToast('Order Created', res.message, 'success');
+        AdminUI.closeModal('createOrderModal');
+        loadOrders();
+        loadTasks();
+        loadUsers();
+      } else {
+        showToast('Failed', (res && res.message) || 'Error creating order', 'error');
+      }
+    } catch (err) {
+      showToast('Error', err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check-circle mr-1"></i> Confirm & Create Order';
+      }
+    }
+  };
+
   // Bind All Forms & Event Listeners
   document.addEventListener('DOMContentLoaded', () => {
 
@@ -1643,6 +2259,13 @@
         if (target) target.style.display = 'block';
         if (tabId === 'tabSessions') loadSessions();
         if (tabId === 'tabUsers') loadUsers();
+        if (tabId === 'tabOrders') { loadOrders(); loadTasks(); }
+        if (tabId === 'tabProducts') loadProducts();
+        if (tabId === 'tabAudit') { loadLedger(); loadAuditLogs(); }
+        if (tabId === 'tabDeposits') loadDeposits();
+        if (tabId === 'tabWithdrawals') loadWithdrawals();
+        if (tabId === 'tabKyc') loadKycSubmissions();
+        if (tabId === 'tabStaff') loadStaff();
       });
     });
 

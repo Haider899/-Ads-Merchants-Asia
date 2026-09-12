@@ -10,6 +10,12 @@ const {
   makeCategoryMarker,
   pickCategoryProduct
 } = require('../utils/productCategories');
+const {
+  round,
+  generateOrderNumber,
+  generateTaskNumber,
+  calculateOrder
+} = require('../utils/orderCalculator');
 
 // Role-based permission guard helper
 function checkRole(...allowedRoles) {
@@ -315,13 +321,32 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
       } catch (_) {}
     }
   }
-
   const numAdd = (add_balance !== undefined && add_balance !== null && add_balance !== '') ? parseFloat(add_balance) : 0;
   const numDeduct = (deduct_balance !== undefined && deduct_balance !== null && deduct_balance !== '') ? parseFloat(deduct_balance) : 0;
 
   if (numDeduct > 0) {
     const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
     updates.balance = parseFloat(Math.max(0, currentBase - numDeduct).toFixed(2));
+    await db.createLedgerTransaction({
+      userId: user.id,
+      adminId: req.admin.id,
+      type: 'ADMIN_DEBIT',
+      amount: -numDeduct,
+      balanceBefore: currentBase,
+      balanceAfter: updates.balance,
+      currency: 'USD',
+      reference: `ADM-DB-${Date.now()}`,
+      description: `Admin balance deduction by ${req.admin.fullname || req.admin.username}`
+    }).catch(() => {});
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'ADMIN_DEBIT',
+      entity: 'user',
+      entityId: user.id,
+      oldValue: { balance: currentBase },
+      newValue: { balance: updates.balance },
+      ipAddress: req.ip
+    }).catch(() => {});
     try {
       await db.createNotification({
         user_id: user.id,
@@ -333,6 +358,26 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
   } else if (numAdd > 0) {
     const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
     updates.balance = parseFloat((currentBase + numAdd).toFixed(2));
+    await db.createLedgerTransaction({
+      userId: user.id,
+      adminId: req.admin.id,
+      type: 'ADMIN_CREDIT',
+      amount: numAdd,
+      balanceBefore: currentBase,
+      balanceAfter: updates.balance,
+      currency: 'USD',
+      reference: `ADM-CR-${Date.now()}`,
+      description: `Admin balance credit by ${req.admin.fullname || req.admin.username}`
+    }).catch(() => {});
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'ADMIN_CREDIT',
+      entity: 'user',
+      entityId: user.id,
+      oldValue: { balance: currentBase },
+      newValue: { balance: updates.balance },
+      ipAddress: req.ip
+    }).catch(() => {});
     try {
       await db.createNotification({
         user_id: user.id,
@@ -342,7 +387,32 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
       });
     } catch (_) {}
   } else if (!reinvest_profit && balance !== undefined && balance !== null && balance !== '') {
-    updates.balance = parseFloat(parseFloat(balance).toFixed(2));
+    const currentBase = parseFloat(user.balance || 0);
+    const newBal = parseFloat(parseFloat(balance).toFixed(2));
+    updates.balance = newBal;
+    const diff = parseFloat((newBal - currentBase).toFixed(2));
+    if (diff !== 0) {
+      await db.createLedgerTransaction({
+        userId: user.id,
+        adminId: req.admin.id,
+        type: diff > 0 ? 'ADMIN_CREDIT' : 'ADMIN_DEBIT',
+        amount: diff,
+        balanceBefore: currentBase,
+        balanceAfter: newBal,
+        currency: 'USD',
+        reference: `ADM-ADJ-${Date.now()}`,
+        description: `Direct balance override by ${req.admin.fullname || req.admin.username}`
+      }).catch(() => {});
+      await db.createAuditLog({
+        adminId: req.admin.id,
+        action: 'ADMIN_BALANCE_OVERRIDE',
+        entity: 'user',
+        entityId: user.id,
+        oldValue: { balance: currentBase },
+        newValue: { balance: newBal },
+        ipAddress: req.ip
+      }).catch(() => {});
+    }
   }
 
   const updated = await db.updateUser(userId, updates);
@@ -455,8 +525,19 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     if (pushImmediate) {
       // Push immediately as a pending order and deduct balance into deficit
       const currentBalance = parseFloat(user.balance || 0);
-      const newBalance = parseFloat((currentBalance - pPrice).toFixed(2));
-      const frozenBal = newBalance < 0 ? Math.abs(newBalance) : (user.frozen_balance || 0);
+      const calc = calculateOrder({
+        unit_price: pPrice,
+        quantity: 1,
+        commission_rate: commissionRate,
+        reward_rate: commissionRate,
+        available_balance: currentBalance
+      });
+
+      const newBalance = round(currentBalance - calc.gross_amount);
+      const frozenBal = newBalance < 0 ? round(Math.abs(newBalance)) : (user.frozen_balance || 0);
+      const orderNumber = generateOrderNumber();
+      const taskId = generateTaskNumber();
+      const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
 
       // Check if user has an existing pending task - if so, delete it or replace it
       const existingTasks = await db.getTasks(user.id);
@@ -465,23 +546,70 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
         await db.query('DELETE FROM tasks WHERE id = ?', [existingPending.id]).catch(() => {});
       }
 
+      // Create Order Record in orders table
+      await db.createOrder({
+        id: orderId,
+        order_number: orderNumber,
+        user_id: user.id,
+        merchant_id: null,
+        task_id: taskId,
+        product_id: null,
+        product_name: pName,
+        product_image: pImage,
+        category: selectedCategory ? selectedCategory.label : 'General',
+        unit_price: calc.unit_price,
+        quantity: calc.quantity,
+        subtotal: calc.subtotal,
+        discount_rate: calc.discount_rate,
+        discount_amount: calc.discount_amount,
+        tax_rate: calc.tax_rate,
+        tax_amount: calc.tax_amount,
+        fee_amount: calc.fee_amount,
+        gross_amount: calc.gross_amount,
+        commission_rate: calc.commission_rate,
+        commission_amount: calc.commission_amount,
+        reward_rate: calc.reward_rate,
+        reward_amount: calc.reward_amount,
+        user_deduction: calc.gross_amount,
+        payment_status: calc.is_deficit ? 'SHORTFALL' : 'PAID',
+        order_status: 'PROCESSING',
+        created_at: new Date()
+      });
+
       const task = {
-        id: 'tsk_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        id: taskId,
+        order_number: orderNumber,
         user_id: user.id,
         product_name: pName,
         product_image: pImage,
-        product_price: pPrice,
-        commission_rate: commissionRate,
-        commission_earned: commEarned,
-        commission_amount: commEarned,
+        product_price: calc.gross_amount,
+        commission_rate: calc.commission_rate,
+        commission_earned: calc.commission_amount,
+        commission_amount: calc.commission_amount,
         status: 'pending',
         order_num: targetOrder,
-        is_deficit: newBalance < 0 ? 1 : 0,
-        deficit_amount: newBalance < 0 ? Math.abs(newBalance) : 0,
+        is_deficit: calc.is_deficit ? 1 : 0,
+        deficit_amount: calc.funding_shortfall,
         created_at: new Date().toISOString()
       };
 
       await db.createTask(task);
+
+      // Record Ledger Entry: ORDER_RESERVE
+      await db.createLedgerTransaction({
+        userId: user.id,
+        orderId: orderId,
+        taskId: taskId,
+        adminId: req.admin.id,
+        type: 'ORDER_RESERVE',
+        amount: -calc.gross_amount,
+        balanceBefore: currentBalance,
+        balanceAfter: newBalance,
+        currency: 'USD',
+        reference: orderNumber,
+        description: `Immediate deficit task push: ${pName}`
+      }).catch(() => {});
+
       await db.updateUser(user.id, {
         balance: newBalance,
         frozen_balance: frozenBal,
@@ -491,10 +619,21 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
         custom_product_price: null
       });
 
+      await db.createAuditLog({
+        adminId: req.admin.id,
+        action: 'TASK_PUSH_IMMEDIATE',
+        entity: 'task',
+        entityId: taskId,
+        oldValue: { balance: currentBalance },
+        newValue: { balance: newBalance, order_number: orderNumber, deficit: calc.funding_shortfall },
+        ipAddress: req.ip
+      }).catch(() => {});
+
       return res.json({
         success: true,
         message: `Task pushed immediately! User working balance is now $${newBalance.toFixed(2)}${newBalance < 0 ? ' (Deficit: $' + Math.abs(newBalance).toFixed(2) + ')' : ''}.`,
         task,
+        order_number: orderNumber,
         new_balance: newBalance
       });
     } else {
@@ -646,6 +785,28 @@ router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'fin
         admin_notes: notes || 'Verified on blockchain'
       });
 
+      await db.createLedgerTransaction({
+        userId: user.id,
+        adminId: req.admin.id,
+        type: 'DEPOSIT',
+        amount: depositAmount,
+        balanceBefore: currentBalance,
+        balanceAfter: newBalance,
+        currency: 'USD',
+        reference: deposit.tx_hash || deposit.id,
+        description: `Deposit approved by admin (${deposit.method || 'USDT'})`
+      }).catch(() => {});
+
+      await db.createAuditLog({
+        adminId: req.admin.id,
+        action: 'DEPOSIT_APPROVE',
+        entity: 'deposit',
+        entityId: depositId,
+        oldValue: { balance: currentBalance, status: deposit.status },
+        newValue: { balance: newBalance, status: 'approved' },
+        ipAddress: req.ip
+      }).catch(() => {});
+
       await db.createNotification({
         user_id: user.id,
         title: 'Deposit Approved! 💳',
@@ -767,6 +928,28 @@ router.post('/withdrawals/action', adminAuthMiddleware, checkRole('sub_admin', '
         status: 'approved',
         admin_notes: notes || 'Payout transferred to destination address'
       });
+
+      await db.createLedgerTransaction({
+        userId: user.id,
+        adminId: req.admin.id,
+        type: 'WITHDRAWAL',
+        amount: -withdrawAmount,
+        balanceBefore: currentBalance,
+        balanceAfter: currentBalance,
+        currency: 'USD',
+        reference: withdrawal.tx_hash || withdrawal.id,
+        description: `Withdrawal payout dispatched by admin to ${withdrawal.wallet_address || 'wallet'}`
+      }).catch(() => {});
+
+      await db.createAuditLog({
+        adminId: req.admin.id,
+        action: 'WITHDRAWAL_APPROVE',
+        entity: 'withdrawal',
+        entityId: withdrawalId,
+        oldValue: { status: withdrawal.status },
+        newValue: { status: 'approved' },
+        ipAddress: req.ip
+      }).catch(() => {});
 
       await db.createNotification({
         user_id: user.id,
@@ -1072,6 +1255,567 @@ router.post('/staff/delete', adminAuthMiddleware, checkRole('super_admin'), asyn
   } catch (err) {
     console.error('Delete Staff Error:', err);
     res.status(500).json({ success: false, message: 'Error deleting staff account' });
+  }
+});
+
+// ==========================================
+// ORDERS MANAGEMENT
+// ==========================================
+
+// GET /api/admin/orders
+router.get('/orders', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
+  try {
+    const { status, user_id, order_number } = req.query;
+    const filter = {};
+    if (status && status !== 'ALL') filter.order_status = status;
+    if (user_id) filter.user_id = user_id;
+    if (order_number) filter.order_number = order_number;
+
+    const orders = await db.getOrders(filter);
+    res.json({ success: true, orders });
+  } catch (err) {
+    console.error('Admin Orders Fetch Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching orders: ' + err.message });
+  }
+});
+
+// POST /api/admin/orders/create
+router.post('/orders/create', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const {
+      userId,
+      productName,
+      productImage,
+      category,
+      unitPrice,
+      quantity = 1,
+      discountRate = 0,
+      taxRate = 0,
+      feeAmount = 0,
+      commissionRate = 0.20,
+      pushAsTask = true
+    } = req.body;
+
+    const user = await db.findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const currentBalance = round(user.balance || 0);
+    const calc = calculateOrder({
+      unit_price: unitPrice,
+      quantity: quantity,
+      discount_rate: discountRate,
+      tax_rate: taxRate,
+      fee_amount: feeAmount,
+      commission_rate: commissionRate,
+      reward_rate: commissionRate,
+      available_balance: currentBalance
+    });
+
+    const orderNumber = generateOrderNumber();
+    const taskId = generateTaskNumber();
+    const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
+    const prodImg = productImage || 'client/assets/uploads/products/outdoor_shed.jpg';
+
+    // Insert into orders table
+    const order = await db.createOrder({
+      id: orderId,
+      order_number: orderNumber,
+      user_id: user.id,
+      merchant_id: null,
+      task_id: pushAsTask ? taskId : null,
+      product_id: null,
+      product_name: productName || 'Amazon Asia Merchant Order',
+      product_image: prodImg,
+      category: category || 'General',
+      unit_price: calc.unit_price,
+      quantity: calc.quantity,
+      subtotal: calc.subtotal,
+      discount_rate: calc.discount_rate,
+      discount_amount: calc.discount_amount,
+      tax_rate: calc.tax_rate,
+      tax_amount: calc.tax_amount,
+      fee_amount: calc.fee_amount,
+      gross_amount: calc.gross_amount,
+      commission_rate: calc.commission_rate,
+      commission_amount: calc.commission_amount,
+      reward_rate: calc.reward_rate,
+      reward_amount: calc.reward_amount,
+      user_deduction: calc.gross_amount,
+      payment_status: calc.is_deficit ? 'SHORTFALL' : 'PAID',
+      order_status: pushAsTask ? 'PROCESSING' : 'PENDING',
+      created_at: new Date()
+    });
+
+    let newBalance = currentBalance;
+    if (pushAsTask) {
+      newBalance = round(currentBalance - calc.gross_amount);
+      const frozenBal = newBalance < 0 ? round(Math.abs(newBalance)) : (user.frozen_balance || 0);
+
+      // Create task in tasks table
+      await db.createTask({
+        id: taskId,
+        order_number: orderNumber,
+        user_id: user.id,
+        product_name: productName || 'Amazon Asia Merchant Order',
+        product_image: prodImg,
+        product_price: calc.gross_amount,
+        commission_rate: calc.commission_rate,
+        commission_earned: calc.commission_amount,
+        commission_amount: calc.commission_amount,
+        status: 'pending',
+        order_num: (user.today_tasks_completed || 0) + 1,
+        is_deficit: calc.is_deficit ? 1 : 0,
+        deficit_amount: calc.funding_shortfall,
+        created_at: new Date().toISOString()
+      });
+
+      // Ledger entry: ORDER_RESERVE
+      await db.createLedgerTransaction({
+        userId: user.id,
+        orderId: orderId,
+        taskId: taskId,
+        adminId: req.admin.id,
+        type: 'ORDER_RESERVE',
+        amount: -calc.gross_amount,
+        balanceBefore: currentBalance,
+        balanceAfter: newBalance,
+        currency: 'USD',
+        reference: orderNumber,
+        description: `Order created by admin: ${productName}`
+      }).catch(() => {});
+
+      // Update user balance
+      await db.updateUser(user.id, {
+        balance: newBalance,
+        frozen_balance: frozenBal
+      });
+    }
+
+    // Record audit log
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'ORDER_CREATE',
+      entity: 'order',
+      entityId: orderId,
+      oldValue: null,
+      newValue: { order_number: orderNumber, gross_amount: calc.gross_amount, user_id: user.id, pushAsTask },
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      message: `Order #${orderNumber} created successfully! ${pushAsTask ? `Pushed to user task queue. User balance updated to $${newBalance.toFixed(2)}.` : ''}`,
+      order,
+      calculation: calc,
+      new_balance: newBalance
+    });
+  } catch (err) {
+    console.error('Create Order Error:', err);
+    res.status(500).json({ success: false, message: 'Error creating order: ' + err.message });
+  }
+});
+
+// POST /api/admin/orders/:id/status - Cancel or update order
+router.post('/orders/:id/status', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, refundUser } = req.body;
+    const orders = await db.getOrders();
+    const order = orders.find(o => o.id === id || o.order_number === id);
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const updates = { order_status: status };
+    if (status === 'COMPLETED') {
+      updates.completed_at = new Date();
+      updates.payment_status = 'PAID';
+    } else if (status === 'CANCELLED') {
+      updates.payment_status = 'CANCELLED';
+    }
+
+    await db.updateOrder(order.id, updates);
+
+    // If cancelling and refunding reserved funds to user:
+    if (status === 'CANCELLED' && refundUser && order.user_deduction > 0) {
+      const user = await db.findUserById(order.user_id);
+      if (user) {
+        const refundAmt = round(order.user_deduction);
+        const balBefore = round(user.balance || 0);
+        const balAfter = round(balBefore + refundAmt);
+        await db.updateUser(user.id, {
+          balance: balAfter,
+          frozen_balance: balAfter >= 0 ? 0.00 : round(Math.abs(balAfter))
+        });
+        await db.createLedgerTransaction({
+          userId: user.id,
+          orderId: order.id,
+          adminId: req.admin.id,
+          type: 'ORDER_REFUND',
+          amount: refundAmt,
+          balanceBefore: balBefore,
+          balanceAfter: balAfter,
+          reference: order.order_number,
+          description: `Refund for cancelled order #${order.order_number}`
+        }).catch(() => {});
+      }
+    }
+
+    // Update associated task if any
+    if (order.task_id) {
+      if (status === 'CANCELLED') {
+        await db.query('DELETE FROM tasks WHERE id = ?', [order.task_id]).catch(() => {});
+      } else if (status === 'COMPLETED') {
+        await db.updateTask(order.task_id, { status: 'completed' }).catch(() => {});
+      }
+    }
+
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: `ORDER_STATUS_${status}`,
+      entity: 'order',
+      entityId: order.id,
+      oldValue: { status: order.order_status },
+      newValue: { status },
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Order #${order.order_number} marked as ${status}.` });
+  } catch (err) {
+    console.error('Update Order Status Error:', err);
+    res.status(500).json({ success: false, message: 'Error updating order status: ' + err.message });
+  }
+});
+
+// ==========================================
+// TASKS MANAGEMENT
+// ==========================================
+
+// GET /api/admin/tasks
+router.get('/tasks', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
+  try {
+    const tasks = await db.getTasks();
+    const users = await db.getUsers();
+    const userMap = {};
+    users.forEach(u => userMap[u.id] = u);
+
+    const enrichedTasks = tasks.map(t => {
+      const u = userMap[t.user_id] || {};
+      return {
+        ...t,
+        username: u.username || 'Unknown',
+        fullname: u.fullname || '',
+        vip_level: u.vip_level || 'Bronze',
+        user_balance: u.balance !== undefined ? parseFloat(u.balance) : 0,
+        product_price: parseFloat(t.product_price || 0),
+        commission_amount: parseFloat(t.commission_amount !== undefined ? t.commission_amount : (t.commission_earned || 0))
+      };
+    });
+
+    res.json({ success: true, tasks: enrichedTasks });
+  } catch (err) {
+    console.error('Admin Tasks Fetch Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching tasks: ' + err.message });
+  }
+});
+
+// POST /api/admin/tasks/:id/complete - Force complete task by admin
+router.post('/tasks/:id/complete', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tasks = await db.getTasks();
+    const task = tasks.find(t => String(t.id) === String(id));
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
+    if (task.status === 'completed') {
+      return res.status(400).json({ success: false, message: 'Task is already completed' });
+    }
+
+    const user = await db.findUserById(task.user_id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const taskPrice = parseFloat(task.product_price || 0);
+    const commAmount = parseFloat(task.commission_amount !== undefined && task.commission_amount !== null
+      ? task.commission_amount
+      : (task.commission_earned || 0));
+
+    // Update task
+    await db.updateTask(task.id, {
+      status: 'completed',
+      commission_earned: commAmount
+    });
+
+    // Update order
+    if (task.order_number) {
+      await db.updateOrder(task.order_number, {
+        task_id: task.id,
+        order_status: 'COMPLETED',
+        payment_status: 'PAID',
+        completed_at: new Date()
+      }).catch(() => {});
+    }
+
+    // Release principal & credit reward
+    const currentBalance = round(user.balance || 0);
+    const balAfterRelease = round(currentBalance + taskPrice);
+    const balAfterReward = round(balAfterRelease + commAmount);
+
+    await db.createLedgerTransaction({
+      userId: user.id,
+      taskId: task.id,
+      adminId: req.admin.id,
+      type: 'ORDER_RELEASE',
+      amount: taskPrice,
+      balanceBefore: currentBalance,
+      balanceAfter: balAfterRelease,
+      reference: task.order_number || task.id,
+      description: `Principal release (admin forced): ${task.product_name}`
+    }).catch(() => {});
+
+    await db.createLedgerTransaction({
+      userId: user.id,
+      taskId: task.id,
+      adminId: req.admin.id,
+      type: 'REWARD',
+      amount: commAmount,
+      balanceBefore: balAfterRelease,
+      balanceAfter: balAfterReward,
+      reference: task.order_number || task.id,
+      description: `Reward credit (admin forced): ${task.product_name}`
+    }).catch(() => {});
+
+    const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
+    const newCompleted = (parseInt(user.today_tasks_completed, 10) || 0) + 1;
+
+    await db.updateUser(user.id, {
+      balance: balAfterReward,
+      frozen_balance: 0.00,
+      today_profit: newTodayProfit,
+      today_tasks_completed: newCompleted,
+      total_tasks_completed: (parseInt(user.total_tasks_completed, 10) || 0) + 1
+    });
+
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'TASK_FORCE_COMPLETE',
+      entity: 'task',
+      entityId: task.id,
+      oldValue: { status: 'pending' },
+      newValue: { status: 'completed', credited: balAfterReward },
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      message: `Task completed! Released $${taskPrice.toFixed(2)} principal + $${commAmount.toFixed(2)} commission. User balance is now $${balAfterReward.toFixed(2)}.`
+    });
+  } catch (err) {
+    console.error('Force Complete Task Error:', err);
+    res.status(500).json({ success: false, message: 'Error completing task: ' + err.message });
+  }
+});
+
+// DELETE /api/admin/tasks/:id - Delete or cancel task
+router.delete('/tasks/:id', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tasks = await db.getTasks();
+    const task = tasks.find(t => String(t.id) === String(id));
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
+    // If pending, refund the reserved product price back into user's balance
+    if (task.status === 'pending') {
+      const user = await db.findUserById(task.user_id);
+      if (user) {
+        const taskPrice = parseFloat(task.product_price || 0);
+        const currentBal = round(user.balance || 0);
+        const newBal = round(currentBal + taskPrice);
+        const newFrozen = newBal >= 0 ? 0.00 : round(Math.abs(newBal));
+
+        await db.updateUser(user.id, {
+          balance: newBal,
+          frozen_balance: newFrozen
+        });
+
+        await db.createLedgerTransaction({
+          userId: user.id,
+          taskId: task.id,
+          adminId: req.admin.id,
+          type: 'ORDER_REFUND',
+          amount: taskPrice,
+          balanceBefore: currentBal,
+          balanceAfter: newBal,
+          reference: task.order_number || task.id,
+          description: `Refund for deleted pending task: ${task.product_name}`
+        }).catch(() => {});
+      }
+
+      if (task.order_number) {
+        await db.updateOrder(task.order_number, {
+          order_status: 'CANCELLED',
+          payment_status: 'CANCELLED'
+        }).catch(() => {});
+      }
+    }
+
+    await db.query('DELETE FROM tasks WHERE id = ?', [task.id]);
+
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'TASK_DELETE',
+      entity: 'task',
+      entityId: task.id,
+      oldValue: { id: task.id, product_name: task.product_name, status: task.status },
+      newValue: null,
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({ success: true, message: 'Task removed successfully and reserved balance refunded if pending.' });
+  } catch (err) {
+    console.error('Delete Task Error:', err);
+    res.status(500).json({ success: false, message: 'Error deleting task: ' + err.message });
+  }
+});
+
+// ==========================================
+// PRODUCTS MANAGEMENT
+// ==========================================
+
+// GET /api/admin/products
+router.get('/products', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
+  try {
+    const products = await db.getProducts();
+    res.json({ success: true, products });
+  } catch (err) {
+    console.error('Admin Products Fetch Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching products: ' + err.message });
+  }
+});
+
+// POST /api/admin/products
+router.post('/products', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { name, price, image, category } = req.body;
+    if (!name || price === undefined || price === '') {
+      return res.status(400).json({ success: false, message: 'Product name and price are required' });
+    }
+
+    const created = await db.createProduct({
+      name: name.trim(),
+      price: parseFloat(price),
+      image: image || 'client/assets/uploads/products/outdoor_shed.jpg',
+      category: category || 'General',
+      is_active: 1
+    });
+
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'PRODUCT_CREATE',
+      entity: 'product',
+      entityId: created.id,
+      oldValue: null,
+      newValue: created,
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({ success: true, message: 'Product added successfully!', product: created });
+  } catch (err) {
+    console.error('Create Product Error:', err);
+    res.status(500).json({ success: false, message: 'Error creating product: ' + err.message });
+  }
+});
+
+// PUT /api/admin/products/:id
+router.put('/products/:id', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, price, image, category, is_active } = req.body;
+
+    const updates = {};
+    if (name !== undefined) updates.name = name.trim();
+    if (price !== undefined && price !== '') updates.price = parseFloat(price);
+    if (image !== undefined) updates.image = image;
+    if (category !== undefined) updates.category = category;
+    if (is_active !== undefined) updates.is_active = is_active ? 1 : 0;
+
+    await db.updateProduct(id, updates);
+
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'PRODUCT_UPDATE',
+      entity: 'product',
+      entityId: id,
+      oldValue: null,
+      newValue: updates,
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({ success: true, message: 'Product updated successfully!' });
+  } catch (err) {
+    console.error('Update Product Error:', err);
+    res.status(500).json({ success: false, message: 'Error updating product: ' + err.message });
+  }
+});
+
+// DELETE /api/admin/products/:id
+router.delete('/products/:id', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.deleteProduct(id);
+
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'PRODUCT_DELETE',
+      entity: 'product',
+      entityId: id,
+      oldValue: null,
+      newValue: null,
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({ success: true, message: 'Product deleted successfully!' });
+  } catch (err) {
+    console.error('Delete Product Error:', err);
+    res.status(500).json({ success: false, message: 'Error deleting product: ' + err.message });
+  }
+});
+
+// ==========================================
+// AUDIT LOGS & FINANCIAL LEDGER
+// ==========================================
+
+// GET /api/admin/ledger
+router.get('/ledger', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const transactions = await db.getLedgerTransactions(userId || null);
+    res.json({ success: true, transactions });
+  } catch (err) {
+    console.error('Admin Ledger Fetch Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching ledger transactions: ' + err.message });
+  }
+});
+
+// GET /api/admin/audit-logs
+router.get('/audit-logs', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
+  try {
+    const { limit } = req.query;
+    const logs = await db.getAuditLogs(parseInt(limit, 10) || 100);
+    res.json({ success: true, logs });
+  } catch (err) {
+    console.error('Admin Audit Logs Fetch Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching audit logs: ' + err.message });
   }
 });
 

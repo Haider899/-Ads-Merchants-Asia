@@ -804,6 +804,9 @@
         <!-- Navigation Tabs -->
         <div class="admin-tabs">
             <button id="tabBtnUsers" class="admin-tab-btn active" data-tab="tabUsers"><i class="fa fa-users"></i> Users & Balances</button>
+            <button id="tabBtnOrders" class="admin-tab-btn" data-tab="tabOrders"><i class="fa fa-shopping-cart"></i> Orders & Tasks <span id="adminOrdersBadge" class="badge-status" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#3b82f6; color:#fff; font-weight:700;">0</span></button>
+            <button id="tabBtnProducts" class="admin-tab-btn" data-tab="tabProducts"><i class="fa fa-box-open"></i> Products Catalog</button>
+            <button id="tabBtnAudit" class="admin-tab-btn" data-tab="tabAudit"><i class="fa fa-history"></i> Ledger & Audit</button>
             <button id="tabBtnSessions" class="admin-tab-btn" data-tab="tabSessions"><i class="fa fa-signal"></i> Active Sessions <span id="adminOnlineBadge" class="badge-status" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#10b981; color:#fff; font-weight:700;">0</span></button>
             <button id="tabBtnStaff" class="admin-tab-btn" data-tab="tabStaff"><i class="fa fa-user-shield"></i> Sub-Admins & Staff</button>
             <button id="tabBtnChat" class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#ef4444; color:#fff; font-weight:700;">0</span></button>
@@ -1110,6 +1113,180 @@
             </div>
         </div>
 
+        <!-- Tab: Orders & Tasks Management -->
+        <div id="tabOrders" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header" style="flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-shopping-cart" style="color: var(--primary);"></i> Orders Management & Task Queues</h5>
+                        <small style="color: #64748b;">Centralized order tracking, precise pricing breakdowns, deficit monitoring, and task queue control.</small>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <input type="text" id="orderSearchInput" class="form-control" placeholder="Search Order # or Username..." style="width: 220px; padding: 6px 12px; font-size: 13px;" onkeyup="filterOrdersTable()" />
+                        <select id="orderStatusFilter" class="form-control" style="width: 140px; padding: 6px 12px; font-size: 13px;" onchange="loadOrders()">
+                            <option value="ALL">All Statuses</option>
+                            <option value="PROCESSING">Processing</option>
+                            <option value="SHORTFALL">Shortfall / Deficit</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                        <button class="btn-refresh" onclick="loadOrders()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                        <button class="btn-action" style="background: #2563eb; color: white; padding: 6px 14px; font-weight: 700; border-radius: 8px;" onclick="openCreateOrderModal()">
+                            <i class="fa fa-plus-circle mr-1"></i> Create Order / Push Task
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Order Number</th>
+                                <th>Merchant User</th>
+                                <th>Product Details</th>
+                                <th>Price & Qty</th>
+                                <th>Gross Required</th>
+                                <th>Yield / Reward</th>
+                                <th>Order Status</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">Loading order records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Active User Tasks Section -->
+            <div class="panel-card" style="margin-top: 24px;">
+                <div class="panel-card-header">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-tasks" style="color: #f59e0b;"></i> Active Tasks In Users' Mobile Queues</h5>
+                        <small style="color: #64748b;">Tasks currently waiting for review or frozen on deficit. Admins can force complete or cancel & refund.</small>
+                    </div>
+                    <button class="btn-refresh" onclick="loadTasks()"><i class="fa fa-sync-alt"></i> Refresh Tasks</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Task ID</th>
+                                <th>Order Number</th>
+                                <th>User</th>
+                                <th>Product Name</th>
+                                <th>Product Price</th>
+                                <th>Commission</th>
+                                <th>Deficit Status</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody">
+                            <tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">Loading user tasks...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Products Catalog -->
+        <div id="tabProducts" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header" style="flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-box-open" style="color: #10b981;"></i> Products Catalog & Pricing</h5>
+                        <small style="color: #64748b;">Products available for automatic matching, tiered VIP orders, and high-ticket deficit sets.</small>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-refresh" onclick="loadProducts()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                        <button class="btn-action" style="background: #10b981; color: white; padding: 6px 14px; font-weight: 700; border-radius: 8px;" onclick="openProductModal()">
+                            <i class="fa fa-plus mr-1"></i> Add New Product
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Price (USD)</th>
+                                <th>Active Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">Loading products...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Financial Ledger & Audit Logs -->
+        <div id="tabAudit" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header" style="flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-book" style="color: #6366f1;"></i> Double-Entry Financial Ledger (Wallet Transactions)</h5>
+                        <small style="color: #64748b;">Immutable ledger tracking ORDER_RESERVE, ORDER_RELEASE, REWARD, DEPOSIT, WITHDRAWAL, and ADMIN balance adjustments.</small>
+                    </div>
+                    <button class="btn-refresh" onclick="loadLedger()"><i class="fa fa-sync-alt"></i> Refresh Ledger</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Tx ID</th>
+                                <th>User</th>
+                                <th>Transaction Type</th>
+                                <th>Amount</th>
+                                <th>Balance Change</th>
+                                <th>Reference</th>
+                                <th>Description</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledgerTableBody">
+                            <tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;">Loading ledger transactions...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Audit Logs Section -->
+            <div class="panel-card" style="margin-top: 24px;">
+                <div class="panel-card-header">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-shield-alt" style="color: #ef4444;"></i> Administrative Action Audit Log</h5>
+                        <small style="color: #64748b;">Auditing every admin balance adjustment, deficit push, order creation, and status approval.</small>
+                    </div>
+                    <button class="btn-refresh" onclick="loadAuditLogs()"><i class="fa fa-sync-alt"></i> Refresh Logs</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Admin User</th>
+                                <th>Action Taken</th>
+                                <th>Target Entity</th>
+                                <th>Entity ID</th>
+                                <th>Details / Changes</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsTableBody">
+                            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">Loading audit logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Edit User Modal -->
@@ -1439,6 +1616,170 @@
                 <a id="imageViewerLink" href="#" target="_blank" class="btn-refresh" style="text-decoration: none;">
                     <i class="fa fa-external-link-alt"></i> Open Original Resolution
                 </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Create Order & Push Task Modal -->
+    <div id="createOrderModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 640px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-cart-plus" style="color: var(--primary);"></i> Create Merchant Order / Push Task</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('createOrderModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="createOrderForm" onsubmit="submitCreateOrder(event)">
+                    <div class="form-group">
+                        <label>Target Merchant User <span style="color: red;">*</span></label>
+                        <select id="orderModalUserId" class="form-control" required onchange="onOrderUserChange()">
+                            <option value="">Select a user...</option>
+                        </select>
+                    </div>
+
+                    <!-- User Live Financial State Card -->
+                    <div id="orderUserStatsCard" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
+                            <div>
+                                <small style="color: #64748b; display: block; font-size: 11px;">Working Balance</small>
+                                <span id="orderUserWorkingBal" style="font-weight: 800; font-size: 15px; color: #0f172a;">$0.00</span>
+                            </div>
+                            <div>
+                                <small style="color: #64748b; display: block; font-size: 11px;">VIP Tier</small>
+                                <span id="orderUserVip" style="font-weight: 700; font-size: 13px; color: #2563eb;">Bronze</span>
+                            </div>
+                            <div>
+                                <small style="color: #64748b; display: block; font-size: 11px;">Today Tasks</small>
+                                <span id="orderUserTasks" style="font-weight: 700; font-size: 13px; color: #10b981;">0 / 38</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Product Selection</label>
+                            <select id="orderModalProductSelect" class="form-control" onchange="onOrderProductSelect()">
+                                <option value="">Custom Product / Manual Entry</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <input type="text" id="orderModalCategory" class="form-control" value="General" placeholder="General" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Product Name <span style="color: red;">*</span></label>
+                        <input type="text" id="orderModalProductName" class="form-control" required placeholder="e.g. Garment Bags for Travel, Convertible Carry on..." />
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unit Price ($) <span style="color: red;">*</span></label>
+                            <input type="number" step="0.01" min="0.01" id="orderModalUnitPrice" class="form-control" required placeholder="0.00" oninput="recalcOrderModal()" />
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity</label>
+                            <input type="number" min="1" id="orderModalQuantity" class="form-control" value="1" oninput="recalcOrderModal()" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Commission Rate (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" id="orderModalCommissionRate" class="form-control" value="20" oninput="recalcOrderModal()" />
+                        </div>
+                        <div class="form-group">
+                            <label>Product Image URL</label>
+                            <input type="text" id="orderModalImage" class="form-control" placeholder="client/assets/uploads/products/..." />
+                        </div>
+                    </div>
+
+                    <!-- Live Breakdown Display -->
+                    <div style="background: #f1f5f9; border-radius: 12px; padding: 14px; margin: 16px 0; border: 1px solid #cbd5e1;">
+                        <h6 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 700; color: #334155;">Real-Time Financial & Shortfall Breakdown</h6>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Subtotal:</span>
+                            <span id="orderBreakdownSubtotal" style="font-weight: 700;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Required Gross:</span>
+                            <span id="orderBreakdownGross" style="font-weight: 800; color: #0f172a;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Available User Balance:</span>
+                            <span id="orderBreakdownAvailable" style="font-weight: 700; color: #2563eb;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
+                            <span style="color: #64748b;">Funding Shortfall (Deficit):</span>
+                            <span id="orderBreakdownShortfall" style="font-weight: 800; color: #10b981;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px;">
+                            <span style="color: #64748b;">Projected Commission Reward:</span>
+                            <span id="orderBreakdownCommission" style="font-weight: 800; color: #16a34a;">+$0.00</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="orderModalPushTask" checked style="width: 18px; height: 18px;" />
+                            <span style="font-size: 13.5px; font-weight: 600; color: #0f172a;">
+                                ⚡ Push immediately as Active Task into User's Mobile Queue
+                            </span>
+                        </label>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="AdminUI.closeModal('createOrderModal')">Cancel</button>
+                        <button type="submit" id="btnSubmitCreateOrder" class="btn-action" style="background: #2563eb; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700;">
+                            <i class="fa fa-check-circle mr-1"></i> Confirm & Create Order
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Product Catalog Modal -->
+    <div id="productModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 500px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title" id="productModalTitle"><i class="fa fa-box-open" style="color: #10b981;"></i> Add / Edit Product</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('productModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="productForm" onsubmit="submitProductForm(event)">
+                    <input type="hidden" id="productId" />
+                    <div class="form-group">
+                        <label>Product Name <span style="color: red;">*</span></label>
+                        <input type="text" id="prodName" class="form-control" required placeholder="e.g. Stanley Quencher Reusable Straw..." />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Price (USD) <span style="color: red;">*</span></label>
+                            <input type="number" step="0.01" min="0.01" id="prodPrice" class="form-control" required placeholder="9.99" />
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <input type="text" id="prodCategory" class="form-control" placeholder="Home & Kitchen" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Image URL / Path</label>
+                        <input type="text" id="prodImage" class="form-control" placeholder="client/assets/uploads/products/..." />
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="prodActive" checked style="width: 18px; height: 18px;" />
+                            <span style="font-size: 13.5px; font-weight: 600;">Active for Automated Task Matching</span>
+                        </label>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 16px;">
+                        <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="AdminUI.closeModal('productModal')">Cancel</button>
+                        <button type="submit" class="btn-action" style="background: #10b981; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700;">
+                            <i class="fa fa-save mr-1"></i> Save Product
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

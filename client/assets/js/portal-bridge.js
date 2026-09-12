@@ -1149,7 +1149,12 @@
       }
 
       const totalAmount = parseFloat(task.product_price || 0).toFixed(2);
-      const profit = parseFloat(task.commission_amount !== undefined ? task.commission_amount : (task.commission_earned || 0)).toFixed(2);
+      let profitVal = parseFloat(task.commission_amount !== undefined && task.commission_amount !== null ? task.commission_amount : (task.commission_earned || 0));
+      if (!profitVal || profitVal <= 0) {
+        const rate = parseFloat(task.commission_rate || 0.20);
+        profitVal = parseFloat((parseFloat(totalAmount) * rate).toFixed(2));
+      }
+      const profit = profitVal.toFixed(2);
       
       let dateStr = task.created_at || 'Just now';
       try {

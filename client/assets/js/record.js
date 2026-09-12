@@ -71,7 +71,12 @@ function renderTaskCard(task) {
     }
 
     const totalAmount = parseFloat(task.product_price || 0).toFixed(2);
-    const profit = parseFloat(task.commission_amount || task.commission_earned || 0).toFixed(2);
+    let profit = parseFloat(task.commission_amount !== undefined && task.commission_amount !== null ? task.commission_amount : (task.commission_earned || 0));
+    if (!profit || profit <= 0) {
+        const rate = parseFloat(task.commission_rate || 0.20);
+        profit = parseFloat((parseFloat(totalAmount) * rate).toFixed(2));
+    }
+    const profitStr = profit.toFixed(2);
     const dateStr = formatDate(task.created_at);
 
     const statusPill = isCompleted
@@ -91,7 +96,7 @@ function renderTaskCard(task) {
                 </div>
                 <div class="record-item-tab-field-down-item" style="text-align: right;">
                     <div class="tiny-text">Profit</div>
-                    <div class="small-text">USD ${profit}</div>
+                    <div class="small-text">USD ${profitStr}</div>
                 </div>
             </div>
             <div class="record-item-tab-title">
