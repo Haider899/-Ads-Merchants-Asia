@@ -293,8 +293,20 @@
       }
     },
     get(url) { return this.request(url, { method: 'GET' }); },
-    post(url, data) { return this.request(url, { method: 'POST', body: JSON.stringify(data) }); }
+    post(url, data) { return this.request(url, { method: 'POST', body: JSON.stringify(data) }); },
+    put(url, data) { return this.request(url, { method: 'PUT', body: JSON.stringify(data) }); },
+    delete(url) { return this.request(url, { method: 'DELETE' }); }
   };
+
+  // Safe global toast helper ensuring legacy or future calls never throw ReferenceError
+  const showToast = function(title, message, type = 'info') {
+    if (window.AdminUI && typeof window.AdminUI.toast === 'function') {
+      window.AdminUI.toast(title, message, type);
+    } else {
+      console.log(`[Admin Toast ${type}] ${title}: ${message}`);
+    }
+  };
+  window.showToast = showToast;
 
   // State Management
   const state = {
@@ -531,6 +543,9 @@
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')" title="Edit Balance & User Details">
               <i class="fa fa-pen"></i> Edit
+            </button>
+            <button class="btn-action" style="background: #2563eb; color: white;" onclick="openCreateOrderModal('${u.id}')" title="Create Merchant Order & Push Task">
+              <i class="fa fa-cart-plus"></i> Push Order
             </button>
             <button class="btn-action" style="background: #f59e0b; color: white;" onclick="openAssignTaskModal('${u.id}')" title="Assign Smart Task & Deficit Order">
               <i class="fa fa-tasks"></i> Assign Task
@@ -1763,15 +1778,15 @@
     try {
       const res = await AdminAPI.post(`/api/admin/orders/${orderId}/status`, { status: 'CANCELLED', refundUser });
       if (res && res.success) {
-        showToast('Order Cancelled', res.message, 'success');
+        AdminUI.toast('Order Cancelled', res.message, 'success');
         loadOrders();
         loadTasks();
         loadUsers();
       } else {
-        showToast('Cancellation Failed', (res && res.message) || 'Error cancelling order', 'error');
+        AdminUI.toast('Cancellation Failed', (res && res.message) || 'Error cancelling order', 'error');
       }
     } catch (err) {
-      showToast('Error', err.message, 'error');
+      AdminUI.toast('Error', err.message, 'error');
     }
   };
 
@@ -1849,15 +1864,15 @@
     try {
       const res = await AdminAPI.post(`/api/admin/tasks/${taskId}/complete`);
       if (res && res.success) {
-        showToast('Task Completed', res.message, 'success');
+        AdminUI.toast('Task Completed', res.message, 'success');
         loadTasks();
         loadOrders();
         loadUsers();
       } else {
-        showToast('Failed', (res && res.message) || 'Error completing task', 'error');
+        AdminUI.toast('Failed', (res && res.message) || 'Error completing task', 'error');
       }
     } catch (err) {
-      showToast('Error', err.message, 'error');
+      AdminUI.toast('Error', err.message, 'error');
     }
   };
 
@@ -1866,15 +1881,15 @@
     try {
       const res = await AdminAPI.delete(`/api/admin/tasks/${taskId}`);
       if (res && res.success) {
-        showToast('Task Deleted', res.message, 'success');
+        AdminUI.toast('Task Deleted', res.message, 'success');
         loadTasks();
         loadOrders();
         loadUsers();
       } else {
-        showToast('Failed', (res && res.message) || 'Error deleting task', 'error');
+        AdminUI.toast('Failed', (res && res.message) || 'Error deleting task', 'error');
       }
     } catch (err) {
-      showToast('Error', err.message, 'error');
+      AdminUI.toast('Error', err.message, 'error');
     }
   };
 
@@ -1979,14 +1994,14 @@
         res = await AdminAPI.post('/api/admin/products', data);
       }
       if (res && res.success) {
-        showToast('Product Saved', res.message || 'Product catalog updated', 'success');
+        AdminUI.toast('Product Saved', res.message || 'Product catalog updated', 'success');
         AdminUI.closeModal('productModal');
         loadProducts();
       } else {
-        showToast('Error', (res && res.message) || 'Error saving product', 'error');
+        AdminUI.toast('Error', (res && res.message) || 'Error saving product', 'error');
       }
     } catch (err) {
-      showToast('Error', err.message, 'error');
+      AdminUI.toast('Error', err.message, 'error');
     }
   };
 
@@ -1995,13 +2010,13 @@
     try {
       const res = await AdminAPI.delete(`/api/admin/products/${prodId}`);
       if (res && res.success) {
-        showToast('Product Deleted', res.message, 'success');
+        AdminUI.toast('Product Deleted', res.message, 'success');
         loadProducts();
       } else {
-        showToast('Error', (res && res.message) || 'Error deleting product', 'error');
+        AdminUI.toast('Error', (res && res.message) || 'Error deleting product', 'error');
       }
     } catch (err) {
-      showToast('Error', err.message, 'error');
+      AdminUI.toast('Error', err.message, 'error');
     }
   };
 
@@ -2224,31 +2239,91 @@
       btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Creating Order...';
     }
 
+    const userSelect = document.getElementById('orderModalUserId');
+    const selectedUserId = userSelect ? userSelect.value.trim() : '';
+    if (!selectedUserId) {
+      AdminUI.toast('Merchant Required', 'Please select a target merchant user from the dropdown.', 'warning');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check-circle mr-1"></i> Confirm & Create Order';
+      }
+      return;
+    }
+
+    const prodNameInput = document.getElementById('orderModalProductName');
+    const productName = prodNameInput ? prodNameInput.value.trim() : '';
+    if (!productName) {
+      AdminUI.toast('Product Required', 'Please enter a product name.', 'warning');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check-circle mr-1"></i> Confirm & Create Order';
+      }
+      return;
+    }
+
+    const unitPriceInput = document.getElementById('orderModalUnitPrice');
+    const unitPrice = unitPriceInput ? parseFloat(unitPriceInput.value) : 0;
+    if (isNaN(unitPrice) || unitPrice <= 0) {
+      AdminUI.toast('Valid Price Required', 'Please enter a valid unit price greater than 0.00.', 'warning');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check-circle mr-1"></i> Confirm & Create Order';
+      }
+      return;
+    }
+
+    const qtyInput = document.getElementById('orderModalQuantity');
+    const quantity = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
+
+    const commRateInput = document.getElementById('orderModalCommissionRate');
+    const commissionRate = (commRateInput ? (parseFloat(commRateInput.value) || 20) : 20) / 100;
+
+    const categoryInput = document.getElementById('orderModalCategory');
+    const category = (categoryInput && categoryInput.value.trim()) || 'General';
+
+    const imageInput = document.getElementById('orderModalImage');
+    const productImage = (imageInput && imageInput.value.trim()) || '';
+
+    const pushTaskInput = document.getElementById('orderModalPushTask');
+    const pushAsTask = pushTaskInput ? pushTaskInput.checked : true;
+
     const payload = {
-      userId: document.getElementById('orderModalUserId').value,
-      productName: document.getElementById('orderModalProductName').value,
-      category: document.getElementById('orderModalCategory').value || 'General',
-      unitPrice: parseFloat(document.getElementById('orderModalUnitPrice').value),
-      quantity: parseInt(document.getElementById('orderModalQuantity').value, 10) || 1,
-      commissionRate: (parseFloat(document.getElementById('orderModalCommissionRate').value) || 20) / 100,
-      productImage: document.getElementById('orderModalImage').value,
-      pushAsTask: document.getElementById('orderModalPushTask').checked
+      userId: selectedUserId,
+      productName,
+      category,
+      unitPrice,
+      quantity,
+      commissionRate,
+      productImage,
+      pushAsTask
     };
+
+    // Auto-safety fallback: re-enable button after 15s if network freezes
+    const safetyTimer = setTimeout(() => {
+      if (btn && btn.disabled) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check-circle mr-1"></i> Confirm & Create Order';
+      }
+    }, 15000);
 
     try {
       const res = await AdminAPI.post('/api/admin/orders/create', payload);
+      clearTimeout(safetyTimer);
       if (res && res.success) {
-        showToast('Order Created', res.message, 'success');
+        AdminUI.toast('Order Created', res.message || 'Order created successfully!', 'success');
         AdminUI.closeModal('createOrderModal');
-        loadOrders();
-        loadTasks();
-        loadUsers();
+        if (typeof loadOrders === 'function') loadOrders();
+        if (typeof loadTasks === 'function') loadTasks();
+        if (typeof loadUsers === 'function') loadUsers();
       } else {
-        showToast('Failed', (res && res.message) || 'Error creating order', 'error');
+        AdminUI.toast('Creation Failed', (res && res.message) || 'Error creating order', 'error');
       }
     } catch (err) {
-      showToast('Error', err.message, 'error');
+      clearTimeout(safetyTimer);
+      console.error('Order creation error:', err);
+      AdminUI.toast('Error', err.message || 'An unexpected error occurred while creating order', 'error');
     } finally {
+      clearTimeout(safetyTimer);
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa fa-check-circle mr-1"></i> Confirm & Create Order';

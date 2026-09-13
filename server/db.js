@@ -30,17 +30,31 @@ async function query(sql, params) {
   return rows;
 }
 
-async function ensureUserTaskSettingColumns() {
-  const columns = [
-    { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
-    { name: 'last_reset_date', type: 'DATE DEFAULT NULL' }
-  ];
+// In-memory guard flags to prevent repetitive table metadata locks and DDL execution on every query
+let _productionSchemaEnsured = false;
+let _tasksTableEnsured = false;
+let _adminsTableEnsured = false;
+let _chatMessagesTableEnsured = false;
+let _notificationsTableEnsured = false;
+let _userTaskSettingColsEnsured = false;
 
-  for (const col of columns) {
-    const rows = await query('SHOW COLUMNS FROM users LIKE ?', [col.name]);
-    if (!rows || rows.length === 0) {
-      await query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
+async function ensureUserTaskSettingColumns() {
+  if (_userTaskSettingColsEnsured) return;
+  try {
+    const columns = [
+      { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
+      { name: 'last_reset_date', type: 'DATE DEFAULT NULL' }
+    ];
+
+    for (const col of columns) {
+      const rows = await query('SHOW COLUMNS FROM users LIKE ?', [col.name]);
+      if (!rows || rows.length === 0) {
+        await query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
+      }
     }
+    _userTaskSettingColsEnsured = true;
+  } catch (err) {
+    console.error('[DB] User task setting columns ensure notice:', err.message);
   }
 }
 
@@ -216,39 +230,6 @@ const db = {
     return await db.findUserById(userId);
   },
 
-  getProducts: async () => {
-    return await query('SELECT * FROM products');
-  },
-
-  getTasks: async (userId) => {
-    if (userId) {
-      return await query('SELECT * FROM tasks WHERE user_id = ?', [userId]);
-    }
-    return await query('SELECT * FROM tasks');
-  },
-
-  createTask: async (taskData) => {
-    await query(`INSERT INTO tasks (id, user_id, product_id, product_name, product_price, commission_rate, commission_earned, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [taskData.id, taskData.user_id, taskData.product_id, taskData.product_name, taskData.product_price, taskData.commission_rate, taskData.commission_earned, taskData.status, formatMySQLDate(taskData.created_at)]);
-    return taskData;
-  },
-
-  updateTask: async (id, updates) => {
-    const allowed = ['product_id', 'product_name', 'product_price', 'commission_rate', 'commission_earned', 'status', 'created_at'];
-    const filteredUpdates = {};
-    for (const key of Object.keys(updates)) {
-      if (allowed.includes(key)) {
-        filteredUpdates[key] = key === 'created_at' ? formatMySQLDate(updates[key]) : updates[key];
-      }
-    }
-    const keys = Object.keys(filteredUpdates);
-    if (keys.length === 0) return;
-    const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = Object.values(filteredUpdates);
-    values.push(id);
-    await query(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
-  },
-
   getDeposits: async (userId) => {
     let sql = `
       SELECT d.*, u.username, u.fullname, u.phone 
@@ -398,17 +379,23 @@ const db = {
 
   // Notifications
   ensureNotificationsTable: async () => {
-    await query(`CREATE TABLE IF NOT EXISTS notifications (
-      id VARCHAR(100) PRIMARY KEY,
-      user_id VARCHAR(50) NOT NULL,
-      title VARCHAR(255),
-      message TEXT,
-      type VARCHAR(50) DEFAULT 'info',
-      is_read BOOLEAN DEFAULT FALSE,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      INDEX (user_id),
-      INDEX (created_at)
-    )`);
+    if (_notificationsTableEnsured) return;
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS notifications (
+        id VARCHAR(100) PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        title VARCHAR(255),
+        message TEXT,
+        type VARCHAR(50) DEFAULT 'info',
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id),
+        INDEX (created_at)
+      )`);
+      _notificationsTableEnsured = true;
+    } catch (err) {
+      console.error('[DB] Notifications table ensure notice:', err.message);
+    }
   },
 
   getNotifications: async (userId, unreadOnly = false) => {
@@ -449,19 +436,25 @@ const db = {
 
   // Chat Messages
   ensureChatMessagesTable: async () => {
-    await query(`CREATE TABLE IF NOT EXISTS chat_messages (
-      id VARCHAR(100) PRIMARY KEY,
-      user_id VARCHAR(50) NOT NULL,
-      user_name VARCHAR(255),
-      user_email VARCHAR(255),
-      sender VARCHAR(20) DEFAULT 'user',
-      message_text TEXT,
-      read_by_admin BOOLEAN DEFAULT FALSE,
-      read_by_user BOOLEAN DEFAULT FALSE,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      INDEX (user_id),
-      INDEX (created_at)
-    )`);
+    if (_chatMessagesTableEnsured) return;
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS chat_messages (
+        id VARCHAR(100) PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        user_name VARCHAR(255),
+        user_email VARCHAR(255),
+        sender VARCHAR(20) DEFAULT 'user',
+        message_text TEXT,
+        read_by_admin BOOLEAN DEFAULT FALSE,
+        read_by_user BOOLEAN DEFAULT FALSE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id),
+        INDEX (created_at)
+      )`);
+      _chatMessagesTableEnsured = true;
+    } catch (err) {
+      console.error('[DB] Chat messages table ensure notice:', err.message);
+    }
   },
 
   cleanupExpiredChatMessages: async () => {
@@ -539,19 +532,25 @@ const db = {
 
   // STAFF & SUB-ADMIN MANAGEMENT
   ensureAdminsTable: async () => {
-    await query(`CREATE TABLE IF NOT EXISTS admins (
-      id VARCHAR(50) PRIMARY KEY,
-      fullname VARCHAR(255) NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
-      role VARCHAR(50) DEFAULT 'sub_admin',
-      status VARCHAR(50) DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-    // Seed default super admin if not present
-    await query(`INSERT IGNORE INTO admins (id, fullname, email, password_hash, role, status) VALUES 
-      ('adm_super_01', 'Haider Usama (Super Admin)', 'haiderusama707@gmail.com', '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi', 'super_admin', 'active')
-    `);
+    if (_adminsTableEnsured) return;
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS admins (
+        id VARCHAR(50) PRIMARY KEY,
+        fullname VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'sub_admin',
+        status VARCHAR(50) DEFAULT 'active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+      // Seed default super admin if not present
+      await query(`INSERT IGNORE INTO admins (id, fullname, email, password_hash, role, status) VALUES 
+        ('adm_super_01', 'Haider Usama (Super Admin)', 'haiderusama707@gmail.com', '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi', 'super_admin', 'active')
+      `);
+      _adminsTableEnsured = true;
+    } catch (err) {
+      console.error('[DB] Admins table ensure notice:', err.message);
+    }
   },
 
   getAdmins: async () => {
@@ -594,38 +593,46 @@ const db = {
 
   // TASKS & SMART COMMISSION ENGINE
   ensureTasksTable: async () => {
-    await query(`CREATE TABLE IF NOT EXISTS tasks (
-      id VARCHAR(50) PRIMARY KEY,
-      user_id VARCHAR(50) NOT NULL,
-      product_id INT,
-      product_name VARCHAR(255),
-      product_image VARCHAR(255),
-      product_price DECIMAL(15,2),
-      commission_rate DECIMAL(5,4),
-      commission_earned DECIMAL(15,2),
-      status VARCHAR(50) DEFAULT 'pending',
-      order_num INT DEFAULT 1,
-      is_deficit TINYINT(1) DEFAULT 0,
-      deficit_amount DECIMAL(15,2) DEFAULT 0.00,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      INDEX(user_id)
-    )`);
+    if (_tasksTableEnsured) return;
     try {
+      await query(`CREATE TABLE IF NOT EXISTS tasks (
+        id VARCHAR(50) PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        order_number VARCHAR(60) DEFAULT NULL,
+        product_id INT,
+        product_name VARCHAR(255),
+        product_image VARCHAR(255),
+        product_price DECIMAL(15,2),
+        commission_rate DECIMAL(5,4),
+        commission_earned DECIMAL(15,2),
+        status VARCHAR(50) DEFAULT 'pending',
+        order_num INT DEFAULT 1,
+        is_deficit TINYINT(1) DEFAULT 0,
+        deficit_amount DECIMAL(15,2) DEFAULT 0.00,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX(user_id)
+      )`);
       const cols = await query(`SHOW COLUMNS FROM tasks`);
       const colNames = cols.map(c => c.Field.toLowerCase());
+      if (!colNames.includes('order_number')) {
+        await query(`ALTER TABLE tasks ADD COLUMN order_number VARCHAR(60) DEFAULT NULL`).catch(() => {});
+      }
       if (!colNames.includes('product_image')) {
-        await query(`ALTER TABLE tasks ADD COLUMN product_image VARCHAR(255) DEFAULT NULL`);
+        await query(`ALTER TABLE tasks ADD COLUMN product_image VARCHAR(255) DEFAULT NULL`).catch(() => {});
       }
       if (!colNames.includes('order_num')) {
-        await query(`ALTER TABLE tasks ADD COLUMN order_num INT DEFAULT 1`);
+        await query(`ALTER TABLE tasks ADD COLUMN order_num INT DEFAULT 1`).catch(() => {});
       }
       if (!colNames.includes('is_deficit')) {
-        await query(`ALTER TABLE tasks ADD COLUMN is_deficit TINYINT(1) DEFAULT 0`);
+        await query(`ALTER TABLE tasks ADD COLUMN is_deficit TINYINT(1) DEFAULT 0`).catch(() => {});
       }
       if (!colNames.includes('deficit_amount')) {
-        await query(`ALTER TABLE tasks ADD COLUMN deficit_amount DECIMAL(15,2) DEFAULT 0.00`);
+        await query(`ALTER TABLE tasks ADD COLUMN deficit_amount DECIMAL(15,2) DEFAULT 0.00`).catch(() => {});
       }
-    } catch (_) {}
+      _tasksTableEnsured = true;
+    } catch (err) {
+      console.error('[DB] Tasks table ensure notice:', err.message);
+    }
   },
 
   getTasks: async (userId) => {
@@ -646,23 +653,48 @@ const db = {
   createTask: async (task) => {
     await db.ensureTasksTable();
     const commEarned = task.commission_earned || task.commission_amount || 0;
-    await query(`INSERT INTO tasks (id, user_id, product_name, product_image, product_price, commission_rate, commission_earned, status, order_num, is_deficit, deficit_amount, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        task.id,
-        task.user_id,
-        task.product_name,
-        task.product_image || null,
-        task.product_price,
-        task.commission_rate,
-        commEarned,
-        task.status || 'pending',
-        task.order_num || 1,
-        task.is_deficit ? 1 : 0,
-        task.deficit_amount || 0,
-        formatMySQLDate(task.created_at || new Date())
-      ]
-    );
+    try {
+      await query(`INSERT INTO tasks (id, user_id, order_number, product_name, product_image, product_price, commission_rate, commission_earned, status, order_num, is_deficit, deficit_amount, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          task.id,
+          task.user_id,
+          task.order_number || null,
+          task.product_name || 'Amazon Asia Merchant Order',
+          task.product_image || null,
+          task.product_price || 0,
+          task.commission_rate || 0.20,
+          commEarned,
+          task.status || 'pending',
+          task.order_num || 1,
+          task.is_deficit ? 1 : 0,
+          task.deficit_amount || 0,
+          formatMySQLDate(task.created_at || new Date())
+        ]
+      );
+    } catch (insertErr) {
+      if (insertErr.message && insertErr.message.includes('order_number')) {
+        await query(`INSERT INTO tasks (id, user_id, product_name, product_image, product_price, commission_rate, commission_earned, status, order_num, is_deficit, deficit_amount, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            task.id,
+            task.user_id,
+            task.product_name || 'Amazon Asia Merchant Order',
+            task.product_image || null,
+            task.product_price || 0,
+            task.commission_rate || 0.20,
+            commEarned,
+            task.status || 'pending',
+            task.order_num || 1,
+            task.is_deficit ? 1 : 0,
+            task.deficit_amount || 0,
+            formatMySQLDate(task.created_at || new Date())
+          ]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
     return task;
   },
 
@@ -725,6 +757,7 @@ const db = {
   },
 
   ensureProductionSchema: async () => {
+    if (_productionSchemaEnsured) return;
     try {
       await db.ensureTasksTable();
 
@@ -761,6 +794,41 @@ const db = {
         INDEX (order_status),
         INDEX (created_at)
       )`);
+
+      try {
+        const orderCols = await query(`SHOW COLUMNS FROM orders`);
+        const colNames = orderCols.map(c => c.Field.toLowerCase());
+        if (!colNames.includes('category')) {
+          await query(`ALTER TABLE orders ADD COLUMN category VARCHAR(100) DEFAULT 'General'`).catch(() => {});
+        }
+        if (!colNames.includes('user_deduction')) {
+          await query(`ALTER TABLE orders ADD COLUMN user_deduction DECIMAL(18,2) DEFAULT 0.00`).catch(() => {});
+        }
+        if (!colNames.includes('reward_rate')) {
+          await query(`ALTER TABLE orders ADD COLUMN reward_rate DECIMAL(5,4) DEFAULT 0.2000`).catch(() => {});
+        }
+        if (!colNames.includes('reward_amount')) {
+          await query(`ALTER TABLE orders ADD COLUMN reward_amount DECIMAL(18,2) DEFAULT 0.00`).catch(() => {});
+        }
+        if (!colNames.includes('discount_rate')) {
+          await query(`ALTER TABLE orders ADD COLUMN discount_rate DECIMAL(5,4) DEFAULT 0.0000`).catch(() => {});
+        }
+        if (!colNames.includes('discount_amount')) {
+          await query(`ALTER TABLE orders ADD COLUMN discount_amount DECIMAL(18,2) DEFAULT 0.00`).catch(() => {});
+        }
+        if (!colNames.includes('tax_rate')) {
+          await query(`ALTER TABLE orders ADD COLUMN tax_rate DECIMAL(5,4) DEFAULT 0.0000`).catch(() => {});
+        }
+        if (!colNames.includes('tax_amount')) {
+          await query(`ALTER TABLE orders ADD COLUMN tax_amount DECIMAL(18,2) DEFAULT 0.00`).catch(() => {});
+        }
+        if (!colNames.includes('fee_amount')) {
+          await query(`ALTER TABLE orders ADD COLUMN fee_amount DECIMAL(18,2) DEFAULT 0.00`).catch(() => {});
+        }
+        if (!colNames.includes('completed_at')) {
+          await query(`ALTER TABLE orders ADD COLUMN completed_at DATETIME DEFAULT NULL`).catch(() => {});
+        }
+      } catch (_) {}
 
       // 2. Wallet transactions table (immutable financial ledger)
       await query(`CREATE TABLE IF NOT EXISTS wallet_transactions (
@@ -830,6 +898,7 @@ const db = {
       // 6. Ensure chat_messages table on startup
       await db.ensureChatMessagesTable().catch(() => {});
 
+      _productionSchemaEnsured = true;
     } catch (err) {
       console.error('[DB] Schema migration notice:', err.message);
     }
@@ -996,9 +1065,11 @@ const db = {
     oldValue = null,
     newValue = null,
     reason = null,
-    ip = null
+    ip = null,
+    ipAddress = null
   }) => {
     await db.ensureProductionSchema();
+    const clientIp = ipAddress || ip || null;
     await query(`INSERT INTO admin_audit_logs (
       admin_id, action, entity, entity_id, old_value, new_value, reason, ip_address, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1010,7 +1081,7 @@ const db = {
       typeof oldValue === 'object' ? JSON.stringify(oldValue) : (oldValue !== null ? String(oldValue) : null),
       typeof newValue === 'object' ? JSON.stringify(newValue) : (newValue !== null ? String(newValue) : null),
       reason,
-      ip,
+      clientIp,
       formatMySQLDate(new Date())
     ]);
   },
