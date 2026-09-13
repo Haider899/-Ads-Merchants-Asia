@@ -629,6 +629,9 @@ const db = {
       if (!colNames.includes('deficit_amount')) {
         await query(`ALTER TABLE tasks ADD COLUMN deficit_amount DECIMAL(15,2) DEFAULT 0.00`).catch(() => {});
       }
+      if (!colNames.includes('completed_at')) {
+        await query(`ALTER TABLE tasks ADD COLUMN completed_at DATETIME DEFAULT NULL`).catch(() => {});
+      }
       _tasksTableEnsured = true;
     } catch (err) {
       console.error('[DB] Tasks table ensure notice:', err.message);
@@ -700,11 +703,11 @@ const db = {
 
   updateTask: async (id, updates) => {
     await db.ensureTasksTable();
-    const allowed = ['status', 'commission_earned', 'order_num', 'is_deficit', 'deficit_amount'];
+    const allowed = ['status', 'commission_earned', 'order_num', 'is_deficit', 'deficit_amount', 'completed_at'];
     const keys = Object.keys(updates).filter(k => allowed.includes(k));
     if (keys.length === 0) return true;
     const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const values = keys.map(k => updates[k]);
+    const values = keys.map(k => k === 'completed_at' ? formatMySQLDate(updates[k]) : updates[k]);
     values.push(id);
     await query(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
     return true;

@@ -246,87 +246,29 @@
         <div class="container-home-middle">
             
             <div class="record-container">
-            <div class="record-nav" style="display: none;">
-                <div class="record-nav-item record-nav-item-active" id="allBtn" onclick="allBtnClick()">All</div>
-                <div class="record-nav-item" id="pendingBtn" onclick="pendingBtnClick()">Pending</div>
-                <div class="record-nav-item" id="completedBtn" onclick="completedBtnClick()">Completed</div>
-            </div>
+                <div class="record-nav" id="recordNav">
+                    <div class="record-nav-item record-nav-item-active" id="allBtn" onclick="switchRecordTab('all')">
+                        <span>All</span>
+                        <span class="tab-badge" id="countAll">0</span>
+                    </div>
+                    <div class="record-nav-item" id="pendingBtn" onclick="switchRecordTab('pending')">
+                        <span>Pending</span>
+                        <span class="tab-badge" id="countPending">0</span>
+                    </div>
+                    <div class="record-nav-item" id="completedBtn" onclick="switchRecordTab('completed')">
+                        <span>Completed</span>
+                        <span class="tab-badge" id="countCompleted">0</span>
+                    </div>
+                </div>
 
+                <!-- All Records Tab -->
+                <div class="record-item-tab active" id="allRecords"></div>
 
+                <!-- Pending Records Tab (negative balance / tasks to complete) -->
+                <div class="record-item-tab" id="pendingRecords"></div>
 
-            <div class="record-item-tab" id="allRecords">
-                            
-
-            </div>
-
-
-
-
-
-
-
-            <div class="record-item-tab" style="display: none;" id="pendingRecords">
-
-                        <!-- <div class="record-item-tab-field">
-
-                            <div class="record-item-tab-field-up">
-
-                                <img src="client/assets/uploads/products/20241221121557.webp" alt="" class="record-item-image">
-
-                                <div class="record-item-description">1pc 18 in 1 Vegetable Chopper, vegetable chopper，vegetable peeler，veg chopper，salad chopper，veg slicer，vegetable slicer，chopper vegetable cutter</div>
-
-                            </div>
-
-                            <div class="record-item-tab-field-down">
-
-                                <div class="record-item-tab-field-down-item">
-
-                                    <div class="tiny-text">Total Amount</div>
-
-                                    <div class="small-text">USDT 59.00</div>
-
-                                </div>
-
-                                <div class="record-item-tab-field-down-item">
-
-                                    <div class="tiny-text">Profit</div>
-
-                                    <div class="small-text">USDT 0.30</div>
-
-                                </div>
-
-                                <div class="record-item-tab-field-down-item">
-
-                                        <button type="button" data-id="3946" class="submit-btn submit-btn-3946">Submit</button>
-
-                                </div>
-
-                            </div>
-
-                            <div class="record-item-tab-title">
-
-                                <div class="record-item-tab-title-left">2025-04-11 --- 06:21 PM</div>
-
-                                <div class="record-item-tab-title-right">
-
-                                    <div class="pending-pill-outline pending-pill-3946">pending</div>
-
-                                </div>
-
-                            </div>
-
-                        </div> -->
-
-                    
-
-            </div>
-
-            <div class="record-item-tab" style="display: none;" id="completedRecords">
-
-
-
-            
-
+                <!-- Completed Records Tab (strictly completed today) -->
+                <div class="record-item-tab" id="completedRecords"></div>
             </div>
 
 

@@ -379,7 +379,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
     // Update task to completed
     await db.updateTask(task.id, {
       status: 'completed',
-      commission_earned: commAmount
+      commission_earned: commAmount,
+      completed_at: new Date()
     });
 
     // Update corresponding order in orders table
@@ -470,14 +471,23 @@ router.post('/submit', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/tasks/records - List all user tasks with full product details
+// GET /api/tasks/records - List user tasks & orders with full details for All, Pending, Completed tabs
 router.get('/records', authMiddleware, async (req, res) => {
   try {
-    const statusFilter = req.query.status;
+    const user = await db.findUserById(req.user.id);
     const userTasks = await db.getTasks(req.user.id);
+    const userOrders = await db.getOrders({ user_id: req.user.id }).catch(() => []);
     const userDeposits = await db.getDeposits(req.user.id);
     const userWithdrawals = await db.getWithdrawals(req.user.id);
     const allProducts = await db.getProducts().catch(() => []);
+
+    const userBal = parseFloat((user && user.balance) || 0);
+    const isUserInDeficit = userBal < 0;
+    const userDeficitAmt = isUserInDeficit ? Math.abs(userBal) : 0;
+
+    // Today's date in YYYY-MM-DD
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
 
     const formattedTasks = userTasks.map(t => {
       let prodImage = t.product_image;
@@ -496,36 +506,105 @@ router.get('/records', authMiddleware, async (req, res) => {
         comm = parseFloat((price * rate).toFixed(2));
       }
 
+      // Check task deficit status
+      const isDeficitTask = Boolean(t.is_deficit || (t.deficit_amount && parseFloat(t.deficit_amount) > 0) || (t.status === 'pending' && isUserInDeficit));
+      let deficitVal = parseFloat(t.deficit_amount || 0);
+      if (deficitVal <= 0 && t.status === 'pending' && isUserInDeficit) {
+        deficitVal = userDeficitAmt;
+      }
+
+      // Calculate if completed today
+      const createdDateStr = t.created_at ? new Date(t.created_at).toISOString().slice(0, 10) : '';
+      const completedDateStr = t.completed_at ? new Date(t.completed_at).toISOString().slice(0, 10) : createdDateStr;
+      const isCompleted = t.status === 'completed' || t.status === 'approved';
+      const isCompletedToday = isCompleted && (completedDateStr === todayStr);
+
       return {
         id: t.id,
-        order_number: t.order_number || null,
+        order_number: t.order_number || (String(t.id).startsWith('TSK') ? t.id : `ORD-${t.id}`),
         type: 'task',
         title: t.product_name,
         product_name: t.product_name,
         product_image: prodImage,
         product_price: price.toFixed(2),
+        total_amount: price.toFixed(2),
         commission_amount: comm.toFixed(2),
         commission_earned: comm.toFixed(2),
+        profit: comm.toFixed(2),
         order_num: t.order_num || 1,
+        is_deficit: isDeficitTask ? 1 : 0,
+        deficit_amount: deficitVal.toFixed(2),
         amount: `+$${comm.toFixed(2)}`,
-        status: t.status,
-        created_at: t.created_at
+        status: isCompleted ? 'completed' : 'pending',
+        created_at: t.created_at,
+        completed_at: t.completed_at || (isCompleted ? t.created_at : null),
+        is_completed_today: isCompletedToday,
+        completed_date: completedDateStr
       };
     });
 
-    let filteredTasks = [...formattedTasks];
-    if (statusFilter && statusFilter !== 'all') {
-      if (statusFilter === 'pending') {
-        filteredTasks = filteredTasks.filter(r => r.status === 'pending');
-      } else if (statusFilter === 'completed') {
-        filteredTasks = filteredTasks.filter(r => r.status === 'completed' || r.status === 'approved');
+    // Also include any standalone orders from orders table that don't already exist in tasks
+    const existingTaskIds = new Set(formattedTasks.map(t => String(t.id)));
+    const existingOrderNums = new Set(formattedTasks.map(t => String(t.order_number)));
+
+    for (const o of userOrders) {
+      if (!existingTaskIds.has(String(o.task_id)) && !existingOrderNums.has(String(o.order_number))) {
+        const price = parseFloat(o.gross_amount || o.unit_price || 0);
+        const comm = parseFloat(o.commission_amount || 0);
+        const isComp = (o.order_status || '').toUpperCase() === 'COMPLETED';
+        const ordCreatedStr = o.created_at ? new Date(o.created_at).toISOString().slice(0, 10) : '';
+        const ordCompStr = o.completed_at ? new Date(o.completed_at).toISOString().slice(0, 10) : ordCreatedStr;
+        const isCompToday = isComp && (ordCompStr === todayStr);
+
+        formattedTasks.push({
+          id: o.task_id || o.id,
+          order_number: o.order_number,
+          type: 'order',
+          title: o.product_name,
+          product_name: o.product_name,
+          product_image: o.product_image || '/client/assets/uploads/products/outdoor_shed.jpg',
+          product_price: price.toFixed(2),
+          total_amount: price.toFixed(2),
+          commission_amount: comm.toFixed(2),
+          commission_earned: comm.toFixed(2),
+          profit: comm.toFixed(2),
+          order_num: 1,
+          is_deficit: (o.payment_status === 'SHORTFALL' || isUserInDeficit) ? 1 : 0,
+          deficit_amount: isUserInDeficit ? userDeficitAmt.toFixed(2) : '0.00',
+          amount: `+$${comm.toFixed(2)}`,
+          status: isComp ? 'completed' : 'pending',
+          created_at: o.created_at,
+          completed_at: o.completed_at,
+          is_completed_today: isCompToday,
+          completed_date: ordCompStr
+        });
       }
     }
 
+    // Sort newest first
+    formattedTasks.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    const pendingTasks = formattedTasks.filter(t => t.status === 'pending');
+    const todayCompletedTasks = formattedTasks.filter(t => t.status === 'completed' && t.is_completed_today);
+    const allCompletedTasks = formattedTasks.filter(t => t.status === 'completed');
+
     res.json({
       success: true,
-      tasks: filteredTasks,
       all_tasks: formattedTasks,
+      pending_tasks: pendingTasks,
+      today_completed_tasks: todayCompletedTasks,
+      all_completed_tasks: allCompletedTasks,
+      tasks: formattedTasks,
+      user: {
+        id: (user && user.id) || req.user.id,
+        balance: userBal.toFixed(2),
+        frozen_balance: parseFloat((user && user.frozen_balance) || 0).toFixed(2),
+        today_profit: parseFloat((user && user.today_profit) || 0).toFixed(2),
+        today_tasks_completed: (user && user.today_tasks_completed) || 0,
+        is_deficit: isUserInDeficit,
+        deficit_amount: userDeficitAmt.toFixed(2)
+      },
+      today_date: todayStr,
       deposits: userDeposits,
       withdrawals: userWithdrawals
     });
