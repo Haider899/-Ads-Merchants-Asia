@@ -465,14 +465,12 @@ const db = {
   },
 
   cleanupExpiredChatMessages: async () => {
-    await db.ensureChatMessagesTable();
     try {
-      await query(`DELETE FROM chat_messages WHERE created_at < NOW() - INTERVAL 10 MINUTE`);
+      await query(`DELETE FROM chat_messages WHERE created_at < NOW() - INTERVAL 48 HOUR`);
     } catch (_) {}
   },
 
   getChatMessages: async (userId) => {
-    await db.cleanupExpiredChatMessages();
     return await query(`
       SELECT 
         id, 
@@ -486,13 +484,12 @@ const db = {
         read_by_user, 
         created_at 
       FROM chat_messages 
-      WHERE user_id = ? AND created_at >= NOW() - INTERVAL 10 MINUTE
+      WHERE user_id = ?
       ORDER BY created_at ASC
     `, [userId]);
   },
 
   createChatMessage: async ({ userId, sender, text, userName, userEmail, ipAddress, countryCode, countryName }) => {
-    await db.cleanupExpiredChatMessages();
     const id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     const readByAdmin = sender === 'admin';
     const readByUser = sender === 'user';
@@ -822,6 +819,16 @@ const db = {
           await query(`ALTER TABLE products ADD COLUMN reward_rate DECIMAL(5,4) DEFAULT 0.2000`);
         }
       } catch (_) {}
+
+      // 5. KYC Submissions table LONGTEXT enhancement for robust image uploads
+      try {
+        await query(`ALTER TABLE kyc_submissions MODIFY COLUMN front_id_image LONGTEXT`);
+        await query(`ALTER TABLE kyc_submissions MODIFY COLUMN back_id_image LONGTEXT`);
+        await query(`ALTER TABLE kyc_submissions MODIFY COLUMN signature_image LONGTEXT`);
+      } catch (_) {}
+
+      // 6. Ensure chat_messages table on startup
+      await db.ensureChatMessagesTable().catch(() => {});
 
     } catch (err) {
       console.error('[DB] Schema migration notice:', err.message);

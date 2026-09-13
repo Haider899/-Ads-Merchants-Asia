@@ -938,23 +938,69 @@
 
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-
-      if (errorElement) errorElement.textContent = "File size must be less than 10MB.";
-
-      return;
-
-    }
-
     const reader = new FileReader();
 
     reader.onload = function (e) {
 
-      if (img) img.src = e.target.result;
+      const tempImg = new Image();
 
-      if (placeholder) placeholder.style.display = 'none';
+      tempImg.onload = function () {
 
-      if (container) container.style.display = 'block';
+        const maxDim = 1200;
+
+        let width = tempImg.width;
+
+        let height = tempImg.height;
+
+        if (width > maxDim || height > maxDim) {
+
+          if (width > height) {
+
+            height = Math.round((height * maxDim) / width);
+
+            width = maxDim;
+
+          } else {
+
+            width = Math.round((width * maxDim) / height);
+
+            height = maxDim;
+
+          }
+
+        }
+
+        const canvas = document.createElement('canvas');
+
+        canvas.width = width;
+
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(tempImg, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+
+        if (img) img.src = compressedDataUrl;
+
+        if (placeholder) placeholder.style.display = 'none';
+
+        if (container) container.style.display = 'block';
+
+      };
+
+      tempImg.onerror = function () {
+
+        if (img) img.src = e.target.result;
+
+        if (placeholder) placeholder.style.display = 'none';
+
+        if (container) container.style.display = 'block';
+
+      };
+
+      tempImg.src = e.target.result;
 
     };
 
@@ -1344,15 +1390,31 @@ document.getElementById("invite_submit_form").addEventListener("submit", functio
 
   requiredSignatures.forEach(id => {
 
-    const sigInput = document.getElementById(`signature${id}Input`);
+    let sigInput = document.getElementById(`signature${id}Input`);
+
+    const canvas = document.getElementById(`signature_${id.toLowerCase()}`);
 
     if (!sigInput || !sigInput.value.trim()) {
 
+      if (canvas) {
+
+        try {
+
+          const dataUrl = canvas.toDataURL();
+
+          if (dataUrl && dataUrl.length > 500) {
+
+            if (sigInput) sigInput.value = dataUrl;
+
+            return;
+
+          }
+
+        } catch(_) {}
+
+      }
+
       signatureMissing = true;
-
-      // Optionally highlight canvas border red
-
-      const canvas = document.getElementById(`signature_${id.toLowerCase()}`); // e.g., signature_a
 
       if (canvas) {
 
@@ -1370,7 +1432,7 @@ document.getElementById("invite_submit_form").addEventListener("submit", functio
 
       e.preventDefault();
 
-      alert("Please complete all signatures and click Done before submitting.");
+      alert("Please complete the required signature before submitting.");
 
       return;
 

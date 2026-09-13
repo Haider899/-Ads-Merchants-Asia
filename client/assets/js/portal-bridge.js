@@ -1355,6 +1355,37 @@
       if (formBody) formBody.parentNode.insertBefore(banner, formBody);
     }
 
+    async function ensureCompressedDataUrl(dataUrl, maxDim = 1200, quality = 0.72) {
+      if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+        return dataUrl;
+      }
+      if (dataUrl.length < 200000) return dataUrl; // Already compact
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1375,8 +1406,8 @@
         const frontImgEl = document.getElementById('frontPreviewImg');
         const backImgEl = document.getElementById('backPreviewImg');
 
-        const front_id = (frontImgEl && frontImgEl.src) || 'assets/uploads/contracts/id_sample_front.png';
-        const back_id = (backImgEl && backImgEl.src) || 'assets/uploads/contracts/id_sample_back.png';
+        let front_id = (frontImgEl && frontImgEl.src) || 'assets/uploads/contracts/id_sample_front.png';
+        let back_id = (backImgEl && backImgEl.src) || 'assets/uploads/contracts/id_sample_back.png';
 
         if (!name) {
           showBridgeToast('Name Required', 'Please enter your full legal name.', 'error');
@@ -1388,26 +1419,38 @@
           submitBtn.textContent = 'Submitting Contract & KYC...';
         }
 
-        const res = await API.post('/api/user/kyc', {
-          name,
-          front_id,
-          back_id,
-          signature: signature || 'assets/uploads/contracts/defaultsignature.jpeg',
-          investment_amount
-        });
+        try {
+          // Compress uploaded ID images before submitting so upload is instantaneous (< 100KB)
+          front_id = await ensureCompressedDataUrl(front_id);
+          back_id = await ensureCompressedDataUrl(back_id);
 
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Submit Application';
-        }
+          const res = await Promise.race([
+            API.post('/api/user/kyc', {
+              name,
+              front_id,
+              back_id,
+              signature: signature || 'assets/uploads/contracts/defaultsignature.jpeg',
+              investment_amount
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Submission timed out. Please try again.')), 15000))
+          ]);
 
-        if (res && res.success) {
-          showBridgeToast('Contract Submitted!', res.message, 'success');
-          setTimeout(() => {
-            window.location.href = '/dashboard';
-          }, 1000);
-        } else {
-          showBridgeToast('Submission Error', (res && res.message) || 'Error submitting KYC', 'error');
+          if (res && res.success) {
+            showBridgeToast('Contract Submitted!', res.message, 'success');
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 1000);
+          } else {
+            showBridgeToast('Submission Error', (res && res.message) || 'Error submitting KYC', 'error');
+          }
+        } catch (err) {
+          console.error('KYC submit error:', err);
+          showBridgeToast('Submission Error', err.message || 'Network error processing your request.', 'error');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Application';
+          }
         }
       });
     }
@@ -1588,23 +1631,7 @@
         box-shadow: 0 2px 5px rgba(0,0,0,0.25);
       }
       #nativeChatPromptBox {
-        position: fixed;
-        right: 46px;
-        top: 45%;
-        transform: translateY(-50%);
-        background: rgba(255, 255, 255, 0.97);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border-radius: 12px;
-        padding: 10px 14px 12px 14px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 8px;
-        z-index: 999997;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: none !important;
       }
       .native-chat-prompt-header {
         font-size: 13.5px;
@@ -1868,16 +1895,30 @@
         const chatBadge = document.getElementById('nativeChatBadge');
         if (chatBadge) chatBadge.style.display = 'none';
         API.post('/api/user/chat/read', {});
-        cachedMessagesCount = -1; // Force immediate refresh on open
-        loadChatMessages();
-        if (!pollInterval) pollInterval = setInterval(loadChatMessages, 3000);
+
+        // Direct clean active session greeting (Do NOT load old bloated history)
+        const container = document.getElementById('nativeChatMsgContainer');
+        if (container && (!container.children.length || container.querySelector('.text-muted'))) {
+          container.innerHTML = `
+            <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 24px 16px;">
+              <div style="font-size: 34px; margin-bottom: 8px;">💬</div>
+              <div style="font-weight: 700; color: #0f172a; font-size: 15px; margin-bottom: 4px;">Live Official Support</div>
+              <div style="font-size: 13px; line-height: 1.5; color: #475569;">Admin is online. Type your inquiry below for instant direct assistance.</div>
+              <div style="font-size: 11px; color: #00875a; background: #e8f5e9; padding: 5px 12px; border-radius: 20px; display: inline-block; font-weight: 600; margin-top: 12px;">
+                ● Support Agent Active
+              </div>
+            </div>
+          `;
+        }
+
+        if (!pollInterval) pollInterval = setInterval(pollAdminReplies, 4000);
         setTimeout(() => {
           const input = document.getElementById('nativeChatTextInput');
           if (input) input.focus();
         }, 100);
       } else {
         floatBtn.style.display = 'flex';
-        if (promptBox) promptBox.style.display = 'flex';
+        if (promptBox) promptBox.style.display = 'none';
         if (pollInterval) {
           clearInterval(pollInterval);
           pollInterval = null;
@@ -1917,74 +1958,39 @@
       });
     });
 
-    async function loadChatMessages() {
+    // Poll for new admin replies during open chat session
+    async function pollAdminReplies() {
       try {
         const res = await API.get('/api/user/chat');
+        if (!res || !res.success || !Array.isArray(res.messages)) return;
         const container = document.getElementById('nativeChatMsgContainer');
         if (!container) return;
 
-        if (res && res.success && Array.isArray(res.messages)) {
-          if (res.messages.length === 0) {
-            cachedMessagesCount = 0;
-            container.innerHTML = `
-              <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 20px;">
-                <div style="font-size: 32px; margin-bottom: 8px;">💬</div>
-                <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Welcome to Live Support!</div>
-                <div>Send your question or deposit/withdrawal query below. Support is online.</div>
-                <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
-                  <i class="fa fa-clock-o mr-1"></i> Active session. Chat history clears automatically 10 minutes after resolution.
-                </div>
+        const adminMessages = res.messages.filter(m => m.sender === 'admin');
+        adminMessages.forEach(m => {
+          const msgId = `chat-msg-${m.id}`;
+          if (!document.getElementById(msgId)) {
+            // Remove initial greeting banner if message is appended
+            const welcomeBanner = container.querySelector('div[style*="text-align: center"]');
+            if (welcomeBanner) welcomeBanner.remove();
+
+            const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const bubble = document.createElement('div');
+            bubble.id = msgId;
+            bubble.className = 'native-chat-bubble native-bubble-admin';
+            bubble.innerHTML = `
+              <img src="/client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" onerror="this.style.display='none'" />
+              <div style="flex: 1;">
+                <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; opacity: 0.9;">Ads Support</div>
+                <div>${escapeHtml(m.text || m.message_text || '')}</div>
+                <div class="native-bubble-time" style="text-align: left; color: #e2e8f0;">${time}</div>
               </div>
             `;
-            return;
-          }
-
-          if (res.messages.length !== cachedMessagesCount) {
-            cachedMessagesCount = res.messages.length;
-            container.innerHTML = res.messages.map(m => {
-              const isUser = m.sender === 'user';
-              const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-              const msgText = m.text || m.message_text || '';
-              if (isUser) {
-                return `
-                  <div class="native-chat-bubble native-bubble-user">
-                    <div>${escapeHtml(msgText)}</div>
-                    <div class="native-bubble-time">${time}</div>
-                  </div>
-                `;
-              } else {
-                return `
-                  <div class="native-chat-bubble native-bubble-admin">
-                    <img src="/client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" onerror="this.style.display='none'" />
-                    <div style="flex: 1;">
-                      <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; opacity: 0.9;">Ads Support</div>
-                      <div>${escapeHtml(msgText)}</div>
-                      <div class="native-bubble-time" style="text-align: left; color: #e2e8f0;">${time}</div>
-                    </div>
-                  </div>
-                `;
-              }
-            }).join('');
+            container.appendChild(bubble);
             container.scrollTop = container.scrollHeight;
           }
-        } else if (!res || !res.success) {
-          // If empty and initial state, show friendly welcome
-          if (container.querySelector('.text-muted')) {
-            container.innerHTML = `
-              <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 20px;">
-                <div style="font-size: 32px; margin-bottom: 8px;">💬</div>
-                <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Live Customer Care</div>
-                <div>Official support is online. Send your question below!</div>
-                <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
-                  <i class="fa fa-clock-o mr-1"></i> Active session. Chat clears automatically 10 minutes after resolution.
-                </div>
-              </div>
-            `;
-          }
-        }
-      } catch (err) {
-        console.error('Chat load error:', err);
-      }
+        });
+      } catch (_) {}
     }
 
     async function sendMessage() {
@@ -1996,39 +2002,33 @@
       const container = document.getElementById('nativeChatMsgContainer');
 
       // Clear any initial greeting placeholder
-      const placeholder = container.querySelector('.text-muted');
-      if (placeholder) placeholder.remove();
+      const welcomeBanner = container.querySelector('div[style*="text-align: center"]');
+      if (welcomeBanner) welcomeBanner.remove();
 
-      // Optimistic UI render
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Instant UI render with formatted time and checkmark (NO lingering "Sending..." label)
       const tempBubble = document.createElement('div');
       tempBubble.className = 'native-chat-bubble native-bubble-user';
       tempBubble.innerHTML = `
         <div>${escapeHtml(text)}</div>
-        <div class="native-bubble-time sending-status">Sending...</div>
+        <div class="native-bubble-time" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+          <span>${timeStr}</span>
+          <span style="font-size: 11px; color: #00875a; font-weight: bold;">✓</span>
+        </div>
       `;
       container.appendChild(tempBubble);
       container.scrollTop = container.scrollHeight;
 
+      // Send in background asynchronously without blocking UI or fetching full history
       try {
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const res = await API.post('/api/user/chat', { text, timezone });
-        if (res && res.success) {
-          cachedMessagesCount = -1; // Force immediate re-render
-          await loadChatMessages();
-        } else {
-          const statusEl = tempBubble.querySelector('.sending-status');
-          if (statusEl) {
-            statusEl.textContent = 'Failed to send';
-            statusEl.style.color = '#ef4444';
+        API.post('/api/user/chat', { text, timezone }).then(res => {
+          if (res && res.newMessage && res.newMessage.id) {
+            tempBubble.id = `chat-msg-${res.newMessage.id}`;
           }
-        }
-      } catch (err) {
-        const statusEl = tempBubble.querySelector('.sending-status');
-        if (statusEl) {
-          statusEl.textContent = 'Error';
-          statusEl.style.color = '#ef4444';
-        }
-      }
+        }).catch(() => {});
+      } catch (_) {}
     }
 
     document.getElementById('nativeChatSendBtn').addEventListener('click', sendMessage);

@@ -78,6 +78,25 @@ async function authMiddleware(req, res, next) {
     if (user.status === 'banned') {
       return res.status(403).json({ success: false, message: 'Account is suspended. Please contact support.' });
     }
+
+    // Auto-reset daily profit & tasks if day changed (24-hour cycle)
+    const today = new Date().toISOString().slice(0, 10);
+    const lastReset = user.last_reset_date ? String(user.last_reset_date).slice(0, 10) : null;
+    if (lastReset !== today) {
+      try {
+        await db.updateUser(user.id, {
+          today_tasks_completed: 0,
+          today_profit: 0.00,
+          current_set: 0,
+          last_reset_date: today
+        });
+        user.today_tasks_completed = 0;
+        user.today_profit = 0.00;
+        user.current_set = 0;
+        user.last_reset_date = today;
+      } catch (_) {}
+    }
+
     req.user = user;
     trackUserSession(user, req);
     next();

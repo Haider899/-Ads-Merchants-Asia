@@ -188,4 +188,17 @@ app.listen(PORT, () => {
       console.log('Legacy User ID migration notice:', err.message);
     });
   }
+
+  // Scheduled 24h Daily Reset: Automatically reset today_profit & today_tasks_completed for all users on new day
+  setInterval(async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await db.query(
+        "UPDATE users SET today_profit = 0.00, today_tasks_completed = 0, current_set = 0, last_reset_date = ? WHERE last_reset_date IS NULL OR last_reset_date != ?",
+        [today, today]
+      );
+    } catch (err) {
+      console.error('[Scheduled Reset Error]', err.message);
+    }
+  }, 30 * 60 * 1000);
 });

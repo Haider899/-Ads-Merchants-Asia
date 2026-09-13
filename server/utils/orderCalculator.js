@@ -33,7 +33,7 @@ function generateTransactionId(prefix = '') {
  * Supports snake_case, camelCase, and aliases.
  */
 function calculateOrder(input = {}) {
-  const rawPrice = input.unit_price !== undefined ? input.unit_price : (input.price !== undefined ? input.price : input.product_price);
+  const rawPrice = input.unit_price !== undefined ? input.unit_price : (input.price !== undefined ? input.price : (input.product_price !== undefined ? input.product_price : input.productPrice));
   const price = round(Math.max(0, parseFloat(rawPrice) || 0));
   
   const rawQty = input.quantity !== undefined ? input.quantity : (input.qty !== undefined ? input.qty : 1);
@@ -61,7 +61,7 @@ function calculateOrder(input = {}) {
   const rewRate = round(parseFloat(rawRewRate) !== undefined && parseFloat(rawRewRate) !== null ? parseFloat(rawRewRate) : commRate, 4);
   const rewAmount = round(subtotal * rewRate);
 
-  const rawBalance = input.available_balance !== undefined ? input.available_balance : (input.currentBalance !== undefined ? input.currentBalance : input.balance);
+  const rawBalance = input.available_balance !== undefined ? input.available_balance : (input.currentBalance !== undefined ? input.currentBalance : (input.user_balance !== undefined ? input.user_balance : (input.userBalance !== undefined ? input.userBalance : input.balance)));
   const availBal = round(parseFloat(rawBalance) || 0);
   const fundingShortfall = grossAmount > availBal ? round(grossAmount - availBal) : 0.00;
   const isDeficit = fundingShortfall > 0;

@@ -81,16 +81,17 @@ body {
 }
 .profile-balance-box .balance-value,
 .profile-balance-box .small-text {
-    font-size: 19px;
-    font-weight: 800;
-    word-break: break-all;
+    font-size: 15.5px;
+    font-weight: 700;
+    word-break: normal;
+    white-space: nowrap;
     color: #0f172a;
 }
 #profile-total-balance,
 #profile-total-profit {
     color: #0f172a !important;
-    font-size: 19px !important;
-    font-weight: 800 !important;
+    font-size: 15.5px !important;
+    font-weight: 700 !important;
 }
 .profile-info-right{
     display: flex;
