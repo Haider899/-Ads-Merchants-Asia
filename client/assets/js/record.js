@@ -22,7 +22,7 @@ function formatDate(dateVal) {
         hours = hours % 12;
         hours = hours ? hours : 12;
         const hStr = String(hours).padStart(2, '0');
-        return `${y}-${m}-${day} ${hStr}:${mins} ${ampm}`;
+        return `${y}-${m}-${day} --- ${hStr}:${mins} ${ampm}`;
     } catch (_) {
         return dateVal;
     }
@@ -81,7 +81,6 @@ function renderTaskCard(task, activeTabContext = 'all', userDeficitInfo = {}) {
     }
     const profitStr = profit.toFixed(2);
     const dateStr = formatDate(isCompleted ? (task.completed_at || task.created_at) : task.created_at);
-    const orderId = escapeHtml(task.order_number || (String(task.id).startsWith('TSK') ? task.id : `ORD-${task.id}`));
 
     // Deficit / Negative balance alert banner for pending orders
     let deficitBannerHtml = '';
@@ -102,28 +101,18 @@ function renderTaskCard(task, activeTabContext = 'all', userDeficitInfo = {}) {
         `;
     }
 
-    // Status pill & Action button
-    let statusPill = '';
-    let actionBtnHtml = '';
+    // Submit button (only shown when order is pending)
+    const submitBtnHtml = isCompleted
+        ? ''
+        : `<button type="button" data-id="${task.id}" class="submit-btn submit-btn-${task.id}">Submit</button>`;
 
-    if (isCompleted) {
-        if (task.is_completed_today) {
-            statusPill = `<div class="completed-today-badge">✓ Completed Today</div>`;
-        } else {
-            statusPill = `<div class="completed-pill-outline">✓ Completed</div>`;
-        }
-    } else {
-        statusPill = `<div class="pending-pill-outline">⏳ Pending</div>`;
-        actionBtnHtml = `<button type="button" data-id="${task.id}" class="submit-btn submit-btn-${task.id}">Submit Order</button>`;
-    }
+    // Status pill
+    const statusPill = isCompleted
+        ? `<div class="completed-pill-outline">completed</div>`
+        : `<div class="pending-pill-outline">pending</div>`;
 
     return `
         <div class="record-item-tab-field" id="record-${task.id}">
-            <div class="record-card-header">
-                <span class="record-order-id">#${orderId}</span>
-                ${statusPill}
-            </div>
-
             ${deficitBannerHtml}
 
             <div class="record-item-tab-field-up">
@@ -134,41 +123,22 @@ function renderTaskCard(task, activeTabContext = 'all', userDeficitInfo = {}) {
             <div class="record-item-tab-field-down">
                 <div class="record-item-tab-field-down-item">
                     <div class="tiny-text">Total Amount</div>
-                    <div class="small-text">USD $${totalAmount}</div>
+                    <div class="small-text">USDT ${totalAmount}</div>
                 </div>
-                <div class="record-item-tab-field-down-item" style="text-align: right;">
-                    <div class="tiny-text">Profit Earned</div>
-                    <div class="small-text profit-text">+USD $${profitStr}</div>
+                <div class="record-item-tab-field-down-item">
+                    <div class="tiny-text">Profit</div>
+                    <div class="small-text">USDT ${profitStr}</div>
+                </div>
+                <div class="record-item-tab-field-down-item">
+                    ${submitBtnHtml}
                 </div>
             </div>
 
             <div class="record-item-tab-title">
                 <div class="record-item-tab-title-left">${dateStr}</div>
                 <div class="record-item-tab-title-right">
-                    ${actionBtnHtml}
+                    ${statusPill}
                 </div>
-            </div>
-        </div>
-    `;
-}
-
-function renderTodayCompletedSummary(todayTasks, todayDate, todayProfit) {
-    const count = todayTasks.length;
-    const profitVal = parseFloat(todayProfit || todayTasks.reduce((sum, t) => sum + parseFloat(t.commission_amount || t.profit || 0), 0)).toFixed(2);
-    const displayDate = todayDate || new Date().toISOString().slice(0, 10);
-
-    return `
-        <div class="today-summary-bar">
-            <div class="today-summary-left">
-                <div class="today-summary-icon">✓</div>
-                <div>
-                    <div class="today-summary-title">Today's Completed Orders</div>
-                    <div class="today-summary-sub">${displayDate} • ${count} Order${count === 1 ? '' : 's'} Done</div>
-                </div>
-            </div>
-            <div class="today-summary-profit">
-                <div class="today-profit-label">Today's Profit</div>
-                <div class="today-profit-value">+$${profitVal}</div>
             </div>
         </div>
     `;
@@ -178,10 +148,6 @@ async function loadTaskRecords() {
     const allRecords = document.getElementById('allRecords');
     const pendingRecords = document.getElementById('pendingRecords');
     const completedRecords = document.getElementById('completedRecords');
-
-    const countAll = document.getElementById('countAll');
-    const countPending = document.getElementById('countPending');
-    const countCompleted = document.getElementById('countCompleted');
 
     try {
         const res = await fetch('/api/tasks/records');
@@ -199,12 +165,6 @@ async function loadTaskRecords() {
         const pendingTasks = data.pending_tasks || allTasks.filter(t => t.status === 'pending');
         const todayCompletedTasks = data.today_completed_tasks || allTasks.filter(t => (t.status === 'completed' || t.status === 'approved') && t.is_completed_today);
         const userInfo = data.user || {};
-        const todayDate = data.today_date;
-
-        // Update Nav Count Badges
-        if (countAll) countAll.textContent = allTasks.length;
-        if (countPending) countPending.textContent = pendingTasks.length;
-        if (countCompleted) countCompleted.textContent = todayCompletedTasks.length;
 
         // 1. Render ALL Tab (Shows all orders: pending & completed)
         if (allRecords) {
@@ -226,11 +186,10 @@ async function loadTaskRecords() {
 
         // 3. Render COMPLETED Tab (Only orders completed TODAY)
         if (completedRecords) {
-            const summaryHtml = renderTodayCompletedSummary(todayCompletedTasks, todayDate, userInfo.today_profit);
             if (todayCompletedTasks.length > 0) {
-                completedRecords.innerHTML = summaryHtml + todayCompletedTasks.map(t => renderTaskCard(t, 'completed', userInfo)).join('');
+                completedRecords.innerHTML = todayCompletedTasks.map(t => renderTaskCard(t, 'completed', userInfo)).join('');
             } else {
-                completedRecords.innerHTML = summaryHtml + renderEmptyState('📅', 'No orders completed today', 'Orders you finish today will be tracked right here.');
+                completedRecords.innerHTML = renderEmptyState('📅', 'No orders completed today', 'Orders you finish today will be tracked right here.');
             }
         }
 
@@ -335,4 +294,3 @@ document.addEventListener('DOMContentLoaded', () => {
     switchRecordTab('all');
     loadTaskRecords();
 });
-

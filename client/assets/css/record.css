@@ -1,70 +1,51 @@
 .record-container {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 15px;
     padding: 10px 15px 120px 15px;
-    max-width: 600px;
+    max-width: 550px;
     margin: 0 auto;
 }
 
-/* Modern Segmented Navigation Tabs */
+/* Navigation Tabs matching screenshot */
 .record-nav {
     display: flex !important;
-    background: #ffffff;
-    border-radius: 14px;
-    padding: 5px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
-    gap: 6px;
-    position: sticky;
-    top: 10px;
-    z-index: 20;
-    backdrop-filter: blur(8px);
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0;
+    margin-bottom: 4px;
+    gap: 8px;
+    width: 100%;
 }
 
 .record-nav-item {
     flex: 1;
     text-align: center;
-    padding: 10px 6px;
-    font-size: 13.5px;
-    font-weight: 700;
-    color: #64748b;
+    padding: 9px 14px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #716552;
     border-radius: 10px;
     cursor: pointer;
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    transition: all 0.2s ease;
     user-select: none;
+    background: transparent;
 }
 
 .record-nav-item:hover {
-    color: #1e293b;
-    background: #f8fafc;
+    color: #3b3223;
 }
 
 .record-nav-item.record-nav-item-active {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-    color: #ffffff !important;
-    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
-}
-
-.tab-badge {
-    background: #e2e8f0;
-    color: #475569;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 20px;
-    min-width: 18px;
-    text-align: center;
-    transition: all 0.2s ease;
-}
-
-.record-nav-item.record-nav-item-active .tab-badge {
-    background: rgba(255, 255, 255, 0.28);
-    color: #ffffff;
+    background-color: #faedd6 !important;
+    color: #2b241a !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Tab Containers */
@@ -79,99 +60,128 @@
     display: flex !important;
 }
 
-/* Summary Banner for Completed Today */
-.today-summary-bar {
-    background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
-    border: 1px solid #a7f3d0;
-    border-radius: 12px;
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
-}
-
-.today-summary-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.today-summary-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: #10b981;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    font-weight: bold;
-    flex-shrink: 0;
-}
-
-.today-summary-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: #065f46;
-}
-
-.today-summary-sub {
-    font-size: 11.5px;
-    color: #047857;
-}
-
-.today-summary-profit {
-    text-align: right;
-}
-
-.today-profit-label {
-    font-size: 11px;
-    color: #047857;
-    text-transform: uppercase;
-    font-weight: 600;
-}
-
-.today-profit-value {
-    font-size: 15px;
-    font-weight: 800;
-    color: #059669;
-}
-
 /* Record Card Fields */
 .record-item-tab-field {
     background-color: #ffffff;
-    padding: 16px;
+    padding: 14px 16px;
     border-radius: 14px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 3px 12px rgba(0,0,0,0.06);
     border: 1px solid #f1f5f9;
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.record-item-tab-field:hover {
-    box-shadow: 0 6px 18px rgba(0,0,0,0.09);
-}
-
-/* Card Header: Order Number & Status Pill */
-.record-card-header {
+/* Card Body */
+.record-item-tab-field-up {
     display: flex;
+    flex-direction: row;
+    gap: 14px;
+    align-items: center;
+}
+
+.record-item-image {
+    width: 72px;
+    height: 72px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #f8fafc;
+}
+
+.record-item-description {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+    flex: 1;
+}
+
+/* Card Details Down */
+.record-item-tab-field-down {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 0 10px 0;
+    justify-content: space-between;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 12px;
+}
+
+.record-item-tab-field-down-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tiny-text {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.small-text {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.record-item-tab-title {
+    display: flex;
+    flex-direction: row;
+    font-size: 12.5px;
+    color: #64748b;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed #e2e8f0;
-    margin-bottom: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
 }
 
-.record-order-id {
+/* Pills & Buttons */
+.completed-pill-outline {
+    padding: 3px 18px;
+    border: 1.5px solid #64748b;
+    border-radius: 20px;
     font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: lowercase;
+    background: transparent;
+    cursor: default;
+    display: inline-block;
+}
+
+.pending-pill-outline {
+    padding: 3px 18px;
+    border: 1.5px solid #d97706;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #d97706;
+    background: #fef3c7;
+    text-transform: lowercase;
+    display: inline-block;
+}
+
+.submit-btn {
+    padding: 6px 20px;
+    border: 0;
+    outline: none;
+    cursor: pointer;
+    color: white;
+    background: #16a34a;
+    border-radius: 20px;
     font-weight: 700;
-    color: #64748b;
-    letter-spacing: 0.3px;
+    font-size: 12.5px;
+    transition: background 0.2s ease;
+}
+
+.submit-btn:hover {
+    background: #15803d;
+}
+
+.submit-btn:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
 }
 
 /* Deficit / Shortfall Alert inside card */
@@ -241,155 +251,11 @@
     color: #ffffff;
 }
 
-/* Card Body */
-.record-item-tab-field-up {
-    display: flex;
-    flex-direction: row;
-    gap: 14px;
-    align-items: flex-start;
-}
-
-.record-item-image {
-    width: 76px;
-    height: 76px;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    object-fit: cover;
-    flex-shrink: 0;
-    background: #f8fafc;
-}
-
-.record-item-description {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.4;
-    flex: 1;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* Card Details Down */
-.record-item-tab-field-down {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 12px 0 10px 0;
-    justify-content: space-between;
-    border-top: 1px solid #f1f5f9;
-    margin-top: 12px;
-}
-
-.record-item-tab-field-down-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.tiny-text {
-    font-size: 11.5px;
-    color: #64748b;
-    font-weight: 600;
-}
-
-.small-text {
-    font-size: 14.5px;
-    font-weight: 800;
-    color: #0f172a;
-}
-
-.profit-text {
-    color: #16a34a !important;
-}
-
-.record-item-tab-title {
-    display: flex;
-    flex-direction: row;
-    font-size: 12px;
-    color: #64748b;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 8px;
-    border-top: 1px solid #f8fafc;
-}
-
-/* Pills & Buttons */
-.completed-pill-outline {
-    padding: 4px 14px;
-    border: 1px solid #86efac;
-    border-radius: 20px;
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #15803d;
-    background: #dcfce7;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.completed-today-badge {
-    padding: 4px 14px;
-    border: 1px solid #3b82f6;
-    border-radius: 20px;
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #1d4ed8;
-    background: #dbeafe;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.pending-pill-outline {
-    padding: 4px 14px;
-    border: 1px solid #fcd34d;
-    border-radius: 20px;
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #b45309;
-    background: #fef3c7;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.submit-btn {
-    padding: 7px 22px;
-    border: 0;
-    outline: none;
-    cursor: pointer;
-    color: white;
-    background: linear-gradient(135deg, #16a34a, #15803d);
-    border-radius: 20px;
-    font-weight: 700;
-    font-size: 12.5px;
-    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
-    transition: all 0.2s ease;
-}
-
-.submit-btn:hover {
-    background: #15803d;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(22, 163, 74, 0.4);
-}
-
-.submit-btn:active {
-    transform: translateY(0);
-}
-
-.submit-btn:disabled {
-    background: #94a3b8;
-    cursor: not-allowed;
-    box-shadow: none;
-}
-
 /* Empty State */
 .record-empty-state {
     background: white;
     border-radius: 14px;
-    padding: 42px 20px;
+    padding: 40px 20px;
     text-align: center;
     color: #64748b;
     font-size: 14px;
@@ -412,4 +278,4 @@
     background-size: cover;
     background-repeat: no-repeat;
     min-height: 100vh;
-}
+}
