@@ -131,6 +131,27 @@ router.post('/register', async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   const safeUser = { ...req.user };
   delete safeUser.password_hash;
+
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const userTasks = await db.getTasks(safeUser.id);
+    const todaysCompleted = (userTasks || []).filter(t => {
+      if (t.status !== 'completed') return false;
+      const tDate = t.completed_at || t.created_at;
+      const dStr = tDate instanceof Date ? tDate.toISOString().slice(0, 10) : String(tDate).slice(0, 10);
+      return dStr === todayStr;
+    });
+    const computedProfit = todaysCompleted.reduce((sum, t) => sum + parseFloat(t.commission_earned || t.commission_amount || 0), 0);
+    if (computedProfit > parseFloat(safeUser.today_profit || 0)) {
+      safeUser.today_profit = parseFloat(computedProfit.toFixed(2));
+      await db.updateUser(safeUser.id, { today_profit: safeUser.today_profit }).catch(() => {});
+    }
+    if (todaysCompleted.length > parseInt(safeUser.today_tasks_completed || 0, 10)) {
+      safeUser.today_tasks_completed = todaysCompleted.length;
+      await db.updateUser(safeUser.id, { today_tasks_completed: safeUser.today_tasks_completed }).catch(() => {});
+    }
+  } catch (_) {}
+
   res.json({ success: true, user: safeUser });
 });
 

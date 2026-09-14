@@ -14,17 +14,47 @@ const {
   calculateOrder
 } = require('../utils/orderCalculator');
 
-// Helper: auto-reset daily stats if date has changed
+function toDateString(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof val === 'string') {
+    if (val.includes('T')) return val.split('T')[0];
+    if (val.match(/^\d{4}-\d{2}-\d{2}/)) return val.slice(0, 10);
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return null;
+}
+
+// Helper: auto-reset daily stats ONLY if date has actually changed (24-hour cycle)
 async function autoResetIfNewDay(user) {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const lastReset = user.last_reset_date ? String(user.last_reset_date).slice(0, 10) : null;
-  if (lastReset !== today) {
+  const today = toDateString(new Date());
+  const lastReset = toDateString(user.last_reset_date);
+
+  if (!lastReset) {
+    await db.updateUser(user.id, { last_reset_date: today }).catch(() => {});
+    user.last_reset_date = today;
+    return user;
+  }
+
+  // Only reset if date actually changed AND user is not in negative balance (active deficit order)
+  if (lastReset !== today && parseFloat(user.balance || 0) >= 0) {
     await db.updateUser(user.id, {
       today_tasks_completed: 0,
-      today_profit: 0,
+      today_profit: 0.00,
       current_set: 0,
       last_reset_date: today
-    });
+    }).catch(() => {});
     // Return refreshed user
     return await db.findUserById(user.id);
   }
@@ -45,18 +75,57 @@ router.get('/status', authMiddleware, async (req, res) => {
 
   const userTasks = await db.getTasks(user.id);
 
+  // Dynamically compute today's earned profit from tasks completed today
+  const todayStr = toDateString(new Date());
+  const todaysCompletedTasks = (userTasks || []).filter(t => {
+    if (t.status !== 'completed') return false;
+    const taskDate = toDateString(t.completed_at || t.created_at);
+    return taskDate === todayStr;
+  });
+
+  const computedProfit = todaysCompletedTasks.reduce((sum, t) => {
+    return sum + parseFloat(t.commission_earned || t.commission_amount || 0);
+  }, 0);
+
+  let currentTodayProfit = parseFloat(user.today_profit || 0);
+  let currentTasksCompleted = parseInt(user.today_tasks_completed || 0, 10);
+
+  // Self-heal if user.today_profit was prematurely zeroed out by previous date bug
+  if (computedProfit > currentTodayProfit) {
+    currentTodayProfit = round(computedProfit);
+    await db.updateUser(user.id, { today_profit: currentTodayProfit }).catch(() => {});
+  }
+  if (todaysCompletedTasks.length > currentTasksCompleted) {
+    currentTasksCompleted = todaysCompletedTasks.length;
+    await db.updateUser(user.id, { today_tasks_completed: currentTasksCompleted }).catch(() => {});
+  }
+
+  // Find any active pending task for this user
+  const pendingTask = (userTasks || []).find(t => t.status === 'pending');
+
   res.json({
     success: true,
     data: {
       balance: user.balance,
       frozen_balance: user.frozen_balance,
-      today_profit: user.today_profit,
-      today_tasks_completed: user.today_tasks_completed,
+      today_profit: currentTodayProfit,
+      today_tasks_completed: currentTasksCompleted,
+      current_set: user.current_set || 0,
       max_tasks: maxTasks,
       custom_daily_limit: user.custom_daily_limit || null,
       vip_level: user.vip_level,
       commission_rate: vipRate.commission,
-      recent_tasks: userTasks.slice(0, 10)
+      pending_task: pendingTask ? {
+        id: pendingTask.id,
+        order_number: pendingTask.order_number,
+        product_name: pendingTask.product_name,
+        product_price: parseFloat(pendingTask.product_price || 0),
+        commission_amount: parseFloat(pendingTask.commission_amount !== undefined && pendingTask.commission_amount !== null ? pendingTask.commission_amount : (pendingTask.commission_earned || 0)),
+        commission_rate: parseFloat(pendingTask.commission_rate || vipRate.commission),
+        is_deficit: pendingTask.is_deficit,
+        deficit_amount: pendingTask.deficit_amount
+      } : null,
+      recent_tasks: (userTasks || []).slice(0, 10)
     }
   });
 });

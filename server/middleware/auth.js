@@ -79,22 +79,54 @@ async function authMiddleware(req, res, next) {
       return res.status(403).json({ success: false, message: 'Account is suspended. Please contact support.' });
     }
 
-    // Auto-reset daily profit & tasks if day changed (24-hour cycle)
-    const today = new Date().toISOString().slice(0, 10);
-    const lastReset = user.last_reset_date ? String(user.last_reset_date).slice(0, 10) : null;
-    if (lastReset !== today) {
+function toDateString(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof val === 'string') {
+    if (val.includes('T')) return val.split('T')[0];
+    if (val.match(/^\d{4}-\d{2}-\d{2}/)) return val.slice(0, 10);
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return null;
+}
+
+    // Auto-reset daily profit & tasks ONLY when the calendar date actually changes (24-hour cycle)
+    const today = toDateString(new Date());
+    const lastReset = toDateString(user.last_reset_date);
+    
+    if (!lastReset) {
+      // First time initialization for today, do not wipe existing progress
       try {
-        await db.updateUser(user.id, {
-          today_tasks_completed: 0,
-          today_profit: 0.00,
-          current_set: 0,
-          last_reset_date: today
-        });
-        user.today_tasks_completed = 0;
-        user.today_profit = 0.00;
-        user.current_set = 0;
+        await db.updateUser(user.id, { last_reset_date: today });
         user.last_reset_date = today;
       } catch (_) {}
+    } else if (lastReset !== today) {
+      // Date actually changed: reset daily profit & tasks, unless user has an active deficit
+      if (parseFloat(user.balance || 0) >= 0) {
+        try {
+          await db.updateUser(user.id, {
+            today_tasks_completed: 0,
+            today_profit: 0.00,
+            current_set: 0,
+            last_reset_date: today
+          });
+          user.today_tasks_completed = 0;
+          user.today_profit = 0.00;
+          user.current_set = 0;
+          user.last_reset_date = today;
+        } catch (_) {}
+      }
     }
 
     req.user = user;

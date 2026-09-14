@@ -322,13 +322,21 @@
 
     const setEl = document.getElementById('startSetText');
     const countEl = document.getElementById('startTaskCountText');
-    if (setEl) {
-      const setNum = user.current_set || 1;
-      setEl.textContent = `${setNum === 1 ? '1st' : (setNum === 2 ? '2nd' : (setNum === 3 ? '3rd' : setNum + 'th'))} Set:`;
+    const completed = parseInt(user.today_tasks_completed || 0, 10);
+    let setName = '1st Set:';
+    let countText = `${completed} / 3`;
+    if (completed < 3) {
+      setName = '1st Set:';
+      countText = `${completed} / 3`;
+    } else if (completed < 5) {
+      setName = '2nd Set:';
+      countText = `${completed - 3} / 2`;
+    } else {
+      setName = '3rd Set:';
+      countText = `${completed >= 6 ? 1 : (completed - 5)} / 1`;
     }
-    if (countEl) {
-      countEl.textContent = `${user.today_tasks_completed || 0} / 3`;
-    }
+    if (setEl) setEl.textContent = setName;
+    if (countEl) countEl.textContent = countText;
 
     window.__currentUser = user;
 
@@ -697,12 +705,12 @@
     if (completed < 3) {
       setName = '1st Set:';
       countText = `${completed} / 3`;
-    } else if (completed < 7) {
+    } else if (completed < 5) {
       setName = '2nd Set:';
-      countText = `${completed - 3} / 4`;
+      countText = `${completed - 3} / 2`;
     } else {
       setName = '3rd Set:';
-      countText = `${completed >= 8 ? 1 : (completed - 7)} / 1`;
+      countText = `${completed >= 6 ? 1 : (completed - 5)} / 1`;
     }
 
     const setTextEl = document.getElementById('startSetText');
