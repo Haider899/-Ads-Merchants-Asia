@@ -177,6 +177,9 @@
     } else if (pathname.includes('withdraw')) {
       initWithdrawPage(currentUser);
     } else if (pathname.includes('record')) {
+      if (typeof window.loadTaskRecords === 'function') {
+        return;
+      }
       initRecordPage(currentUser);
     } else if (pathname.includes('editprofile')) {
       initEditProfilePage(currentUser);
@@ -1134,6 +1137,7 @@
   // RECORD PAGE HANDLER
   // RECORD PAGE HANDLER - Matches authentic WhatsApp Image 07.10.37.jpeg & 07.10.38.jpeg
   async function initRecordPage(user) {
+    if (typeof window.loadTaskRecords === 'function') return;
     const tasksRes = await API.get('/api/tasks/records');
     const allContainer = document.getElementById('allRecords') || document.querySelector('.record-item-tab');
     const pendingContainer = document.getElementById('pendingRecords');

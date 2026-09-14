@@ -1,8 +1,6 @@
 // Records Page Controller
 let currentTab = 'all';
 let allTasksList = [];
-let pendingTasksList = [];
-let todayCompletedTasksList = [];
 let currentUserInfo = {};
 
 function escapeHtml(str) {
@@ -26,9 +24,20 @@ function formatDate(dateVal) {
         hours = hours % 12;
         hours = hours ? hours : 12;
         const hStr = String(hours).padStart(2, '0');
-        return `${y}-${m}-${day} ${hStr}:${mins} ${ampm}`;
+        return `${y}-${m}-${day} --- ${hStr}:${mins} ${ampm}`;
     } catch (_) {
         return dateVal;
+    }
+}
+
+function isDateToday(dateVal) {
+    if (!dateVal) return false;
+    try {
+        const d = new Date(dateVal);
+        const now = new Date();
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    } catch (_) {
+        return false;
     }
 }
 
@@ -90,12 +99,12 @@ function renderTaskCard(task, activeTabContext = 'all', userDeficitInfo = {}) {
         `;
     }
 
-    // Submit button (ONLY displayed on pending tasks)
+    // Submit button: ONLY shown for pending tasks
     const submitBtnHtml = isCompleted
         ? ''
         : `<button type="button" data-id="${task.id}" class="submit-btn submit-btn-${task.id}">Submit</button>`;
 
-    // Status pill
+    // Status pill: completed or pending
     const statusPill = isCompleted
         ? `<div class="completed-pill-outline">completed</div>`
         : `<div class="pending-pill-outline">pending</div>`;
@@ -139,22 +148,25 @@ function renderActiveTab() {
 
     if (currentTab === 'pending') {
         // STRICT FILTER: ONLY pending tasks
-        const list = allTasksList.filter(isTaskPending);
-        if (list.length > 0) {
-            container.innerHTML = list.map(t => renderTaskCard(t, 'pending', currentUserInfo)).join('');
+        const pendingList = allTasksList.filter(isTaskPending);
+        if (pendingList.length > 0) {
+            container.innerHTML = pendingList.map(t => renderTaskCard(t, 'pending', currentUserInfo)).join('');
         } else {
             container.innerHTML = renderEmptyState('🎉', 'No pending orders', 'You have completed all pending tasks for now.');
         }
     } else if (currentTab === 'completed') {
-        // STRICT FILTER: ONLY completed tasks (specifically today's completed tasks)
-        const list = allTasksList.filter(t => isTaskCompleted(t) && t.is_completed_today);
-        if (list.length > 0) {
-            container.innerHTML = list.map(t => renderTaskCard(t, 'completed', currentUserInfo)).join('');
+        // STRICT FILTER: ONLY completed tasks
+        const completedList = allTasksList.filter(isTaskCompleted);
+        const todayCompletedList = completedList.filter(t => t.is_completed_today === true || isDateToday(t.completed_at || t.created_at));
+        const listToRender = todayCompletedList.length > 0 ? todayCompletedList : completedList;
+
+        if (listToRender.length > 0) {
+            container.innerHTML = listToRender.map(t => renderTaskCard(t, 'completed', currentUserInfo)).join('');
         } else {
-            container.innerHTML = renderEmptyState('📅', 'No orders completed today', 'Orders you finish today will appear here.');
+            container.innerHTML = renderEmptyState('📅', 'No completed orders', 'Orders you complete will appear here.');
         }
     } else {
-        // ALL TAB: Shows both pending and completed orders
+        // ALL TAB: Shows all orders (pending and completed)
         if (allTasksList.length > 0) {
             container.innerHTML = allTasksList.map(t => renderTaskCard(t, 'all', currentUserInfo)).join('');
         } else {
@@ -187,13 +199,46 @@ function switchRecordTab(tabName) {
     renderActiveTab();
 }
 
-// Backward compatibility for inline onclicks
+function bindTabButtons() {
+    const allBtn = document.getElementById('allBtn');
+    const pendingBtn = document.getElementById('pendingBtn');
+    const completedBtn = document.getElementById('completedBtn');
+
+    if (allBtn) {
+        allBtn.onclick = function(e) {
+            if (e) e.preventDefault();
+            switchRecordTab('all');
+        };
+    }
+    if (pendingBtn) {
+        pendingBtn.onclick = function(e) {
+            if (e) e.preventDefault();
+            switchRecordTab('pending');
+        };
+    }
+    if (completedBtn) {
+        completedBtn.onclick = function(e) {
+            if (e) e.preventDefault();
+            switchRecordTab('completed');
+        };
+    }
+}
+
+// Backward compatibility
 function allBtnClick() { switchRecordTab('all'); }
 function pendingBtnClick() { switchRecordTab('pending'); }
 function completedBtnClick() { switchRecordTab('completed'); }
 
+// Expose on window
+window.switchRecordTab = switchRecordTab;
+window.allBtnClick = allBtnClick;
+window.pendingBtnClick = pendingBtnClick;
+window.completedBtnClick = completedBtnClick;
+window.loadTaskRecords = loadTaskRecords;
+
 async function loadTaskRecords() {
     try {
+        bindTabButtons();
         const res = await fetch('/api/tasks/records');
         const data = await res.json();
 
@@ -204,8 +249,6 @@ async function loadTaskRecords() {
         }
 
         allTasksList = (data.all_tasks || data.tasks || []);
-        pendingTasksList = allTasksList.filter(isTaskPending);
-        todayCompletedTasksList = allTasksList.filter(t => isTaskCompleted(t) && t.is_completed_today);
         currentUserInfo = data.user || {};
 
         renderActiveTab();
@@ -296,6 +339,7 @@ async function submitOrderFromRecord(taskId, btn) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    bindTabButtons();
     switchRecordTab('all');
     loadTaskRecords();
 });
