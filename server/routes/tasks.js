@@ -516,7 +516,8 @@ router.get('/records', authMiddleware, async (req, res) => {
       // Calculate if completed today
       const createdDateStr = t.created_at ? new Date(t.created_at).toISOString().slice(0, 10) : '';
       const completedDateStr = t.completed_at ? new Date(t.completed_at).toISOString().slice(0, 10) : createdDateStr;
-      const isCompleted = t.status === 'completed' || t.status === 'approved';
+      const tStatus = String(t.status || '').toLowerCase().trim();
+      const isCompleted = tStatus === 'completed' || tStatus === 'approved' || tStatus === 'complete' || tStatus === 'done';
       const isCompletedToday = isCompleted && (completedDateStr === todayStr);
 
       return {
@@ -551,7 +552,8 @@ router.get('/records', authMiddleware, async (req, res) => {
       if (!existingTaskIds.has(String(o.task_id)) && !existingOrderNums.has(String(o.order_number))) {
         const price = parseFloat(o.gross_amount || o.unit_price || 0);
         const comm = parseFloat(o.commission_amount || 0);
-        const isComp = (o.order_status || '').toUpperCase() === 'COMPLETED';
+        const oStatus = String(o.order_status || '').toLowerCase().trim();
+        const isComp = oStatus === 'completed' || oStatus === 'approved' || oStatus === 'complete' || oStatus === 'done';
         const ordCreatedStr = o.created_at ? new Date(o.created_at).toISOString().slice(0, 10) : '';
         const ordCompStr = o.completed_at ? new Date(o.completed_at).toISOString().slice(0, 10) : ordCreatedStr;
         const isCompToday = isComp && (ordCompStr === todayStr);

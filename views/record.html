@@ -20,7 +20,7 @@
 
     <link rel="stylesheet" href="client/assets/css/levels.css">
 
-            <link rel="stylesheet" href="client/assets/css/record.css">
+            <link rel="stylesheet" href="client/assets/css/record.css?v=3.6.5">
 
             
 
@@ -252,14 +252,8 @@
                     <div class="record-nav-item" id="completedBtn" onclick="switchRecordTab('completed')">Completed</div>
                 </div>
 
-                <!-- All Records Tab -->
-                <div class="record-item-tab active" id="allRecords"></div>
-
-                <!-- Pending Records Tab (negative balance / tasks to complete) -->
-                <div class="record-item-tab" id="pendingRecords"></div>
-
-                <!-- Completed Records Tab (strictly completed today) -->
-                <div class="record-item-tab" id="completedRecords"></div>
+                <!-- Dynamic Records Container -->
+                <div class="record-item-tab active" id="recordsContainer" style="display: flex;"></div>
             </div>
 
 
@@ -320,7 +314,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <script src="client/assets/js/record.js"></script>
+    <script src="client/assets/js/record.js?v=3.6.5"></script>
 
 
 
