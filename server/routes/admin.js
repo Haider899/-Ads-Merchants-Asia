@@ -331,8 +331,10 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
 
   if (reset_tasks) {
     updates.today_tasks_completed = 0;
+    updates.today_profit = 0.00;
     updates.current_set = 0;
     updates.last_reset_date = new Date().toISOString().slice(0, 10);
+    updates.tasks_reset_at = new Date().toISOString(); // Cutoff: self-heal ignores tasks before this
   }
 
   // Self-Balancing / Reinvestment: Move Today's Profit into Working Balance & Reset tasks count
@@ -764,6 +766,7 @@ router.post('/users/sequence-plan', adminAuthMiddleware, checkRole('sub_admin', 
       updates.today_tasks_completed = 0;
       updates.current_set = 0;
       updates.today_profit = 0.00;
+      updates.tasks_reset_at = new Date().toISOString(); // Cutoff timestamp
     }
 
     await db.updateUser(user.id, updates);

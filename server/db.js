@@ -44,7 +44,8 @@ async function ensureUserTaskSettingColumns() {
     const columns = [
       { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
       { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
-      { name: 'last_reset_date', type: 'DATE DEFAULT NULL' }
+      { name: 'last_reset_date', type: 'DATE DEFAULT NULL' },
+      { name: 'tasks_reset_at', type: 'DATETIME DEFAULT NULL' }
     ];
 
     for (const col of columns) {
@@ -205,7 +206,7 @@ const db = {
   },
 
   updateUser: async (id, updates) => {
-    if (Object.prototype.hasOwnProperty.call(updates, 'custom_daily_limit') || Object.prototype.hasOwnProperty.call(updates, 'task_sequence_plan') || Object.prototype.hasOwnProperty.call(updates, 'last_reset_date')) {
+    if (Object.prototype.hasOwnProperty.call(updates, 'custom_daily_limit') || Object.prototype.hasOwnProperty.call(updates, 'task_sequence_plan') || Object.prototype.hasOwnProperty.call(updates, 'last_reset_date') || Object.prototype.hasOwnProperty.call(updates, 'tasks_reset_at')) {
       await ensureUserTaskSettingColumns();
     }
 
@@ -215,7 +216,7 @@ const db = {
       'today_tasks_completed', 'total_tasks_completed', 'current_set', 
       'invite_code', 'kyc_status', 'kyc_notes', 'status',
       'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price',
-      'custom_daily_limit', 'task_sequence_plan', 'last_reset_date',
+      'custom_daily_limit', 'task_sequence_plan', 'last_reset_date', 'tasks_reset_at',
       'country_code', 'country_name', 'last_ip'
     ];
     const filteredUpdates = {};

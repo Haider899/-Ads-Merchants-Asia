@@ -76,11 +76,20 @@ router.get('/status', authMiddleware, async (req, res) => {
   const userTasks = await db.getTasks(user.id);
 
   // Dynamically compute today's earned profit from tasks completed today
+  // IMPORTANT: Only count tasks completed AFTER admin's last reset (tasks_reset_at)
   const todayStr = toDateString(new Date());
+  const resetCutoff = user.tasks_reset_at ? new Date(user.tasks_reset_at) : null;
+
   const todaysCompletedTasks = (userTasks || []).filter(t => {
     if (t.status !== 'completed') return false;
     const taskDate = toDateString(t.completed_at || t.created_at);
-    return taskDate === todayStr;
+    if (taskDate !== todayStr) return false;
+    // If admin reset was done today, exclude tasks completed before the reset
+    if (resetCutoff) {
+      const taskTs = new Date(t.completed_at || t.created_at);
+      if (taskTs < resetCutoff) return false;
+    }
+    return true;
   });
 
   const computedProfit = todaysCompletedTasks.reduce((sum, t) => {
@@ -91,6 +100,7 @@ router.get('/status', authMiddleware, async (req, res) => {
   let currentTasksCompleted = parseInt(user.today_tasks_completed || 0, 10);
 
   // Self-heal if user.today_profit was prematurely zeroed out by previous date bug
+  // Only heal upward if the computed value reflects tasks AFTER the last reset
   if (computedProfit > currentTodayProfit) {
     currentTodayProfit = round(computedProfit);
     await db.updateUser(user.id, { today_profit: currentTodayProfit }).catch(() => {});
@@ -143,7 +153,25 @@ router.post('/generate', authMiddleware, async (req, res) => {
       ? user.custom_daily_limit
       : (vipRate.max_tasks || 38);
 
-    if (user.today_tasks_completed >= maxTasks) {
+    // Recompute actual completed tasks since last admin reset (to prevent false daily-limit block)
+    const todayStr2 = toDateString(new Date());
+    const resetCutoff2 = user.tasks_reset_at ? new Date(user.tasks_reset_at) : null;
+    const allUserTasks2 = await db.getTasks(user.id);
+    const trulyCompleted = (allUserTasks2 || []).filter(t => {
+      if (t.status !== 'completed') return false;
+      const taskDate = toDateString(t.completed_at || t.created_at);
+      if (taskDate !== todayStr2) return false;
+      if (resetCutoff2) {
+        const taskTs = new Date(t.completed_at || t.created_at);
+        if (taskTs < resetCutoff2) return false;
+      }
+      return true;
+    }).length;
+
+    // Use whichever count is lower (DB field vs actual count) to prevent false blocks
+    const effectiveCompleted = Math.min(parseInt(user.today_tasks_completed || 0, 10), trulyCompleted > 0 ? trulyCompleted : parseInt(user.today_tasks_completed || 0, 10));
+
+    if (effectiveCompleted >= maxTasks) {
       return res.status(400).json({
         success: false,
         message: `You have completed all ${maxTasks} daily optimization tasks. Please return tomorrow!`
