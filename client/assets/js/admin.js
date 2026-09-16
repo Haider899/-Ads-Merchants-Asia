@@ -2605,13 +2605,23 @@
         const customDailyEl = document.getElementById('editUserDailyLimit');
         const custom_daily_limit = customDailyEl ? customDailyEl.value : '';
 
+        const submitBtn = editUserForm.querySelector('button[type="submit"]');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...'; }
+
         const res = await AdminAPI.post('/api/admin/users/update', {
           userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit
         });
 
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-save"></i> Save Changes'; }
+
         if (res && res.success) {
+          // Immediately update state.users so next modal open shows correct (fresh) balance
+          if (res.user) {
+            const idx = state.users.findIndex(u => String(u.id) === String(userId));
+            if (idx !== -1) state.users[idx] = res.user;
+          }
           AdminUI.closeModal('editUserModal');
-          AdminUI.toast('User Updated', res.message, 'success');
+          AdminUI.toast('User Updated', res.message || 'Changes saved successfully.', 'success');
           loadUsers();
           loadMetrics();
         } else {

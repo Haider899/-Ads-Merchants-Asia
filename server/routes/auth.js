@@ -135,11 +135,18 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const todayStr = new Date().toISOString().slice(0, 10);
     const userTasks = await db.getTasks(safeUser.id);
+    const resetCutoff = safeUser.tasks_reset_at ? new Date(safeUser.tasks_reset_at) : null;
     const todaysCompleted = (userTasks || []).filter(t => {
       if (t.status !== 'completed') return false;
       const tDate = t.completed_at || t.created_at;
       const dStr = tDate instanceof Date ? tDate.toISOString().slice(0, 10) : String(tDate).slice(0, 10);
-      return dStr === todayStr;
+      if (dStr !== todayStr) return false;
+      // Only count tasks completed AFTER the last admin reset
+      if (resetCutoff) {
+        const taskTs = new Date(tDate);
+        if (taskTs < resetCutoff) return false;
+      }
+      return true;
     });
     const computedProfit = todaysCompleted.reduce((sum, t) => sum + parseFloat(t.commission_earned || t.commission_amount || 0), 0);
     if (computedProfit > parseFloat(safeUser.today_profit || 0)) {
