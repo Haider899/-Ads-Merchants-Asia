@@ -43,11 +43,12 @@ async function ensureUserTaskSettingColumns() {
   try {
     const columns = [
       { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
+      { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
       { name: 'last_reset_date', type: 'DATE DEFAULT NULL' }
     ];
 
     for (const col of columns) {
-      const rows = await query('SHOW COLUMNS FROM users LIKE ?', [col.name]);
+      const rows = await query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['users', col.name]);
       if (!rows || rows.length === 0) {
         await query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
       }
@@ -97,6 +98,14 @@ const db = {
       custom_deficit_amount: u.custom_deficit_amount !== null && u.custom_deficit_amount !== undefined ? parseFloat(u.custom_deficit_amount) : null,
       custom_product_price: u.custom_product_price !== null && u.custom_product_price !== undefined ? parseFloat(u.custom_product_price) : null,
       custom_daily_limit: u.custom_daily_limit !== null && u.custom_daily_limit !== undefined ? parseInt(u.custom_daily_limit, 10) : null,
+      task_sequence_plan: (() => {
+        if (!u.task_sequence_plan) return null;
+        try {
+          return typeof u.task_sequence_plan === 'string' ? JSON.parse(u.task_sequence_plan) : u.task_sequence_plan;
+        } catch {
+          return null;
+        }
+      })(),
       last_reset_date: u.last_reset_date || null
     };
   },
@@ -196,7 +205,7 @@ const db = {
   },
 
   updateUser: async (id, updates) => {
-    if (Object.prototype.hasOwnProperty.call(updates, 'custom_daily_limit') || Object.prototype.hasOwnProperty.call(updates, 'last_reset_date')) {
+    if (Object.prototype.hasOwnProperty.call(updates, 'custom_daily_limit') || Object.prototype.hasOwnProperty.call(updates, 'task_sequence_plan') || Object.prototype.hasOwnProperty.call(updates, 'last_reset_date')) {
       await ensureUserTaskSettingColumns();
     }
 
@@ -206,13 +215,17 @@ const db = {
       'today_tasks_completed', 'total_tasks_completed', 'current_set', 
       'invite_code', 'kyc_status', 'kyc_notes', 'status',
       'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price',
-      'custom_daily_limit', 'last_reset_date',
+      'custom_daily_limit', 'task_sequence_plan', 'last_reset_date',
       'country_code', 'country_name', 'last_ip'
     ];
     const filteredUpdates = {};
     for (const key of Object.keys(updates)) {
       if (allowed.includes(key)) {
-        filteredUpdates[key] = updates[key];
+        let val = updates[key];
+        if (key === 'task_sequence_plan' && typeof val === 'object' && val !== null) {
+          val = JSON.stringify(val);
+        }
+        filteredUpdates[key] = val;
       }
     }
     const keys = Object.keys(filteredUpdates);

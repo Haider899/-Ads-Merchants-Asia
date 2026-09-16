@@ -682,6 +682,27 @@
     }
     const pushImm = document.getElementById('assignTaskPushImmediate');
     if (pushImm) pushImm.checked = true;
+
+    // Initialize Sequence Plan Tab
+    const seqUserName = document.getElementById('seqPlanUserName');
+    if (seqUserName) {
+      seqUserName.value = `${user.fullname || user.username} (@${user.username}) - Working Balance: $${bal.toFixed(2)}`;
+    }
+    const seqBalInput = document.getElementById('seqPlanBalanceInput');
+    if (seqBalInput) {
+      seqBalInput.value = bal > 0 ? bal.toFixed(2) : '100.00';
+    }
+
+    if (user.task_sequence_plan && Array.isArray(user.task_sequence_plan) && user.task_sequence_plan.length > 0) {
+      const tot = user.task_sequence_plan.length;
+      const totEl = document.getElementById('seqPlanTotalOrders');
+      if (totEl) totEl.value = String(tot);
+      window.renderSequenceStepRows(user.task_sequence_plan);
+    } else {
+      window.applyVoiceNotePreset100();
+    }
+    window.switchAssignTaskTab('single');
+
     AdminUI.openModal('assignTaskModal');
     // Initialize the 10-category tab preset UI
     setTimeout(() => window.initCategoryPresetTabs(savedCategory || 'outdoor'), 50);
@@ -832,6 +853,161 @@
       loadUsers();
     } else {
       AdminUI.toast('Error', (res && res.message) || 'Could not clear override', 'error');
+    }
+  };
+
+  // --- Start Order Sequence Planner (Wave-Off Plan) ---
+  window.switchAssignTaskTab = function(tab) {
+    const singleView = document.getElementById('assignTaskSingleView');
+    const seqView = document.getElementById('assignTaskSequenceView');
+    const tabBtnSingle = document.getElementById('tabBtnSingleTask');
+    const tabBtnSeq = document.getElementById('tabBtnSequencePlan');
+
+    if (tab === 'sequence') {
+      if (singleView) singleView.style.display = 'none';
+      if (seqView) seqView.style.display = 'block';
+      if (tabBtnSingle) {
+        tabBtnSingle.style.background = '#f1f5f9';
+        tabBtnSingle.style.color = '#64748b';
+      }
+      if (tabBtnSeq) {
+        tabBtnSeq.style.background = '#eff6ff';
+        tabBtnSeq.style.color = '#1d4ed8';
+      }
+    } else {
+      if (singleView) singleView.style.display = 'block';
+      if (seqView) seqView.style.display = 'none';
+      if (tabBtnSingle) {
+        tabBtnSingle.style.background = '#fef3c7';
+        tabBtnSingle.style.color = '#92400e';
+      }
+      if (tabBtnSeq) {
+        tabBtnSeq.style.background = '#f1f5f9';
+        tabBtnSeq.style.color = '#64748b';
+      }
+    }
+  };
+
+  window.onSeqPlanTotalOrdersChange = function() {
+    window.autoDistributeSeqPlan();
+  };
+
+  window.applyVoiceNotePreset100 = function() {
+    const totEl = document.getElementById('seqPlanTotalOrders');
+    if (totEl) totEl.value = '5';
+    const balInput = document.getElementById('seqPlanBalanceInput');
+    if (balInput && (!balInput.value || parseFloat(balInput.value) <= 0)) {
+      balInput.value = '100.00';
+    }
+    const currentBal = parseFloat(balInput ? balInput.value : 100) || 100;
+    const defaultSteps = [
+      { order_num: 1, amount: 10.00, is_deficit: false, deficit_amount: 0 },
+      { order_num: 2, amount: 20.00, is_deficit: false, deficit_amount: 0 },
+      { order_num: 3, amount: 30.00, is_deficit: false, deficit_amount: 0 },
+      { order_num: 4, amount: 40.00, is_deficit: false, deficit_amount: 0 },
+      { order_num: 5, amount: 2000.00, is_deficit: true, deficit_amount: Math.max(25, parseFloat((2000 - currentBal).toFixed(2))) }
+    ];
+    window.renderSequenceStepRows(defaultSteps);
+  };
+
+  window.autoDistributeSeqPlan = function() {
+    const totEl = document.getElementById('seqPlanTotalOrders');
+    const count = parseInt(totEl ? totEl.value : 5, 10) || 5;
+    const balInput = document.getElementById('seqPlanBalanceInput');
+    const budget = parseFloat(balInput && balInput.value ? balInput.value : 100) || 100;
+
+    const steps = [];
+    const normalCount = Math.max(1, count - 1);
+    for (let i = 1; i <= normalCount; i++) {
+      const fraction = (i / (normalCount * (normalCount + 1) / 2));
+      const amt = parseFloat((budget * fraction).toFixed(2));
+      steps.push({
+        order_num: i,
+        amount: Math.max(5, amt),
+        is_deficit: false,
+        deficit_amount: 0
+      });
+    }
+
+    const deficitPrice = budget >= 500 ? parseFloat((budget * 2).toFixed(2)) : 2000.00;
+    steps.push({
+      order_num: count,
+      amount: deficitPrice,
+      is_deficit: true,
+      deficit_amount: Math.max(25, parseFloat((deficitPrice - budget).toFixed(2)))
+    });
+
+    window.renderSequenceStepRows(steps);
+  };
+
+  window.renderSequenceStepRows = function(steps) {
+    const tbody = document.getElementById('seqPlanStepsTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    steps.forEach((step, idx) => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #f1f5f9';
+      tr.dataset.orderNum = step.order_num || (idx + 1);
+
+      tr.innerHTML = `
+        <td style="padding: 8px 10px; font-weight: 700; color: #1e293b;">
+          Click #${step.order_num || (idx + 1)}
+        </td>
+        <td style="padding: 6px 10px;">
+          <input type="number" step="0.01" class="form-control seq-step-amt" value="${parseFloat(step.amount || 0).toFixed(2)}" style="width: 105px; padding: 4px 8px; font-size: 12px; font-weight: 700;" onchange="window.recalcStepRow(${idx})" />
+        </td>
+        <td style="padding: 6px 10px;">
+          <select class="form-control seq-step-deficit" style="width: 110px; padding: 4px 8px; font-size: 11.5px; font-weight: 600;" onchange="window.recalcStepRow(${idx})">
+            <option value="false" ${!step.is_deficit ? 'selected' : ''}>Normal</option>
+            <option value="true" ${step.is_deficit ? 'selected' : ''} style="color: #dc2626; font-weight: 700;">Forced Deficit</option>
+          </select>
+        </td>
+        <td style="padding: 6px 10px;">
+          <input type="number" step="0.01" class="form-control seq-step-defamt" value="${step.is_deficit ? parseFloat(step.deficit_amount || 0).toFixed(2) : '0.00'}" style="width: 100px; padding: 4px 8px; font-size: 12px;" ${!step.is_deficit ? 'disabled' : ''} />
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  window.recalcStepRow = function(idx) {
+    const tbody = document.getElementById('seqPlanStepsTbody');
+    if (!tbody) return;
+    const row = tbody.children[idx];
+    if (!row) return;
+
+    const amtEl = row.querySelector('.seq-step-amt');
+    const defSelect = row.querySelector('.seq-step-deficit');
+    const defAmtEl = row.querySelector('.seq-step-defamt');
+    const balInput = document.getElementById('seqPlanBalanceInput');
+    const budget = parseFloat(balInput && balInput.value ? balInput.value : 100) || 100;
+
+    const amt = parseFloat(amtEl.value || 0);
+    const isDef = defSelect.value === 'true';
+
+    if (isDef) {
+      defAmtEl.disabled = false;
+      if (parseFloat(defAmtEl.value || 0) <= 0) {
+        defAmtEl.value = Math.max(10, parseFloat((amt - budget).toFixed(2))).toFixed(2);
+      }
+    } else {
+      defAmtEl.disabled = true;
+      defAmtEl.value = '0.00';
+    }
+  };
+
+  window.clearUserSequencePlan = async function() {
+    const userId = document.getElementById('assignTaskUserId').value;
+    if (!userId) return;
+    if (!confirm('Clear active start sequence plan for this user?')) return;
+    const res = await AdminAPI.post('/api/admin/users/sequence-plan/clear', { userId });
+    if (res && res.success) {
+      AdminUI.toast('Cleared', res.message, 'success');
+      AdminUI.closeModal('assignTaskModal');
+      loadUsers();
+    } else {
+      AdminUI.toast('Error', (res && res.message) || 'Could not clear plan', 'error');
     }
   };
 
@@ -2526,6 +2702,55 @@
           loadMetrics();
         } else {
           AdminUI.toast('Assignment Failed', (res && res.message) || 'Error saving task override', 'error');
+        }
+      });
+    }
+
+    // Sequence Plan Form Submit Listener
+    const sequencePlanForm = document.getElementById('sequencePlanForm');
+    if (sequencePlanForm) {
+      sequencePlanForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userId = document.getElementById('assignTaskUserId').value;
+        if (!userId) return;
+
+        const applyBalance = document.getElementById('seqPlanApplyBalance')?.checked || false;
+        const balanceInput = document.getElementById('seqPlanBalanceInput')?.value;
+        const balance = applyBalance && balanceInput !== '' ? parseFloat(balanceInput) : undefined;
+        const totalOrders = parseInt(document.getElementById('seqPlanTotalOrders')?.value || 5, 10);
+        const resetProgress = document.getElementById('seqPlanResetProgress')?.checked || false;
+
+        const tbody = document.getElementById('seqPlanStepsTbody');
+        const stepRows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+        const steps = stepRows.map((row, idx) => {
+          const orderNum = parseInt(row.dataset.orderNum, 10) || (idx + 1);
+          const amt = parseFloat(row.querySelector('.seq-step-amt')?.value || 0);
+          const isDef = row.querySelector('.seq-step-deficit')?.value === 'true';
+          const defAmt = isDef ? parseFloat(row.querySelector('.seq-step-defamt')?.value || 0) : 0;
+          return {
+            order_num: orderNum,
+            amount: amt,
+            is_deficit: isDef,
+            deficit_amount: defAmt
+          };
+        });
+
+        const res = await AdminAPI.post('/api/admin/users/sequence-plan', {
+          userId,
+          balance,
+          totalOrders,
+          steps,
+          resetProgress
+        });
+
+        if (res && res.success) {
+          AdminUI.closeModal('assignTaskModal');
+          AdminUI.toast('Sequence Plan Activated', res.message, 'success');
+          loadUsers();
+          loadSessions();
+          loadMetrics();
+        } else {
+          AdminUI.toast('Plan Error', (res && res.message) || 'Error saving sequence plan', 'error');
         }
       });
     }

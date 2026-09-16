@@ -1494,97 +1494,204 @@
 
     <!-- Smart Task & Negative Balance Assignment Modal -->
     <div id="assignTaskModal" class="admin-modal-backdrop">
-        <div class="admin-modal-dialog" style="max-width: 560px;">
+        <div class="admin-modal-dialog" style="max-width: 660px;">
             <div class="admin-modal-header">
-                <h5 class="admin-modal-title"><i class="fa fa-tasks" style="color: #f59e0b;"></i> Smart Task & Forced Deficit Assignment</h5>
+                <h5 class="admin-modal-title"><i class="fa fa-tasks" style="color: #f59e0b;"></i> Smart Task & Order Sequence Planner</h5>
                 <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('assignTaskModal')">&times;</button>
             </div>
             <div class="admin-modal-body">
-                <!-- 10-Category Quick Product Selector -->
-                <div id="categoryPresetBox" style="margin-bottom: 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; overflow: hidden;">
-                    <div style="padding: 10px 12px 0;">
-                        <div style="font-size: 11px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;">&#9889; Quick Presets &mdash; Select Category:</div>
-                        <div id="categoryTabsRow" style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:8px;border-bottom:1px solid #fde68a;">
-                        </div>
-                    </div>
-                    <div id="categoryProductsRow" style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center;">
-                        <span style="color:#94a3b8;font-size:12px;">Select a category above...</span>
-                    </div>
+                <!-- Tab Switching Bar -->
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+                    <button type="button" id="tabBtnSingleTask" onclick="switchAssignTaskTab('single')" style="flex: 1; padding: 9px 12px; border-radius: 8px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; background: #fef3c7; color: #92400e; transition: all 0.2s;">
+                        <i class="fa fa-bolt mr-1"></i> Single Task / Immediate Push
+                    </button>
+                    <button type="button" id="tabBtnSequencePlan" onclick="switchAssignTaskTab('sequence')" style="flex: 1; padding: 9px 12px; border-radius: 8px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; background: #f1f5f9; color: #64748b; transition: all 0.2s;">
+                        <i class="fa fa-list-ol mr-1"></i> Start Order Sequence Plan (Wave-Off)
+                    </button>
                 </div>
 
-                <form id="assignTaskForm">
-                    <input type="hidden" id="assignTaskUserId" />
-                    <div class="form-group">
-                        <label>Target User</label>
-                        <input type="text" id="assignTaskUserName" class="form-control" readonly style="background: #f8fafc; font-weight: 600;" />
-                    </div>
-
-                    <!-- Push Mode Checkbox -->
-                    <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
-                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 700; color: #0f172a; margin: 0; cursor: pointer;">
-                            <input type="checkbox" id="assignTaskPushImmediate" checked style="width: 19px; height: 19px; accent-color: #f59e0b; cursor: pointer;" />
-                            <span style="font-size: 13.5px; line-height: 1.3;">
-                                ⚡ <span style="color: #b45309;">Push Immediately as Pending Task</span>
-                                <small style="display: block; font-weight: 400; color: #64748b; margin-top: 2px;">Immediately places order in user queue and deducts Working Balance into negative deficit if price > balance.</small>
-                            </span>
-                        </label>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Target Order Number <small style="color: #64748b;">(e.g., 5)</small></label>
-                            <input type="number" id="assignTaskOrderNum" class="form-control" min="1" max="100" value="5" required />
+                <!-- TAB 1: Single Task / Immediate Push (Existing Form) -->
+                <div id="assignTaskSingleView">
+                    <!-- 10-Category Quick Product Selector -->
+                    <div id="categoryPresetBox" style="margin-bottom: 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; overflow: hidden;">
+                        <div style="padding: 10px 12px 0;">
+                            <div style="font-size: 11px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;">&#9889; Quick Presets &mdash; Select Category:</div>
+                            <div id="categoryTabsRow" style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:8px;border-bottom:1px solid #fde68a;">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Forced Deficit Amount ($) <small style="color: #64748b;">(Deficit to clear)</small></label>
-                            <input type="number" step="0.01" id="assignTaskDeficitAmount" class="form-control" min="0" value="25.00" required />
+                        <div id="categoryProductsRow" style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center;">
+                            <span style="color:#94a3b8;font-size:12px;">Select a category above...</span>
                         </div>
                     </div>
 
-                    <div class="form-row">
+                    <form id="assignTaskForm">
+                        <input type="hidden" id="assignTaskUserId" />
                         <div class="form-group">
-                            <label>Product Category <small style="color: #64748b;">(10 categories)</small></label>
-                            <select id="assignTaskProductCategory" class="form-control">
-                                <option value="">Manual / No Category</option>
-                                <option value="budget">Budget Accessories</option>
-                                <option value="fashion_travel">Fashion & Travel</option>
-                                <option value="beauty_health">Beauty & Health</option>
-                                <option value="mobile_audio">Mobile & Audio</option>
-                                <option value="home_kitchen">Home & Kitchen</option>
-                                <option value="tools">Tools & Hardware</option>
-                                <option value="outdoor">Outdoor & Camping</option>
-                                <option value="gaming_entertainment">Gaming & Entertainment</option>
-                                <option value="premium_electronics">Premium Electronics</option>
-                                <option value="high_ticket">High Ticket Deficit</option>
-                            </select>
+                            <label>Target User</label>
+                            <input type="text" id="assignTaskUserName" class="form-control" readonly style="background: #f8fafc; font-weight: 600;" />
                         </div>
+
+                        <!-- Push Mode Checkbox -->
+                        <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+                            <label style="display: flex; align-items: center; gap: 10px; font-weight: 700; color: #0f172a; margin: 0; cursor: pointer;">
+                                <input type="checkbox" id="assignTaskPushImmediate" checked style="width: 19px; height: 19px; accent-color: #f59e0b; cursor: pointer;" />
+                                <span style="font-size: 13.5px; line-height: 1.3;">
+                                    ⚡ <span style="color: #b45309;">Push Immediately as Pending Task</span>
+                                    <small style="display: block; font-weight: 400; color: #64748b; margin-top: 2px;">Immediately places order in user queue and deducts Working Balance into negative deficit if price > balance.</small>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Target Order Number <small style="color: #64748b;">(e.g., 5)</small></label>
+                                <input type="number" id="assignTaskOrderNum" class="form-control" min="1" max="100" value="5" required />
+                            </div>
+                            <div class="form-group">
+                                <label>Forced Deficit Amount ($) <small style="color: #64748b;">(Deficit to clear)</small></label>
+                                <input type="number" step="0.01" id="assignTaskDeficitAmount" class="form-control" min="0" value="25.00" required />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Product Category <small style="color: #64748b;">(10 categories)</small></label>
+                                <select id="assignTaskProductCategory" class="form-control">
+                                    <option value="">Manual / No Category</option>
+                                    <option value="budget">Budget Accessories</option>
+                                    <option value="fashion_travel">Fashion & Travel</option>
+                                    <option value="beauty_health">Beauty & Health</option>
+                                    <option value="mobile_audio">Mobile & Audio</option>
+                                    <option value="home_kitchen">Home & Kitchen</option>
+                                    <option value="tools">Tools & Hardware</option>
+                                    <option value="outdoor">Outdoor & Camping</option>
+                                    <option value="gaming_entertainment">Gaming & Entertainment</option>
+                                    <option value="premium_electronics">Premium Electronics</option>
+                                    <option value="high_ticket">High Ticket Deficit</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Category Product <small style="color: #64748b;">(random avoids repeats)</small></label>
+                                <select id="assignTaskCategoryProduct" class="form-control" disabled>
+                                    <option value="">Select category first</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="form-group">
-                            <label>Category Product <small style="color: #64748b;">(random avoids repeats)</small></label>
-                            <select id="assignTaskCategoryProduct" class="form-control" disabled>
-                                <option value="">Select category first</option>
-                            </select>
+                            <label>Product Name <small style="color: #64748b;">(Optional - auto-assigned if empty)</small></label>
+                            <input type="text" id="assignTaskProductName" class="form-control" placeholder="e.g. Lifetime 9446 Outdoor Storage Shed" />
                         </div>
-                    </div>
 
-                    <div class="form-group">
-                        <label>Product Name <small style="color: #64748b;">(Optional - auto-assigned if empty)</small></label>
-                        <input type="text" id="assignTaskProductName" class="form-control" placeholder="e.g. Lifetime 9446 Outdoor Storage Shed" />
-                    </div>
+                        <div class="form-group">
+                            <label>Product Price ($) <small style="color: #64748b;">(e.g., 2000.00 or 3674.00)</small></label>
+                            <input type="number" step="0.01" id="assignTaskProductPrice" class="form-control" placeholder="Leave empty for auto-calculated (Balance + Deficit)" />
+                        </div>
 
-                    <div class="form-group">
-                        <label>Product Price ($) <small style="color: #64748b;">(e.g., 2000.00 or 3674.00)</small></label>
-                        <input type="number" step="0.01" id="assignTaskProductPrice" class="form-control" placeholder="Leave empty for auto-calculated (Balance + Deficit)" />
-                    </div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="clearUserCustomTask()">
+                                Clear Override
+                            </button>
+                            <button type="submit" class="btn-action" style="background: #f59e0b; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700; font-size: 14px;">
+                                <i class="fa fa-tasks mr-1"></i> Assign / Push Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
 
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="clearUserCustomTask()">
-                            Clear Override
-                        </button>
-                        <button type="submit" class="btn-action" style="background: #f59e0b; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700; font-size: 14px;">
-                            <i class="fa fa-tasks mr-1"></i> Assign / Push Task
-                        </button>
-                    </div>
-                </form>
+                <!-- TAB 2: Start Order Sequence Plan (Wave-Off Plan) -->
+                <div id="assignTaskSequenceView" style="display: none;">
+                    <form id="sequencePlanForm">
+                        <div class="form-group">
+                            <label>Target User</label>
+                            <input type="text" id="seqPlanUserName" class="form-control" readonly style="background: #f8fafc; font-weight: 600;" />
+                        </div>
+
+                        <!-- Balance & Budget Setup (As requested in voice note) -->
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                            <div style="font-weight: 800; color: #1e40af; font-size: 13px; margin-bottom: 8px;">
+                                <i class="fa fa-wallet mr-1"></i> 1. User Budget & Working Balance Top-Up
+                            </div>
+                            <div class="form-row" style="align-items: center;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 12px;">Set / Add Working Balance ($)</label>
+                                    <input type="number" step="0.01" id="seqPlanBalanceInput" class="form-control" placeholder="e.g. 100.00" />
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; padding-top: 20px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: #1e3a8a; margin: 0;">
+                                        <input type="checkbox" id="seqPlanApplyBalance" checked style="width: 17px; height: 17px; accent-color: #2563eb;" />
+                                        Update balance on save
+                                    </label>
+                                </div>
+                            </div>
+                            <small style="color: #64748b; display: block; margin-top: 6px;">Client voice note rule: e.g. set $100 budget to be absorbed across planned clicks.</small>
+                        </div>
+
+                        <!-- Sequence Controls & Presets -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="font-weight: 800; color: #0f172a; font-size: 13px;">
+                                    <i class="fa fa-sliders-h mr-1"></i> 2. Order Clicks & Sequence Flow
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="font-size: 12px; margin: 0; font-weight: 700;">Total Orders:</label>
+                                    <select id="seqPlanTotalOrders" class="form-control" style="width: 80px; padding: 4px 8px; font-weight: 700;" onchange="onSeqPlanTotalOrdersChange()">
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5" selected>5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Quick Preset Buttons -->
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                                <button type="button" class="btn-action" style="background: #e0e7ff; color: #3730a3; font-size: 11.5px; padding: 6px 10px; font-weight: 700;" onclick="applyVoiceNotePreset100()">
+                                    ⚡ Client Preset: 5 Orders ($10, $20, $30, $40, $2,000 Deficit)
+                                </button>
+                                <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; font-size: 11.5px; padding: 6px 10px; font-weight: 700;" onclick="autoDistributeSeqPlan()">
+                                    🔄 Distribute Budget Evenly
+                                </button>
+                            </div>
+
+                            <!-- Reset Today Progress Checkbox -->
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #334155; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" id="seqPlanResetProgress" checked style="width: 17px; height: 17px; accent-color: #f59e0b;" />
+                                    <span>Reset user progress to <strong>Order #1</strong> so they start immediately from click 1</span>
+                                </label>
+                            </div>
+
+                            <!-- Step Rows Container -->
+                            <div style="max-height: 230px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: white;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
+                                    <thead>
+                                        <tr style="background: #f1f5f9; text-align: left; color: #475569; font-weight: 700; border-bottom: 1px solid #e2e8f0;">
+                                            <th style="padding: 8px 10px;">Click / Order #</th>
+                                            <th style="padding: 8px 10px;">Order Amount ($)</th>
+                                            <th style="padding: 8px 10px;">Type / Status</th>
+                                            <th style="padding: 8px 10px;">Forced Deficit ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="seqPlanStepsTbody">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 18px;">
+                            <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="clearUserSequencePlan()">
+                                Clear Plan
+                            </button>
+                            <button type="submit" class="btn-action" style="background: #2563eb; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700; font-size: 14px;">
+                                <i class="fa fa-check-circle mr-1"></i> Save & Activate Sequence Plan
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -1785,6 +1892,6 @@
     </div>
 
     <!-- Dedicated Admin Script -->
-    <script src="/client/assets/js/admin.js?v=4.2.0"></script>
+    <script src="/client/assets/js/admin.js?v=4.3.0"></script>
 </body>
 </html>

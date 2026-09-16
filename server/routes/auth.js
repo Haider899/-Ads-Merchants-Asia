@@ -150,6 +150,18 @@ router.get('/me', authMiddleware, async (req, res) => {
       safeUser.today_tasks_completed = todaysCompleted.length;
       await db.updateUser(safeUser.id, { today_tasks_completed: safeUser.today_tasks_completed }).catch(() => {});
     }
+    const activePending = (userTasks || []).find(t => t.status === 'pending');
+    if (activePending) {
+      safeUser.pending_task = {
+        id: activePending.id,
+        order_number: activePending.order_number,
+        product_name: activePending.product_name,
+        product_price: parseFloat(activePending.product_price || 0),
+        commission_amount: parseFloat(activePending.commission_amount !== undefined && activePending.commission_amount !== null ? activePending.commission_amount : (activePending.commission_earned || 0)),
+        is_deficit: activePending.is_deficit,
+        deficit_amount: activePending.deficit_amount
+      };
+    }
   } catch (_) {}
 
   res.json({ success: true, user: safeUser });

@@ -343,7 +343,19 @@
     const workingBalNum = parseFloat(user.balance || 0);
     const frozenBalNum = parseFloat(user.frozen_balance || 0);
     const totalProfitNum = parseFloat(user.today_profit || 0);
-    const totalBalNum = workingBalNum >= 0 ? (workingBalNum + frozenBalNum) : (frozenBalNum + totalProfitNum);
+
+    const pTask = user.pending_task || window.__activePendingTask;
+    let pendingPrice = 0;
+    let pendingComm = 0;
+    if (pTask) {
+      pendingPrice = parseFloat(pTask.product_price || 0);
+      pendingComm = parseFloat(pTask.commission_amount !== undefined && pTask.commission_amount !== null ? pTask.commission_amount : (pTask.commission_earned || 0));
+    }
+
+    const totalBalNum = workingBalNum >= 0 
+      ? (workingBalNum + pendingPrice + pendingComm + frozenBalNum) 
+      : (frozenBalNum + totalProfitNum);
+    const userProfitNum = totalProfitNum + (workingBalNum >= 0 && pendingComm > 0 ? pendingComm : 0);
 
     const formatUSD = (num) => {
       const isNeg = num < 0;
@@ -356,7 +368,7 @@
     const workingBal = formatUSD(workingBalNum);
     const frozenBal = formatUSD(frozenBalNum);
     const totalBal = formatUSD(totalBalNum);
-    const userProfit = formatUSD(totalProfitNum);
+    const userProfit = formatUSD(userProfitNum);
 
     // 1. Total Balance (Working + Frozen funds)
     document.querySelectorAll(`
@@ -610,6 +622,18 @@
           textEl.textContent = originalText;
 
           if (res && res.success && res.task) {
+            window.__activePendingTask = res.task;
+            if (res.new_balance !== undefined) {
+              const currentProfit = parseFloat((window.__currentUser && window.__currentUser.today_profit) || 0);
+              updateTaskDisplay({
+                balance: res.new_balance,
+                frozen_balance: (window.__currentUser && window.__currentUser.frozen_balance) || 0,
+                today_profit: currentProfit,
+                pending_task: res.task,
+                today_tasks_completed: (window.__currentUser && window.__currentUser.today_tasks_completed) || 0,
+                max_tasks: (window.__currentUser && window.__currentUser.max_tasks) || 38
+              });
+            }
             showTaskModal(res.task);
           } else {
             const froz = res && (res.userFrozenBalance || res.deficit_amount);
@@ -661,7 +685,19 @@
     const workBal = parseFloat(data.balance || 0);
     const frozBal = parseFloat(data.frozen_balance !== undefined ? data.frozen_balance : (window.__currentUser && window.__currentUser.frozen_balance) || 0);
     const profitVal = parseFloat(data.today_profit || 0);
-    const totBal = workBal >= 0 ? (workBal + frozBal) : (frozBal + profitVal);
+
+    const pTask = data.pending_task || window.__activePendingTask;
+    let pendingPrice = 0;
+    let pendingComm = 0;
+    if (pTask) {
+      pendingPrice = parseFloat(pTask.product_price || 0);
+      pendingComm = parseFloat(pTask.commission_amount !== undefined && pTask.commission_amount !== null ? pTask.commission_amount : (pTask.commission_earned || 0));
+    }
+
+    const totBal = workBal >= 0 
+      ? (workBal + pendingPrice + pendingComm + frozBal) 
+      : (frozBal + profitVal);
+    const displayProfit = profitVal + (workBal >= 0 && pendingComm > 0 ? pendingComm : 0);
 
     document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, #start-total-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(workBal)}`;
@@ -677,7 +713,7 @@
       taskFrozenContainer.style.display = 'none'; // Keep clean matching original screenshot 07.10.31 & 07.10.33
     }
     document.querySelectorAll('.task-profit, #todayProfitVal, .user-today-profit, #todayProfit, #start-todays-profit-text, #profile-total-profit').forEach(el => {
-      el.textContent = `USD ${formatUSD(profitVal)}`;
+      el.textContent = `USD ${formatUSD(displayProfit)}`;
     });
 
     // Populate VIP medal badge and user name
@@ -788,12 +824,14 @@
         const res = await API.post('/api/tasks/submit', { taskId: task.id });
 
         if (res && res.success) {
+          window.__activePendingTask = null;
           modal.style.display = 'none';
           showBridgeToast('Optimization Complete!', res.message, 'success');
           updateTaskDisplay({
             balance: res.data.balance,
             today_profit: res.data.today_profit,
             today_tasks_completed: res.data.today_tasks_completed,
+            pending_task: null,
             max_tasks: 38
           });
         } else {

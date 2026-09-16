@@ -73,49 +73,72 @@
         }
 
     </style>
-
     <style>
-
+        html {
+            background-color: #c99a63;
+        }
         body {
-
-            padding: 0;
-
+            padding: 0 !important;
+            margin: 0 auto !important;
+            max-width: 440px !important;
+            min-height: 100vh;
+            background: #dfae76 url(/client/assets/img/BG-36.png) no-repeat center top fixed !important;
+            background-size: cover !important;
+            position: relative;
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.18);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
         }
-
-
-
+        .main-container.page-body {
+            background: transparent !important;
+            min-height: 100vh;
+            max-width: 440px !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            box-sizing: border-box;
+        }
+        .header-container {
+            max-width: 440px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 100% !important;
+            box-sizing: border-box;
+        }
+        .footer-container {
+            max-width: 440px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 100% !important;
+            box-sizing: border-box;
+        }
+        .container-home-middle {
+            max-width: 440px !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            box-sizing: border-box;
+            padding: 155px 0 20px 0 !important;
+        }
+        .start-container {
+            max-width: 440px !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            box-sizing: border-box;
+            padding: 15px 15px 120px 15px !important;
+        }
         @media screen and (min-width: 1200px) {
-
             body {
-
-                padding: 0 450px;
-
+                padding: 0 !important;
             }
-
-
-
             .inner-header {
-
-                padding-left: 450px;
-
-                padding-right: 450px;
-
+                padding-left: 0 !important;
+                padding-right: 0 !important;
             }
-
-
-
             .footer-container {
-
-                padding-left: 450px;
-
-                padding-right: 450px;
-
+                padding-left: 0 !important;
+                padding-right: 0 !important;
             }
-
         }
-
     </style>
-
     <style>
 
         .heading-x{
@@ -292,9 +315,9 @@
 
                     <div class="start-balance-card-heading bold">
 
-                        <div class="start-balance-card-heading-left" style="font-size: 19px; font-weight: 700; color: #0f172a;">Starting</div>
+                        <div class="start-balance-card-heading-left" style="font-size: 19px; font-weight: 700; color: #0a192f;">Starting</div>
 
-                        <div class="start-balance-card-heading-right" style="display: flex; align-items: center; gap: 6px; font-size: 19px; font-weight: 700; color: #0f172a;">
+                        <div class="start-balance-card-heading-right" style="display: flex; align-items: center; gap: 6px; font-size: 19px; font-weight: 700; color: #0a192f;">
 
                             <div><span class="user-name-text"></span></div>
 
@@ -308,19 +331,19 @@
 
                         <div class="start-balance-card-heading-bal-left">
 
-                            <img src="client/assets/img/icons/dollar.svg" alt="" class="icon-image">
+                            <img src="client/assets/img/icons/dollar.svg" alt="" class="icon-image" style="width: 25px; height: 25px; margin-top: 1px; flex-shrink: 0;">
 
                             <div class="start-balance-card-heading-bal-left-text">
 
-                                <div class="tiny-text">Today's Profit</div>
+                                <div class="tiny-text" style="font-size: 13px; font-weight: 500; color: #1e293b;">Today's Profit</div>
 
-                                <div id="start-todays-profit-text" class="small-text bold">USD 0.00 </div>
+                                <div id="start-todays-profit-text" class="small-text bold" style="font-size: 16.5px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
 
                                 <div id="start-frozen-container" style="display: none; margin-top: 6px;">
 
-                                    <div class="tiny-text">Frozen Balance</div>
+                                    <div class="tiny-text" style="font-size: 13px; font-weight: 500; color: #1e293b;">Frozen Balance</div>
 
-                                    <div id="start-frozen-balance-text" class="small-text bold user-frozen-balance user-frozen">USD 0.00</div>
+                                    <div id="start-frozen-balance-text" class="small-text bold user-frozen-balance user-frozen" style="font-size: 16px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
 
                                 </div>
 
@@ -330,19 +353,21 @@
 
                         <div class="start-balance-card-heading-bal-right">
 
-                        <img src="client/assets/img/icons/wallet.svg" alt="" class="icon-image">
+                            <img src="client/assets/img/icons/wallet.svg" alt="" class="icon-image" style="width: 25px; height: 25px; margin-top: 1px; flex-shrink: 0;">
 
                             <div class="start-balance-card-heading-bal-left-text">
 
-                                <div class="tiny-text">Working Balance</div>
+                                <div class="tiny-text" style="font-size: 13px; font-weight: 500; color: #1e293b;">Working Balance</div>
 
-                                <div id="start-total-balance-text" class="small-text bold">USD 0.00</div>
+                                <div id="start-total-balance-text" class="small-text bold" style="font-size: 16.5px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
 
-                                <br>
+                                <div style="margin-top: 10px;">
 
-                                <div class="tiny-text">Total Balance with Commission</div>
+                                    <div class="tiny-text" style="font-size: 12px; font-weight: 500; color: #1e293b;">Total Balance with Commission</div>
 
-                                <div id="start-grandtotal-balance-text" class="small-text bold">USD 0.00</div>
+                                    <div id="start-grandtotal-balance-text" class="small-text bold" style="font-size: 16.5px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
+
+                                </div>
 
                             </div>
 
@@ -350,15 +375,15 @@
 
                     </div>
 
-                    <div class="balance-card-notice">
+                    <div class="balance-card-notice" style="margin-top: 2px;">
 
                         <div class="tiny-text">
 
-                            <ul>
+                            <ul style="margin: 0; padding-left: 18px; list-style-type: disc;">
 
-                                <li>Daily profits will be updated automatically</li>
+                                <li style="margin-bottom: 3px; color: #1e293b; font-size: 11.5px; font-weight: 500;">Daily profits will be updated automatically</li>
 
-                                <li>Every tasks profit will be added to the total balance</li>
+                                <li style="color: #1e293b; font-size: 11.5px; font-weight: 500;">Every tasks profit will be added to the total balance</li>
 
                             </ul>
 

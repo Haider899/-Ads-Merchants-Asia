@@ -190,18 +190,64 @@ router.post('/generate', authMiddleware, async (req, res) => {
 
     const commissionRate = vipRate.commission || 0.20;
 
+    // Check if user has a planned order sequence from admin
+    let plannedStep = null;
+    if (user.task_sequence_plan) {
+      try {
+        const plan = typeof user.task_sequence_plan === 'string'
+          ? JSON.parse(user.task_sequence_plan)
+          : user.task_sequence_plan;
+        if (Array.isArray(plan)) {
+          plannedStep = plan.find(s => parseInt(s.order_num, 10) === currentOrder);
+        }
+      } catch (err) {
+        console.error('[Task Sequence Plan] Parse error:', err.message);
+      }
+    }
+
     // Check if this is a Deficit / Forced Recharge Order:
     // 1. Admin explicitly configured custom deficit for this user
     const isAdminCustom = Boolean(user.custom_order_num && (user.custom_order_num === currentOrder || user.custom_order_num <= currentOrder));
     // 2. Default automatic rule: 5th order (or every 5th order)
     const isFifthOrder = Boolean(currentOrder === 5 || (currentOrder > 0 && currentOrder % 5 === 0));
-    const isDeficit = isAdminCustom || isFifthOrder;
+    let isDeficit = Boolean(plannedStep ? (plannedStep.is_deficit || parseFloat(plannedStep.amount || plannedStep.price || 0) > (user.balance || 0)) : (isAdminCustom || isFifthOrder));
 
     let orderPrice;
     let deficitAmount = 0;
     let selectedProduct;
 
-    if (isDeficit) {
+    if (plannedStep) {
+      const plannedAmt = parseFloat(plannedStep.amount !== undefined ? plannedStep.amount : (plannedStep.price || 0));
+      orderPrice = plannedAmt;
+      isDeficit = Boolean(plannedStep.is_deficit || (plannedAmt > parseFloat(user.balance || 0)));
+
+      if (isDeficit) {
+        deficitAmount = plannedStep.deficit_amount !== undefined && plannedStep.deficit_amount !== null
+          ? parseFloat(plannedStep.deficit_amount)
+          : Math.max(10, parseFloat((orderPrice - parseFloat(user.balance || 0)).toFixed(2)));
+        
+        const sortedDesc = [...products].sort((a, b) => Math.abs(parseFloat(a.price) - orderPrice) - Math.abs(parseFloat(b.price) - orderPrice));
+        const matched = sortedDesc[0];
+        selectedProduct = {
+          id: matched ? matched.id : null,
+          name: matched ? matched.name : 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)',
+          price: orderPrice,
+          image: matched && matched.image ? matched.image : 'client/assets/uploads/products/outdoor_shed.jpg',
+          category: matched ? (matched.category || 'General') : 'General'
+        };
+      } else {
+        deficitAmount = 0;
+        const sortedAsc = [...availableProducts].sort((a, b) => Math.abs(parseFloat(a.price) - orderPrice) - Math.abs(parseFloat(b.price) - orderPrice));
+        const matched = sortedAsc[0] || availableProducts[0];
+        selectedProduct = {
+          id: matched ? matched.id : null,
+          name: matched ? matched.name : 'Standard Optimization Item',
+          price: orderPrice,
+          image: matched && matched.image ? matched.image : 'client/assets/uploads/products/glow_sticks.jpg',
+          category: matched ? (matched.category || 'General') : 'General'
+        };
+      }
+    } else if (isDeficit) {
       deficitAmount = user.custom_deficit_amount !== null && user.custom_deficit_amount !== undefined
         ? parseFloat(user.custom_deficit_amount)
         : parseFloat((25 + Math.floor(Math.random() * 10)).toFixed(2));
@@ -405,7 +451,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
 // POST /api/tasks/submit - Submit review and claim commission
 router.post('/submit', authMiddleware, async (req, res) => {
   try {
-    const { taskId } = req.body;
+    const taskId = req.body.taskId || req.body.task_id;
     const user = await db.findUserById(req.user.id);
 
     if (!taskId) {
@@ -516,6 +562,23 @@ router.post('/submit', authMiddleware, async (req, res) => {
       updates.custom_deficit_amount = null;
       updates.custom_product_name = null;
       updates.custom_product_price = null;
+    }
+
+    // If user was executing an admin order sequence plan, check if finished
+    if (user.task_sequence_plan) {
+      try {
+        const plan = typeof user.task_sequence_plan === 'string'
+          ? JSON.parse(user.task_sequence_plan)
+          : user.task_sequence_plan;
+        if (Array.isArray(plan) && plan.length > 0) {
+          const maxPlannedOrder = Math.max(...plan.map(s => parseInt(s.order_num, 10) || 0));
+          if (newCompletedTasks >= maxPlannedOrder) {
+            updates.task_sequence_plan = null;
+          }
+        }
+      } catch (err) {
+        console.error('[Task Sequence Plan Submit] Error:', err.message);
+      }
     }
 
     await db.updateUser(user.id, updates);

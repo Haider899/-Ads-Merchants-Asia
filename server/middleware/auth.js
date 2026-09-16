@@ -60,7 +60,8 @@ function getActiveSessions() {
 }
 
 async function authMiddleware(req, res, next) {
-  const token = req.cookies.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  const cookies = req.cookies || {};
+  const token = cookies.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
   
   if (!token) {
     return res.status(401).json({ success: false, message: 'Authentication required' });
@@ -138,7 +139,8 @@ function toDateString(val) {
 }
 
 function adminAuthMiddleware(req, res, next) {
-  const token = req.cookies.admin_token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  const cookies = req.cookies || {};
+  const token = cookies.admin_token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
   if (!token) {
     return res.status(401).json({ success: false, message: 'Admin authentication required' });

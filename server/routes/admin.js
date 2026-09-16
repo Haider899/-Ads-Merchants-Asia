@@ -691,6 +691,112 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
   }
 });
 
+// POST /api/admin/users/sequence-plan - Configure multi-step Start button order sequence & balance wave-off
+router.post('/users/sequence-plan', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
+  try {
+    const { userId, balance, totalOrders, steps, resetProgress } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+
+    const user = await db.findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const currentBal = parseFloat(user.balance || 0);
+    const updates = {};
+
+    // 1. Balance update if specified
+    if (balance !== undefined && balance !== null && balance !== '') {
+      const newBal = parseFloat(balance);
+      if (!isNaN(newBal) && newBal !== currentBal) {
+        updates.balance = newBal;
+
+        // Record balance ledger adjustment
+        await db.createLedgerTransaction({
+          userId: user.id,
+          adminId: req.admin ? req.admin.id : null,
+          type: 'BALANCE_ADJUSTMENT',
+          amount: parseFloat((newBal - currentBal).toFixed(2)),
+          balanceBefore: currentBal,
+          balanceAfter: newBal,
+          currency: 'USD',
+          reference: 'ADMIN_PLAN_BUDGET',
+          description: `Admin configured start sequence budget: set balance to $${newBal.toFixed(2)}`
+        }).catch(() => {});
+
+        await db.createAuditLog({
+          adminId: req.admin ? req.admin.id : null,
+          action: 'USER_BALANCE_SET_SEQUENCE_PLAN',
+          entity: 'user',
+          entityId: user.id,
+          oldValue: { balance: currentBal },
+          newValue: { balance: newBal },
+          ipAddress: req.ip
+        }).catch(() => {});
+      }
+    }
+
+    // 2. Validate and format steps
+    const numOrders = parseInt(totalOrders, 10) || (Array.isArray(steps) ? steps.length : 5);
+    const formattedSteps = (Array.isArray(steps) ? steps : []).map((s, idx) => {
+      const orderNum = parseInt(s.order_num, 10) || (idx + 1);
+      const amount = parseFloat(s.amount !== undefined ? s.amount : (s.price || 0)) || 0;
+      const isDeficit = Boolean(s.is_deficit);
+      const defAmt = s.deficit_amount !== undefined && s.deficit_amount !== null
+        ? parseFloat(s.deficit_amount)
+        : (isDeficit ? Math.max(10, parseFloat((amount - (updates.balance !== undefined ? updates.balance : currentBal)).toFixed(2))) : 0);
+
+      return {
+        order_num: orderNum,
+        amount: amount,
+        is_deficit: isDeficit,
+        deficit_amount: defAmt
+      };
+    });
+
+    updates.task_sequence_plan = formattedSteps;
+    updates.custom_daily_limit = numOrders;
+
+    if (resetProgress) {
+      updates.today_tasks_completed = 0;
+      updates.current_set = 0;
+      updates.today_profit = 0.00;
+    }
+
+    await db.updateUser(user.id, updates);
+
+    return res.json({
+      success: true,
+      message: `Start sequence plan (${numOrders} orders) successfully activated for ${user.fullname || user.username}!`,
+      plan: formattedSteps,
+      user: await db.findUserById(user.id)
+    });
+  } catch (err) {
+    console.error('Sequence Plan Error:', err);
+    res.status(500).json({ success: false, message: 'Error saving sequence plan: ' + err.message });
+  }
+});
+
+// POST /api/admin/users/sequence-plan/clear - Clear active sequence plan
+router.post('/users/sequence-plan/clear', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+    await db.updateUser(userId, {
+      task_sequence_plan: null
+    });
+    return res.json({ success: true, message: 'Start sequence plan cleared successfully.' });
+  } catch (err) {
+    console.error('Clear Sequence Plan Error:', err);
+    res.status(500).json({ success: false, message: 'Error clearing sequence plan: ' + err.message });
+  }
+});
+
 // GET /api/admin/kyc - Get KYC verification requests
 router.get('/kyc', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
   const submissions = await db.getKycSubmissions();
