@@ -231,15 +231,32 @@
   }
 
   // Check unread admin notifications for user
-  const _shownToastNotificationIds = new Set();
+  function getShownToastIds() {
+    try {
+      const raw = sessionStorage.getItem('ama_shown_toast_ids');
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  function saveShownToastIds(setObj) {
+    try {
+      sessionStorage.setItem('ama_shown_toast_ids', JSON.stringify(Array.from(setObj)));
+    } catch (_) {}
+  }
+
   async function checkUserNotifications() {
     try {
       const res = await API.get('/api/user/notifications');
       if (res && res.success && res.notifications && res.notifications.length > 0) {
+        const shownToastIds = getShownToastIds();
         let hasNewNotification = false;
         for (const notif of res.notifications) {
-          if (!notif.is_read && !_shownToastNotificationIds.has(notif.id)) {
-            _shownToastNotificationIds.add(notif.id);
+          const nid = String(notif.id);
+          if (!notif.is_read && !shownToastIds.has(nid)) {
+            shownToastIds.add(nid);
+            saveShownToastIds(shownToastIds);
             showBridgeToast(notif.title, notif.message, notif.type);
             hasNewNotification = true;
           }
@@ -486,6 +503,7 @@
         }
 
         if (res && res.success) {
+          try { sessionStorage.removeItem('ama_shown_toast_ids'); } catch (_) {}
           showBridgeToast('Login Successful', `Welcome back, ${res.user.fullname || res.user.username}!`, 'success');
           setTimeout(() => {
             window.location.href = '/dashboard';

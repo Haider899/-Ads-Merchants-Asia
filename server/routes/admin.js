@@ -390,14 +390,6 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
           newValue: { balance: updates.balance },
           ipAddress: req.ip
         }).catch(() => {});
-        try {
-          await db.createNotification({
-            user_id: user.id,
-            title: 'Balance Adjustment',
-            message: `$${numDeduct.toFixed(2)} was deducted from your balance by system administration. New Balance: $${updates.balance.toFixed(2)}`,
-            type: 'warning'
-          });
-        } catch (_) {}
       });
     } else if (numAdd > 0) {
       const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);

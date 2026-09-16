@@ -686,7 +686,7 @@
       categoryProductEl.disabled = true;
     }
     const pushImm = document.getElementById('assignTaskPushImmediate');
-    if (pushImm) pushImm.checked = true;
+    if (pushImm) pushImm.checked = false;
 
     // Initialize Sequence Plan Tab
     const seqUserName = document.getElementById('seqPlanUserName');
