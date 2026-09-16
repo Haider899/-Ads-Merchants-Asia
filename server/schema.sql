@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
   custom_daily_limit INT DEFAULT NULL,
   task_sequence_plan TEXT DEFAULT NULL,
   last_reset_date DATE DEFAULT NULL,
+  tasks_reset_at DATETIME DEFAULT NULL,
   country_code VARCHAR(10) DEFAULT NULL,
   country_name VARCHAR(100) DEFAULT NULL,
   last_ip VARCHAR(60) DEFAULT NULL,

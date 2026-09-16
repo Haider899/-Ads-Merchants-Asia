@@ -41,6 +41,16 @@ let _userTaskSettingColsEnsured = false;
 async function ensureUserTaskSettingColumns() {
   if (_userTaskSettingColsEnsured) return;
   try {
+    let existingColNames = new Set();
+    try {
+      const [cols] = await pool.query('SHOW COLUMNS FROM users');
+      if (Array.isArray(cols)) {
+        cols.forEach(c => existingColNames.add(String(c.Field).toLowerCase()));
+      }
+    } catch (e) {
+      console.warn('[DB] Notice querying SHOW COLUMNS FROM users:', e.message);
+    }
+
     const columns = [
       { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
       { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
@@ -49,9 +59,18 @@ async function ensureUserTaskSettingColumns() {
     ];
 
     for (const col of columns) {
-      const rows = await query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['users', col.name]);
-      if (!rows || rows.length === 0) {
-        await query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
+      if (!existingColNames.has(col.name.toLowerCase())) {
+        try {
+          await pool.query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
+          console.log(`[DB] Successfully added column users.${col.name}`);
+          existingColNames.add(col.name.toLowerCase());
+        } catch (addErr) {
+          if (addErr.errno === 1060 || addErr.code === 'ER_DUP_FIELDNAME') {
+            existingColNames.add(col.name.toLowerCase());
+          } else {
+            console.error(`[DB] Notice adding column users.${col.name}:`, addErr.message);
+          }
+        }
       }
     }
     _userTaskSettingColsEnsured = true;
@@ -107,7 +126,8 @@ const db = {
           return null;
         }
       })(),
-      last_reset_date: u.last_reset_date || null
+      last_reset_date: u.last_reset_date || null,
+      tasks_reset_at: u.tasks_reset_at ? (u.tasks_reset_at instanceof Date ? u.tasks_reset_at.toISOString() : String(u.tasks_reset_at)) : null
     };
   },
 
@@ -206,9 +226,15 @@ const db = {
   },
 
   updateUser: async (id, updates) => {
-    if (Object.prototype.hasOwnProperty.call(updates, 'custom_daily_limit') || Object.prototype.hasOwnProperty.call(updates, 'task_sequence_plan') || Object.prototype.hasOwnProperty.call(updates, 'last_reset_date') || Object.prototype.hasOwnProperty.call(updates, 'tasks_reset_at')) {
-      await ensureUserTaskSettingColumns();
-    }
+    await ensureUserTaskSettingColumns();
+
+    let existingCols = null;
+    try {
+      const [cols] = await pool.query('SHOW COLUMNS FROM users');
+      if (Array.isArray(cols)) {
+        existingCols = new Set(cols.map(c => c.Field.toLowerCase()));
+      }
+    } catch (_) {}
 
     const allowed = [
       'fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 
@@ -222,9 +248,17 @@ const db = {
     const filteredUpdates = {};
     for (const key of Object.keys(updates)) {
       if (allowed.includes(key)) {
+        if (existingCols && !existingCols.has(key.toLowerCase())) {
+          console.warn(`[DB updateUser] Column '${key}' not in users table yet, skipping to avoid crash`);
+          continue;
+        }
         let val = updates[key];
         if (key === 'task_sequence_plan' && typeof val === 'object' && val !== null) {
           val = JSON.stringify(val);
+        } else if (key === 'tasks_reset_at' && val) {
+          val = formatMySQLDate(val);
+        } else if (key === 'last_reset_date' && val) {
+          val = typeof val === 'string' ? val.slice(0, 10) : new Date(val).toISOString().slice(0, 10);
         }
         filteredUpdates[key] = val;
       }

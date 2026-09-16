@@ -286,7 +286,12 @@
             document.getElementById('adminLoginModal').style.display = 'flex';
           }
         }
-        return await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          return await res.json();
+        }
+        const text = await res.text();
+        return { success: false, message: `Server error (${res.status}): ${text.slice(0, 150)}` };
       } catch (err) {
         console.error('API Error:', err);
         return { success: false, message: err.message || 'Network connection failed' };
@@ -2594,38 +2599,46 @@
     if (editUserForm) {
       editUserForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const userId = document.getElementById('editUserId').value;
-        const vip_level = document.getElementById('editUserVip').value;
-        const balance = document.getElementById('editUserBalance').value;
-        const frozen_balance = document.getElementById('editUserFrozenBalance').value;
-        const add_balance = document.getElementById('editUserAddBalance').value;
-        const deduct_balance = document.getElementById('editUserDeductBalance').value;
-        const status = document.getElementById('editUserStatus').value;
-        const reset_tasks = document.getElementById('editUserResetTasks').checked;
-        const customDailyEl = document.getElementById('editUserDailyLimit');
-        const custom_daily_limit = customDailyEl ? customDailyEl.value : '';
+        if (editUserForm.dataset.submitting === 'true') return;
+        editUserForm.dataset.submitting = 'true';
 
         const submitBtn = editUserForm.querySelector('button[type="submit"]');
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...'; }
 
-        const res = await AdminAPI.post('/api/admin/users/update', {
-          userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit
-        });
+        try {
+          const userId = document.getElementById('editUserId').value;
+          const vip_level = document.getElementById('editUserVip').value;
+          const balance = document.getElementById('editUserBalance').value;
+          const frozen_balance = document.getElementById('editUserFrozenBalance').value;
+          const add_balance = document.getElementById('editUserAddBalance').value;
+          const deduct_balance = document.getElementById('editUserDeductBalance').value;
+          const status = document.getElementById('editUserStatus').value;
+          const reset_tasks = document.getElementById('editUserResetTasks').checked;
+          const customDailyEl = document.getElementById('editUserDailyLimit');
+          const custom_daily_limit = customDailyEl ? customDailyEl.value.trim() : '';
 
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-save"></i> Save Changes'; }
+          const res = await AdminAPI.post('/api/admin/users/update', {
+            userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit
+          });
 
-        if (res && res.success) {
-          // Immediately update state.users so next modal open shows correct (fresh) balance
-          if (res.user) {
-            const idx = state.users.findIndex(u => String(u.id) === String(userId));
-            if (idx !== -1) state.users[idx] = res.user;
+          if (res && res.success) {
+            // Immediately update state.users so next modal open shows correct (fresh) balance
+            if (res.user) {
+              const idx = state.users.findIndex(u => String(u.id) === String(userId));
+              if (idx !== -1) state.users[idx] = res.user;
+            }
+            AdminUI.closeModal('editUserModal');
+            AdminUI.toast('User Updated', res.message || 'Changes saved successfully.', 'success');
+            loadUsers();
+            loadMetrics();
+          } else {
+            AdminUI.toast('Update Failed', (res && res.message) || 'Error updating user', 'error');
           }
-          AdminUI.closeModal('editUserModal');
-          AdminUI.toast('User Updated', res.message || 'Changes saved successfully.', 'success');
-          loadUsers();
-          loadMetrics();
-        } else {
-          AdminUI.toast('Update Failed', (res && res.message) || 'Error updating user', 'error');
+        } catch (err) {
+          AdminUI.toast('Update Failed', err.message || 'Error updating user', 'error');
+        } finally {
+          editUserForm.dataset.submitting = 'false';
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa fa-save"></i> Save Changes'; }
         }
       });
     }

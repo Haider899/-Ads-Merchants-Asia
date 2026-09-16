@@ -52,6 +52,13 @@ adminApp.get('/', (req, res) => {
 adminApp.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'admin.html'));
 });
+// Admin API Error Handler to guarantee JSON responses
+adminApp.use((err, req, res, next) => {
+  console.error('[Admin Server Error]', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+});
+
 // Fallback for admin
 adminApp.use((req, res) => {
   res.redirect('/');
@@ -203,8 +210,9 @@ app.listen(PORT, () => {
   setInterval(async () => {
     try {
       const today = new Date().toISOString().slice(0, 10);
+      // Deficit Guard: never wipe progress or profit if user is currently in negative balance (deficit)
       await db.query(
-        "UPDATE users SET today_profit = 0.00, today_tasks_completed = 0, current_set = 0, last_reset_date = ? WHERE last_reset_date IS NULL OR last_reset_date != ?",
+        "UPDATE users SET today_profit = 0.00, today_tasks_completed = 0, current_set = 0, last_reset_date = ? WHERE (last_reset_date IS NULL OR last_reset_date != ?) AND balance >= 0",
         [today, today]
       );
     } catch (err) {

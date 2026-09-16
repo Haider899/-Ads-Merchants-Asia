@@ -311,154 +311,184 @@ router.post('/users/delete', adminAuthMiddleware, checkRole('sub_admin'), async 
 
 // POST /api/admin/users/update
 router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
-  const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit } = req.body;
-  const user = await db.findUserById(userId);
+  try {
+    const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit } = req.body;
+    const user = await db.findUserById(userId);
 
-  if (!user) {
-    return res.status(404).json({ success: false, message: 'User not found' });
-  }
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
-  const updates = {};
-  if (vip_level) updates.vip_level = vip_level;
-  if (status) updates.status = status;
-  if (frozen_balance !== undefined && frozen_balance !== '') updates.frozen_balance = parseFloat(frozen_balance);
+    const updates = {};
+    if (vip_level) updates.vip_level = vip_level;
+    if (status) updates.status = status;
+    if (frozen_balance !== undefined && frozen_balance !== '') updates.frozen_balance = parseFloat(frozen_balance);
 
-  // Admin custom daily task limit (0 or empty = clear/use VIP default)
-  if (custom_daily_limit !== undefined && custom_daily_limit !== '') {
-    const cdl = parseInt(custom_daily_limit, 10);
-    updates.custom_daily_limit = (!isNaN(cdl) && cdl > 0) ? cdl : null;
-  }
+    // Admin custom daily task limit (empty or 0 = clear override, revert to VIP default)
+    if (custom_daily_limit !== undefined) {
+      if (custom_daily_limit === '' || custom_daily_limit === null) {
+        updates.custom_daily_limit = null;
+      } else {
+        const cdl = parseInt(custom_daily_limit, 10);
+        updates.custom_daily_limit = (!isNaN(cdl) && cdl > 0) ? cdl : null;
+      }
+    }
 
-  if (reset_tasks) {
-    updates.today_tasks_completed = 0;
-    updates.today_profit = 0.00;
-    updates.current_set = 0;
-    updates.last_reset_date = new Date().toISOString().slice(0, 10);
-    updates.tasks_reset_at = new Date().toISOString(); // Cutoff: self-heal ignores tasks before this
-  }
-
-  // Self-Balancing / Reinvestment: Move Today's Profit into Working Balance & Reset tasks count
-  if (reinvest_profit) {
-    const profit = parseFloat(user.today_profit || 0);
-    if (profit > 0) {
-      const baseBal = parseFloat(user.balance || 0);
-      updates.balance = parseFloat((baseBal + profit).toFixed(2));
-      updates.today_profit = 0.00;
+    if (reset_tasks) {
       updates.today_tasks_completed = 0;
+      updates.today_profit = 0.00;
       updates.current_set = 0;
-      try {
-        await db.createNotification({
+      updates.last_reset_date = new Date().toISOString().slice(0, 10);
+      updates.tasks_reset_at = new Date(); // Cutoff timestamp for self-heal
+    }
+
+    let reinvestNotification = null;
+    // Self-Balancing / Reinvestment: Move Today's Profit into Working Balance & Reset tasks count
+    if (reinvest_profit) {
+      const profit = parseFloat(user.today_profit || 0);
+      if (profit > 0) {
+        const baseBal = parseFloat(user.balance || 0);
+        updates.balance = parseFloat((baseBal + profit).toFixed(2));
+        updates.today_profit = 0.00;
+        updates.today_tasks_completed = 0;
+        updates.current_set = 0;
+        reinvestNotification = {
           user_id: user.id,
           title: 'Profit Reinvested! 🚀',
           message: `$${profit.toFixed(2)} accumulated profit has been moved into your Working Balance (Self-Balancing Reinvestment). You can now grab your next cycle of orders!`,
           type: 'success'
+        };
+      }
+    }
+
+    const numAdd = (add_balance !== undefined && add_balance !== null && add_balance !== '') ? parseFloat(add_balance) : 0;
+    const numDeduct = (deduct_balance !== undefined && deduct_balance !== null && deduct_balance !== '') ? parseFloat(deduct_balance) : 0;
+
+    const postActions = [];
+
+    if (numDeduct > 0) {
+      const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
+      updates.balance = parseFloat((currentBase - numDeduct).toFixed(2));
+      postActions.push(async () => {
+        await db.createLedgerTransaction({
+          userId: user.id,
+          adminId: req.admin.id,
+          type: 'ADMIN_DEBIT',
+          amount: -numDeduct,
+          balanceBefore: currentBase,
+          balanceAfter: updates.balance,
+          currency: 'USD',
+          reference: `ADM-DB-${Date.now()}`,
+          description: `Admin balance deduction by ${req.admin.fullname || req.admin.username}`
+        }).catch(() => {});
+        await db.createAuditLog({
+          adminId: req.admin.id,
+          action: 'ADMIN_DEBIT',
+          entity: 'user',
+          entityId: user.id,
+          oldValue: { balance: currentBase },
+          newValue: { balance: updates.balance },
+          ipAddress: req.ip
+        }).catch(() => {});
+        try {
+          await db.createNotification({
+            user_id: user.id,
+            title: 'Balance Adjustment',
+            message: `$${numDeduct.toFixed(2)} was deducted from your balance by system administration. New Balance: $${updates.balance.toFixed(2)}`,
+            type: 'warning'
+          });
+        } catch (_) {}
+      });
+    } else if (numAdd > 0) {
+      const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
+      updates.balance = parseFloat((currentBase + numAdd).toFixed(2));
+      postActions.push(async () => {
+        await db.createLedgerTransaction({
+          userId: user.id,
+          adminId: req.admin.id,
+          type: 'ADMIN_CREDIT',
+          amount: numAdd,
+          balanceBefore: currentBase,
+          balanceAfter: updates.balance,
+          currency: 'USD',
+          reference: `ADM-CR-${Date.now()}`,
+          description: `Admin balance credit by ${req.admin.fullname || req.admin.username}`
+        }).catch(() => {});
+        await db.createAuditLog({
+          adminId: req.admin.id,
+          action: 'ADMIN_CREDIT',
+          entity: 'user',
+          entityId: user.id,
+          oldValue: { balance: currentBase },
+          newValue: { balance: updates.balance },
+          ipAddress: req.ip
+        }).catch(() => {});
+        try {
+          await db.createNotification({
+            user_id: user.id,
+            title: 'Balance Credited! 💰',
+            message: `$${numAdd.toFixed(2)} has been credited to your working balance by system administration. New Balance: $${updates.balance.toFixed(2)}`,
+            type: 'success'
+          });
+        } catch (_) {}
+      });
+    } else if (!reinvest_profit && balance !== undefined && balance !== null && balance !== '') {
+      const currentBase = parseFloat(user.balance || 0);
+      const newBal = parseFloat(parseFloat(balance).toFixed(2));
+      updates.balance = newBal;
+      const diff = parseFloat((newBal - currentBase).toFixed(2));
+      if (diff !== 0) {
+        postActions.push(async () => {
+          await db.createLedgerTransaction({
+            userId: user.id,
+            adminId: req.admin.id,
+            type: diff > 0 ? 'ADMIN_CREDIT' : 'ADMIN_DEBIT',
+            amount: diff,
+            balanceBefore: currentBase,
+            balanceAfter: newBal,
+            currency: 'USD',
+            reference: `ADM-ADJ-${Date.now()}`,
+            description: `Direct balance override by ${req.admin.fullname || req.admin.username}`
+          }).catch(() => {});
+          await db.createAuditLog({
+            adminId: req.admin.id,
+            action: 'ADMIN_BALANCE_OVERRIDE',
+            entity: 'user',
+            entityId: user.id,
+            oldValue: { balance: currentBase },
+            newValue: { balance: newBal },
+            ipAddress: req.ip
+          }).catch(() => {});
         });
-      } catch (_) {}
+      }
     }
-  }
-  const numAdd = (add_balance !== undefined && add_balance !== null && add_balance !== '') ? parseFloat(add_balance) : 0;
-  const numDeduct = (deduct_balance !== undefined && deduct_balance !== null && deduct_balance !== '') ? parseFloat(deduct_balance) : 0;
 
-  if (numDeduct > 0) {
-    const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
-    updates.balance = parseFloat(Math.max(0, currentBase - numDeduct).toFixed(2));
-    await db.createLedgerTransaction({
-      userId: user.id,
-      adminId: req.admin.id,
-      type: 'ADMIN_DEBIT',
-      amount: -numDeduct,
-      balanceBefore: currentBase,
-      balanceAfter: updates.balance,
-      currency: 'USD',
-      reference: `ADM-DB-${Date.now()}`,
-      description: `Admin balance deduction by ${req.admin.fullname || req.admin.username}`
-    }).catch(() => {});
-    await db.createAuditLog({
-      adminId: req.admin.id,
-      action: 'ADMIN_DEBIT',
-      entity: 'user',
-      entityId: user.id,
-      oldValue: { balance: currentBase },
-      newValue: { balance: updates.balance },
-      ipAddress: req.ip
-    }).catch(() => {});
-    try {
-      await db.createNotification({
-        user_id: user.id,
-        title: 'Balance Adjustment',
-        message: `$${numDeduct.toFixed(2)} was deducted from your balance by system administration. New Balance: $${updates.balance.toFixed(2)}`,
-        type: 'warning'
-      });
-    } catch (_) {}
-  } else if (numAdd > 0) {
-    const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
-    updates.balance = parseFloat((currentBase + numAdd).toFixed(2));
-    await db.createLedgerTransaction({
-      userId: user.id,
-      adminId: req.admin.id,
-      type: 'ADMIN_CREDIT',
-      amount: numAdd,
-      balanceBefore: currentBase,
-      balanceAfter: updates.balance,
-      currency: 'USD',
-      reference: `ADM-CR-${Date.now()}`,
-      description: `Admin balance credit by ${req.admin.fullname || req.admin.username}`
-    }).catch(() => {});
-    await db.createAuditLog({
-      adminId: req.admin.id,
-      action: 'ADMIN_CREDIT',
-      entity: 'user',
-      entityId: user.id,
-      oldValue: { balance: currentBase },
-      newValue: { balance: updates.balance },
-      ipAddress: req.ip
-    }).catch(() => {});
-    try {
-      await db.createNotification({
-        user_id: user.id,
-        title: 'Balance Credited! 💰',
-        message: `$${numAdd.toFixed(2)} has been credited to your working balance by system administration. New Balance: $${updates.balance.toFixed(2)}`,
-        type: 'success'
-      });
-    } catch (_) {}
-  } else if (!reinvest_profit && balance !== undefined && balance !== null && balance !== '') {
-    const currentBase = parseFloat(user.balance || 0);
-    const newBal = parseFloat(parseFloat(balance).toFixed(2));
-    updates.balance = newBal;
-    const diff = parseFloat((newBal - currentBase).toFixed(2));
-    if (diff !== 0) {
-      await db.createLedgerTransaction({
-        userId: user.id,
-        adminId: req.admin.id,
-        type: diff > 0 ? 'ADMIN_CREDIT' : 'ADMIN_DEBIT',
-        amount: diff,
-        balanceBefore: currentBase,
-        balanceAfter: newBal,
-        currency: 'USD',
-        reference: `ADM-ADJ-${Date.now()}`,
-        description: `Direct balance override by ${req.admin.fullname || req.admin.username}`
-      }).catch(() => {});
-      await db.createAuditLog({
-        adminId: req.admin.id,
-        action: 'ADMIN_BALANCE_OVERRIDE',
-        entity: 'user',
-        entityId: user.id,
-        oldValue: { balance: currentBase },
-        newValue: { balance: newBal },
-        ipAddress: req.ip
-      }).catch(() => {});
+    // Persist changes to database FIRST before dispatching any notifications or ledgers
+    const updated = await db.updateUser(userId, updates);
+
+    // Execute post-actions only upon successful DB update
+    for (const act of postActions) {
+      try { await act(); } catch (_) {}
     }
+    if (reinvestNotification) {
+      try { await db.createNotification(reinvestNotification); } catch (_) {}
+    }
+
+    const safe = { ...updated };
+    delete safe.password_hash;
+
+    res.json({
+      success: true,
+      message: reinvest_profit ? 'Profit successfully reinvested into Working Balance.' : 'User updated successfully',
+      user: safe
+    });
+  } catch (err) {
+    console.error('[Admin Users Update Error]:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Internal server error while updating user'
+    });
   }
-
-  const updated = await db.updateUser(userId, updates);
-  const safe = { ...updated };
-  delete safe.password_hash;
-
-  res.json({
-    success: true,
-    message: reinvest_profit ? 'Profit successfully reinvested into Working Balance.' : 'User updated successfully',
-    user: safe
-  });
 });
 
 // POST /api/admin/users/reset-password
