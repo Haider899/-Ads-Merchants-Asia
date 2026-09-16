@@ -615,8 +615,8 @@
   };
 
   window.openEditUserModal = function(userId) {
-    const user = state.users.find(u => u.id === userId);
-    if (!user) return;
+    const user = state.users.find(u => String(u.id) === String(userId));
+    if (!user) { console.warn('[EditUserModal] User not found in state for id:', userId); return; }
     document.getElementById('editUserId').value = user.id;
     document.getElementById('editUserEmail').value = `${user.fullname} (@${user.username}) - ${user.email}`;
     document.getElementById('editUserVip').value = user.vip_level;
@@ -651,7 +651,7 @@
   };
 
   window.openPasswordResetModal = function(userId) {
-    const user = state.users.find(u => u.id === userId);
+    const user = state.users.find(u => String(u.id) === String(userId));
     if (!user) return;
     document.getElementById('resetPassUserId').value = user.id;
     document.getElementById('resetPassUserName').textContent = `${user.fullname} (@${user.username}) [${user.email}]`;
@@ -660,7 +660,7 @@
   };
 
   window.openAssignTaskModal = function(userId) {
-    const user = state.users.find(u => u.id === userId);
+    const user = state.users.find(u => String(u.id) === String(userId));
     if (!user) return;
     document.getElementById('assignTaskUserId').value = user.id;
     const bal = parseFloat(user.balance || 0);
@@ -1153,7 +1153,7 @@
   window.reinvestProfitToBalance = async function() {
     const userId = document.getElementById('editUserId').value;
     if (!userId) return;
-    const user = state.users.find(u => u.id === userId);
+    const user = state.users.find(u => String(u.id) === String(userId));
     const profit = user ? parseFloat(user.today_profit || 0) : 0;
     if (profit <= 0) {
       AdminUI.toast('No Profit', 'This merchant currently has $0.00 accumulated profit to transfer.', 'warning');
