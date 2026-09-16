@@ -32,6 +32,16 @@ app.use('/js', express.static(path.join(__dirname, 'js')));
 const adminApp = express();
 adminApp.set('trust proxy', true);
 
+// adminApp needs its own middleware (vhost sub-apps don't inherit from parent)
+adminApp.use(express.json({ limit: '50mb' }));
+adminApp.use(express.urlencoded({ limit: '50mb', extended: true }));
+adminApp.use(cookieParser());
+
+// Serve static files for admin panel
+adminApp.use('/assets', express.static(path.join(__dirname, 'assets')));
+adminApp.use('/client', express.static(path.join(__dirname, 'client')));
+adminApp.use('/css', express.static(path.join(__dirname, 'css')));
+
 // Admin API Routes
 adminApp.use('/api/admin', adminRoutes);
 
