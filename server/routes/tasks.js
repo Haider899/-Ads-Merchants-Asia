@@ -126,6 +126,7 @@ router.get('/status', authMiddleware, async (req, res) => {
       max_tasks: maxTasks,
       custom_daily_limit: user.custom_daily_limit || null,
       vip_level: user.vip_level,
+      kyc_status: user.kyc_status || 'none',
       commission_rate: vipRate.commission,
       pending_task: pendingTask ? {
         id: pendingTask.id,
@@ -174,6 +175,22 @@ router.post('/generate', authMiddleware, async (req, res) => {
 
     // Use whichever count is lower (DB field vs actual count) to prevent false blocks
     const effectiveCompleted = Math.min(parseInt(user.today_tasks_completed || 0, 10), trulyCompleted > 0 ? trulyCompleted : parseInt(user.today_tasks_completed || 0, 10));
+
+    // Strict KYC & Merchant Contract Guard (Voice Note S8)
+    if (user.kyc_status !== 'approved') {
+      let msg = 'Please sign your Merchant Contract and complete KYC verification before starting optimization tasks.';
+      if (user.kyc_status === 'pending') {
+        msg = 'Your Merchant Contract & KYC verification are currently under review by administration. Please wait for approval before starting optimization tasks.';
+      } else if (user.kyc_status === 'rejected') {
+        msg = `Your KYC verification was rejected: ${user.kyc_notes || 'Please resubmit valid documents'}. Please update your contract to proceed.`;
+      }
+      return res.status(403).json({
+        success: false,
+        requires_kyc: true,
+        kyc_status: user.kyc_status || 'none',
+        message: msg
+      });
+    }
 
     if (effectiveCompleted >= maxTasks) {
       return res.status(400).json({
@@ -238,11 +255,9 @@ router.post('/generate', authMiddleware, async (req, res) => {
     }
 
     // Check if this is a Deficit / Forced Recharge Order:
-    // 1. Admin explicitly configured custom deficit for this user
+    // Deficit orders MUST ONLY occur if admin explicitly configured it or planned in sequence plan (Voice Note S3 & S8)
     const isAdminCustom = Boolean(user.custom_order_num && (user.custom_order_num === currentOrder || user.custom_order_num <= currentOrder));
-    // 2. Default automatic rule: 5th order (or every 5th order)
-    const isFifthOrder = Boolean(currentOrder === 5 || (currentOrder > 0 && currentOrder % 5 === 0));
-    let isDeficit = Boolean(plannedStep ? (plannedStep.is_deficit || parseFloat(plannedStep.amount || plannedStep.price || 0) > (user.balance || 0)) : (isAdminCustom || isFifthOrder));
+    let isDeficit = Boolean(plannedStep ? (plannedStep.is_deficit || parseFloat(plannedStep.amount || plannedStep.price || 0) > (user.balance || 0)) : isAdminCustom);
 
     let orderPrice;
     let deficitAmount = 0;
@@ -336,22 +351,22 @@ router.post('/generate', authMiddleware, async (req, res) => {
         deficitAmount = parseFloat((orderPrice - user.balance).toFixed(2));
       }
     } else {
-      // Normal Orders: Real products scaled realistically within user's working balance
-      const userBal = Math.max(20, parseFloat(user.balance || 0));
-      let minBudget = 9.00;
-      let maxBudget = 25.00;
+      // Normal Orders: Real products scaled realistically within user's working balance (Voice Note S1 & S3)
+      const userBal = Math.max(10, parseFloat(user.balance || 0));
+      let minBudget = Math.min(5.00, userBal * 0.15);
+      let maxBudget = Math.min(25.00, userBal * 0.35);
 
       if (currentOrder === 1) {
-        minBudget = 9.00;
+        minBudget = Math.min(5.00, userBal * 0.15);
         maxBudget = Math.min(25.00, userBal * 0.35);
       } else if (currentOrder === 2) {
-        minBudget = 18.00;
+        minBudget = Math.min(10.00, userBal * 0.25);
         maxBudget = Math.min(45.00, userBal * 0.50);
       } else if (currentOrder === 3) {
-        minBudget = 30.00;
+        minBudget = Math.min(15.00, userBal * 0.35);
         maxBudget = Math.min(75.00, userBal * 0.65);
       } else {
-        minBudget = 45.00;
+        minBudget = Math.min(20.00, userBal * 0.40);
         maxBudget = Math.min(120.00, userBal * 0.75);
       }
 
@@ -364,12 +379,22 @@ router.post('/generate', authMiddleware, async (req, res) => {
         matching = availableProducts.filter(p => parseFloat(p.price) < (userBal * 0.85));
       }
       if (matching.length === 0) {
+        // Safe fallback: scale safely within available balance so balance NEVER goes negative on normal order
         const sortedAsc = [...availableProducts].sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-        matching = [sortedAsc[0]];
+        const baseProd = sortedAsc[0] || { name: 'Standard Optimization Item', image: 'client/assets/uploads/products/glow_sticks.jpg' };
+        const safePrice = round(Math.max(5.00, userBal * 0.30));
+        selectedProduct = {
+          id: baseProd.id || null,
+          name: baseProd.name,
+          price: safePrice,
+          image: baseProd.image,
+          category: baseProd.category || 'General'
+        };
+        orderPrice = safePrice;
+      } else {
+        selectedProduct = matching[Math.floor(Math.random() * matching.length)];
+        orderPrice = parseFloat(selectedProduct.price);
       }
-
-      selectedProduct = matching[Math.floor(Math.random() * matching.length)];
-      orderPrice = parseFloat(selectedProduct.price);
     }
 
     // Financial Calculation Engine - Single Source of Truth

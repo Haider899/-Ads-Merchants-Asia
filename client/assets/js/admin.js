@@ -632,6 +632,8 @@
     document.getElementById('editUserAddBalance').value = '';
     document.getElementById('editUserDeductBalance').value = '';
     document.getElementById('editUserStatus').value = user.status;
+    const kycStatusEl = document.getElementById('editUserKycStatus');
+    if (kycStatusEl) kycStatusEl.value = user.kyc_status || 'none';
     document.getElementById('editUserResetTasks').checked = false;
     // Populate custom daily limit
     const dailyLimitEl = document.getElementById('editUserDailyLimit');
@@ -2618,8 +2620,11 @@
           const customDailyEl = document.getElementById('editUserDailyLimit');
           const custom_daily_limit = customDailyEl ? customDailyEl.value.trim() : '';
 
+          const kycStatusEl = document.getElementById('editUserKycStatus');
+          const kyc_status = kycStatusEl ? kycStatusEl.value : undefined;
+
           const res = await AdminAPI.post('/api/admin/users/update', {
-            userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit
+            userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit, kyc_status
           });
 
           if (res && res.success) {

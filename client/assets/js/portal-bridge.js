@@ -393,11 +393,21 @@
       #userTotalBalance, 
       #profile-total-balance,
       .profile-total-balance,
-      #start-grandtotal-balance-text,
       .deposit-card-value
     `).forEach(el => {
       el.textContent = `USD ${totalBal}`;
     });
+
+    // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
+    // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
+    const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
+    if (startGrandTotalEl) {
+      if (pTask) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
+      } else {
+        startGrandTotalEl.textContent = `USD 0.00`;
+      }
+    }
 
     // 2. Working Balance (Active funds available for tasks/withdrawals)
     document.querySelectorAll(`
@@ -627,6 +637,37 @@
       startBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        // KYC & Merchant Contract Guard (Voice Note S8)
+        const currentKyc = (window.__currentUser && window.__currentUser.kyc_status) || 'none';
+        if (currentKyc !== 'approved') {
+          const isPending = currentKyc === 'pending';
+          const title = isPending ? "Contract Under Review" : "Contract & KYC Required!";
+          const text = isPending
+            ? "Your Merchant Contract & KYC verification are currently under review by administration. Please wait for approval before starting optimization tasks."
+            : "Please sign your Merchant Contract and complete KYC verification before starting optimization tasks.";
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: title,
+              icon: isPending ? "info" : "warning",
+              html: `<div style="font-size: 14px; line-height: 1.5; margin-bottom: 12px;">${text}</div>`,
+              confirmButtonText: isPending ? "OK" : "Go to Contract",
+              showCancelButton: !isPending,
+              cancelButtonText: "Cancel",
+              confirmButtonColor: "#007bff"
+            }).then((result) => {
+              if (result.isConfirmed && !isPending) {
+                window.location.href = "contract.html";
+              }
+            });
+          } else {
+            alert(text);
+            if (!isPending) {
+              window.location.href = "contract.html";
+            }
+          }
+          return;
+        }
+
         if (startBtn.getAttribute('data-processing') === 'true') return;
         startBtn.setAttribute('data-processing', 'true');
 
@@ -649,7 +690,7 @@
                 today_profit: currentProfit,
                 pending_task: res.task,
                 today_tasks_completed: (window.__currentUser && window.__currentUser.today_tasks_completed) || 0,
-                max_tasks: (window.__currentUser && window.__currentUser.max_tasks) || 38
+                max_tasks: (window.__currentUser && window.__currentUser.max_tasks) || 5
               });
             }
             showTaskModal(res.task);
@@ -672,6 +713,30 @@
                 });
               } else {
                 alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
+              }
+              return;
+            }
+            if (res && res.requires_kyc) {
+              const isPending = res.kyc_status === 'pending';
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  title: isPending ? "Contract Under Review" : "Contract & KYC Required!",
+                  icon: isPending ? "info" : "warning",
+                  html: `<div style="font-size: 14px; line-height: 1.5; margin-bottom: 12px;">${res.message}</div>`,
+                  confirmButtonText: isPending ? "OK" : "Go to Contract",
+                  showCancelButton: !isPending,
+                  cancelButtonText: "Cancel",
+                  confirmButtonColor: "#007bff"
+                }).then((result) => {
+                  if (result.isConfirmed && !isPending) {
+                    window.location.href = "contract.html";
+                  }
+                });
+              } else {
+                alert(res.message);
+                if (!isPending) {
+                  window.location.href = "contract.html";
+                }
               }
               return;
             }
@@ -720,9 +785,19 @@
     document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, #start-total-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(workBal)}`;
     });
-    document.querySelectorAll('.user-total-balance, #start-grandtotal-balance-text, #profile-total-balance').forEach(el => {
+    document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
       el.textContent = `USD ${formatUSD(totBal)}`;
     });
+    // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
+    // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
+    const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
+    if (startGrandTotalEl) {
+      if (pTask) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
+      } else {
+        startGrandTotalEl.textContent = `USD 0.00`;
+      }
+    }
     document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(frozBal)}`;
     });
@@ -850,7 +925,7 @@
             today_profit: res.data.today_profit,
             today_tasks_completed: res.data.today_tasks_completed,
             pending_task: null,
-            max_tasks: 38
+            max_tasks: (res.data && res.data.max_tasks) || (window.__currentUser && window.__currentUser.max_tasks) || 5
           });
         } else {
           submitBtn.disabled = false;

@@ -312,7 +312,7 @@ router.post('/users/delete', adminAuthMiddleware, checkRole('sub_admin'), async 
 // POST /api/admin/users/update
 router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
-    const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit } = req.body;
+    const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit, kyc_status } = req.body;
     const user = await db.findUserById(userId);
 
     if (!user) {
@@ -322,6 +322,7 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
     const updates = {};
     if (vip_level) updates.vip_level = vip_level;
     if (status) updates.status = status;
+    if (kyc_status) updates.kyc_status = kyc_status;
     if (frozen_balance !== undefined && frozen_balance !== '') updates.frozen_balance = parseFloat(frozen_balance);
 
     // Admin custom daily task limit (empty or 0 = clear override, revert to VIP default)
