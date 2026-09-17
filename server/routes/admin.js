@@ -322,7 +322,7 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
     const updates = {};
     if (vip_level) updates.vip_level = vip_level;
     if (status) updates.status = status;
-    if (kyc_status) updates.kyc_status = kyc_status;
+    if (kyc_status) updates.kyc_status = String(kyc_status).toLowerCase();
     if (frozen_balance !== undefined && frozen_balance !== '') updates.frozen_balance = parseFloat(frozen_balance);
 
     // Admin custom daily task limit (empty or 0 = clear override, revert to VIP default)

@@ -633,7 +633,7 @@
     document.getElementById('editUserDeductBalance').value = '';
     document.getElementById('editUserStatus').value = user.status;
     const kycStatusEl = document.getElementById('editUserKycStatus');
-    if (kycStatusEl) kycStatusEl.value = user.kyc_status || 'none';
+    if (kycStatusEl) kycStatusEl.value = (user.kyc_status || 'none').toLowerCase();
     document.getElementById('editUserResetTasks').checked = false;
     // Populate custom daily limit
     const dailyLimitEl = document.getElementById('editUserDailyLimit');

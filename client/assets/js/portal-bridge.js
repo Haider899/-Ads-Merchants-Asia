@@ -399,10 +399,14 @@
     });
 
     // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
+    // When Working Balance < 0: Frozen Balance + Today's Profit (AGENTS.md Rule 1.B.3, Voice Note V4).
+    // When Working Balance >= 0 and an active order is in progress: pending order gross + commission.
     // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      if (pTask) {
+      if (workingBalNum < 0) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(frozenBalNum + userProfitNum)}`;
+      } else if (pTask) {
         startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
       } else {
         startGrandTotalEl.textContent = `USD 0.00`;
@@ -632,13 +636,23 @@
       updateTaskDisplay(taskStatus.data);
     }
 
-    const startBtns = document.querySelectorAll('.start-btn, #startOptimizationBtn, .start-item-start, button.btn-primary, #start-button, .start-button');
+    const startBtns = document.querySelectorAll('#start-button, .start-button, #startOptimizationBtn, .start-btn, .start-item-start');
     startBtns.forEach(startBtn => {
       startBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
         // KYC & Merchant Contract Guard (Voice Note S8)
-        const currentKyc = (window.__currentUser && window.__currentUser.kyc_status) || 'none';
+        let currentKyc = (window.__currentUser && window.__currentUser.kyc_status) || (user && user.kyc_status);
+        if (!currentKyc) {
+          try {
+            const meRes = await API.get('/api/auth/me');
+            if (meRes && meRes.user) {
+              window.__currentUser = meRes.user;
+              currentKyc = meRes.user.kyc_status;
+            }
+          } catch (_) {}
+        }
+        currentKyc = (currentKyc || 'none').toLowerCase();
         if (currentKyc !== 'approved') {
           const isPending = currentKyc === 'pending';
           const title = isPending ? "Contract Under Review" : "Contract & KYC Required!";
@@ -789,10 +803,14 @@
       el.textContent = `USD ${formatUSD(totBal)}`;
     });
     // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
+    // When Working Balance < 0: Frozen Balance + Today's Profit (AGENTS.md Rule 1.B.3, Voice Note V4).
+    // When Working Balance >= 0 and an active order is in progress: pending order gross + commission.
     // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      if (pTask) {
+      if (workBal < 0) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(frozBal + profitVal)}`;
+      } else if (pTask) {
         startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
       } else {
         startGrandTotalEl.textContent = `USD 0.00`;
