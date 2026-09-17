@@ -723,7 +723,7 @@
 								</div>
 							</div>
 
-							<input accept="image/*" type="file" id="frontIdInput" name="front_id" style="display: none;" required>
+							<input accept="image/*" type="file" id="frontIdInput" name="front_id" style="display: none;">
 
                             <p id="frontIdError" class="error-message" style="color: red; font-size: 12px; margin-top: 4px;"></p>
 
@@ -752,7 +752,7 @@
 								</div>
 							</div>
 
-							<input accept="image/*" type="file" id="backIdInput" name="back_id" style="display: none;" required>
+							<input accept="image/*" type="file" id="backIdInput" name="back_id" style="display: none;">
 
                             <p id="backIdError" class="error-message" style="color: red; font-size: 12px; margin-top: 4px;"></p>
 
@@ -874,7 +874,7 @@
 
               <input type="hidden" name="level_id" value="">
 
-							<button class="form-submit-btn" id="invite_submit_form_btn" type="submit">Submit</button>
+							<button class="form-submit-btn" id="invite_submit_form_btn" type="button" onclick="if(window.handleKycSubmit){window.handleKycSubmit(event);}">Submit</button>
 
 						</div>
 
@@ -983,194 +983,115 @@
         const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
 
         if (img) img.src = compressedDataUrl;
-
         if (placeholder) placeholder.style.display = 'none';
-
         if (container) container.style.display = 'block';
-
+        const box = document.getElementById(`${type}UploadBox`);
+        if (box) {
+          box.style.border = '2px dashed #28a745';
+          box.style.background = '#f0fff4';
+        }
+        if (errorElement) errorElement.textContent = '';
       };
 
       tempImg.onerror = function () {
-
         if (img) img.src = e.target.result;
-
         if (placeholder) placeholder.style.display = 'none';
-
         if (container) container.style.display = 'block';
-
+        const box = document.getElementById(`${type}UploadBox`);
+        if (box) {
+          box.style.border = '2px dashed #28a745';
+          box.style.background = '#f0fff4';
+        }
+        if (errorElement) errorElement.textContent = '';
       };
 
       tempImg.src = e.target.result;
-
     };
 
     reader.readAsDataURL(file);
-
   }
 
   // Attach change handlers
-
   document.getElementById("frontIdInput").addEventListener("change", function (e) {
-
     handleFileChange(e, "front");
-
   });
 
   document.getElementById("backIdInput").addEventListener("change", function (e) {
-
     handleFileChange(e, "back");
-
   });
-
 </script>
 
 <script>
-
   const canvases = {
-
-    //B: document.getElementById('signature_b'),
-
     A: document.getElementById('signature_a'),
-
     C: document.getElementById('signature_c'),
-
-    //D: document.getElementById('signature_d'),
-
   };
-
-
 
   const contexts = {
-
-    A: canvases.A.getContext('2d'),
-
-    //B: canvases.B.getContext('2d'),
-
-    C: canvases.C.getContext('2d'),
-
-    //D: canvases.D.getContext('2d'),
-
+    A: canvases.A ? canvases.A.getContext('2d') : null,
+    C: canvases.C ? canvases.C.getContext('2d') : null,
   };
-
-
 
   let drawing = { A: false, C: false };
 
-
-
   Object.keys(canvases).forEach(id => {
+    const canvas = canvases[id];
+    const ctx = contexts[id];
+    if (!canvas || !ctx) return;
 
-  const canvas = canvases[id];
+    let isDrawing = false;
 
-  const ctx = contexts[id];
+    // Desktop events
+    canvas.addEventListener('mousedown', e => {
+      isDrawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    });
 
+    canvas.addEventListener('mousemove', e => {
+      if (!isDrawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+    });
 
+    canvas.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
 
-  let isDrawing = false;
+    canvas.addEventListener('mouseleave', () => {
+      isDrawing = false;
+    });
 
+    // Mobile events
+    canvas.addEventListener('touchstart', e => {
+      isDrawing = true;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    });
 
+    canvas.addEventListener('touchmove', e => {
+      if (!isDrawing) return;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      e.preventDefault(); // Prevent page scrolling
+    }, { passive: false });
 
-  // Desktop events
+    canvas.addEventListener('touchend', () => {
+      isDrawing = false;
+    });
 
-  canvas.addEventListener('mousedown', e => {
-
-    isDrawing = true;
-
-    ctx.beginPath();
-
-    ctx.moveTo(e.offsetX, e.offsetY);
-
+    canvas.addEventListener('touchcancel', () => {
+      isDrawing = false;
+    });
   });
-
-
-
-  canvas.addEventListener('mousemove', e => {
-
-    if (!isDrawing) return;
-
-    ctx.lineTo(e.offsetX, e.offsetY);
-
-    ctx.stroke();
-
-  });
-
-
-
-  canvas.addEventListener('mouseup', () => {
-
-    isDrawing = false;
-
-  });
-
-
-
-  canvas.addEventListener('mouseleave', () => {
-
-    isDrawing = false;
-
-  });
-
-
-
-  // Mobile events
-
-  canvas.addEventListener('touchstart', e => {
-
-    isDrawing = true;
-
-    const touch = e.touches[0];
-
-    const rect = canvas.getBoundingClientRect();
-
-    const x = touch.clientX - rect.left;
-
-    const y = touch.clientY - rect.top;
-
-    ctx.beginPath();
-
-    ctx.moveTo(x, y);
-
-  });
-
-
-
-  canvas.addEventListener('touchmove', e => {
-
-    if (!isDrawing) return;
-
-    const touch = e.touches[0];
-
-    const rect = canvas.getBoundingClientRect();
-
-    const x = touch.clientX - rect.left;
-
-    const y = touch.clientY - rect.top;
-
-    ctx.lineTo(x, y);
-
-    ctx.stroke();
-
-    e.preventDefault(); // Prevent page scrolling
-
-  });
-
-
-
-  canvas.addEventListener('touchend', () => {
-
-    isDrawing = false;
-
-  });
-
-
-
-  canvas.addEventListener('touchcancel', () => {
-
-    isDrawing = false;
-
-  });
-
-});
 
 
 
@@ -1304,148 +1225,6 @@ function clearSignature(id) {
 
     }
 
-
-
-document.getElementById("invite_submit_form").addEventListener("submit", function (e) {
-
-  const frontInput = document.getElementById("frontIdInput");
-
-  const backInput = document.getElementById("backIdInput");
-
-
-
-  console.log("Front preview", document.getElementById("frontIdPreview"));
-
-  console.log("Front error", document.getElementById("frontIdError"));
-
-
-
-  let hasError = false;
-
-
-
-  if (!frontInput.files.length) {
-
-      e.preventDefault();
-
-      hasError = true;
-
-      frontInput.focus();
-
-      document.getElementById("frontIdPreview").style.border = "2px solid red";
-
-      document.getElementById("frontIdError").textContent = "Please select a front ID image.";
-
-  } else {
-
-      document.getElementById("frontIdPreview").style.border = "";
-
-      document.getElementById("frontIdError").textContent = "";
-
-  }
-
-
-
-  if (!backInput.files.length) {
-
-      e.preventDefault();
-
-      hasError = true;
-
-      backInput.focus();
-
-      document.getElementById("backIdPreview").style.border = "2px solid red";
-
-      document.getElementById("backIdError").textContent = "Please select a back ID image.";
-
-  } else {
-
-      document.getElementById("backIdPreview").style.border = "";
-
-      document.getElementById("backIdError").textContent = "";
-
-  }
-
-
-
-  if (hasError) {
-
-    return;
-
-  }
-
-});
-
-
-
-document.getElementById("invite_submit_form").addEventListener("submit", function (e) {
-
-  //const requiredSignatures = ["A", "B", "C", "D"];
-
-  const requiredSignatures = ["A", "C"];
-
-  let signatureMissing = false;
-
-
-
-  requiredSignatures.forEach(id => {
-
-    let sigInput = document.getElementById(`signature${id}Input`);
-
-    const canvas = document.getElementById(`signature_${id.toLowerCase()}`);
-
-    if (!sigInput || !sigInput.value.trim()) {
-
-      if (canvas) {
-
-        try {
-
-          const dataUrl = canvas.toDataURL();
-
-          if (dataUrl && dataUrl.length > 500) {
-
-            if (sigInput) sigInput.value = dataUrl;
-
-            return;
-
-          }
-
-        } catch(_) {}
-
-      }
-
-      signatureMissing = true;
-
-      if (canvas) {
-
-          canvas.style.border = "2px solid red";
-
-      }
-
-    }
-
-  });
-
-
-
-  if (signatureMissing) {
-
-      e.preventDefault();
-
-      alert("Please complete the required signature before submitting.");
-
-      return;
-
-  }
-
-
-
-  // Your existing front_id / back_id checks go here too
-
-});
-
-
-
 </script>
 
 <script>
@@ -1532,7 +1311,8 @@ document.getElementById("invite_submit_form").addEventListener("submit", functio
 
 </script>
 
-<script src="client/assets/js/portal-bridge.js?v=3.6.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="client/assets/js/portal-bridge.js?v=3.6.1"></script>
 </body>
 
 </html>

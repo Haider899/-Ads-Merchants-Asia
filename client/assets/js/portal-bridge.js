@@ -1491,36 +1491,98 @@
 
   // CONTRACT / KYC SUBMISSION HANDLER
   async function initContractKycPage(user) {
-    const kycRes = await API.get('/api/user/kyc');
+    const kycRes = await API.get('/api/user/kyc').catch(() => null);
     const form = document.getElementById('invite_submit_form') || document.querySelector('form');
+    const submitBtn = document.getElementById('invite_submit_form_btn') || (form && form.querySelector('button.form-submit-btn, button[type="submit"], button[type="button"]'));
 
-    if (kycRes && kycRes.success && kycRes.kyc_status !== 'none') {
+    // 1. Pre-fill user information if empty
+    const nameInput = document.getElementById('name');
+    if (nameInput && !nameInput.value.trim() && user) {
+      nameInput.value = user.fullname || user.username || '';
+    }
+
+    const userIdInput = document.getElementById('userId');
+    if (userIdInput && user) {
+      userIdInput.value = user.id || user.user_code || user.username || '1001';
+    }
+
+    const investmentInput = document.getElementById('investmentAmount');
+    if (investmentInput && !investmentInput.value.trim()) {
+      investmentInput.value = (user && user.balance && user.balance > 0) ? user.balance : 5000;
+    }
+
+    const dateInput = document.querySelector('input[name="signature_date"]');
+    if (dateInput && !dateInput.value.trim()) {
+      const today = new Date();
+      dateInput.value = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
+    }
+
+    // 2. Display KYC status banner if already submitted
+    if (kycRes && kycRes.success && kycRes.kyc_status && kycRes.kyc_status !== 'none') {
       let banner = document.createElement('div');
-      const statusColor = kycRes.kyc_status === 'approved' ? '#d4edda' : (kycRes.kyc_status === 'rejected' ? '#f8d7da' : '#fff3cd');
-      const textColor = kycRes.kyc_status === 'approved' ? '#155724' : (kycRes.kyc_status === 'rejected' ? '#721c24' : '#856404');
+      const isApproved = kycRes.kyc_status === 'approved';
+      const isRejected = kycRes.kyc_status === 'rejected';
+      const statusColor = isApproved ? '#d4edda' : (isRejected ? '#f8d7da' : '#fff3cd');
+      const textColor = isApproved ? '#155724' : (isRejected ? '#721c24' : '#856404');
+      const borderColor = isApproved ? '#c3e6cb' : (isRejected ? '#f5c6cb' : '#ffeeba');
+
       banner.style.cssText = `
         background: ${statusColor};
         color: ${textColor};
-        padding: 14px 18px;
-        border-radius: 10px;
-        margin-bottom: 20px;
+        border: 1px solid ${borderColor};
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin-bottom: 24px;
         font-size: 14px;
         font-weight: 600;
-        border: 1px solid rgba(0,0,0,0.05);
       `;
+
+      let statusTitle = 'Under Review ⏳';
+      if (isApproved) statusTitle = 'Verified & Approved ✅';
+      else if (isRejected) statusTitle = 'Verification Rejected ⚠️';
+
       banner.innerHTML = `
-        <i class="fa fa-info-circle mr-2"></i> KYC Verification Status: <strong style="text-transform: uppercase;">${kycRes.kyc_status}</strong>
-        ${kycRes.kyc_notes ? `<div style="font-size: 13px; font-weight: normal; margin-top: 4px;">Admin Note: ${kycRes.kyc_notes}</div>` : ''}
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span><i class="fa fa-shield mr-2"></i> KYC Status: <strong style="text-transform: uppercase;">${statusTitle}</strong></span>
+          ${isApproved ? '<span class="badge badge-success" style="padding: 4px 10px; font-size: 12px;">Active</span>' : ''}
+        </div>
+        ${kycRes.kyc_notes ? `<div style="font-size: 13px; font-weight: normal; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(0,0,0,0.15);"><strong>Admin Reason:</strong> ${kycRes.kyc_notes}</div>` : ''}
+        ${isApproved ? '<div style="font-size: 12px; font-weight: normal; margin-top: 6px; opacity: 0.9;">Your contract is verified and active. You can start daily optimization tasks.</div>' : ''}
+        ${isRejected ? '<div style="font-size: 12px; font-weight: normal; margin-top: 6px; color: #dc3545;">Please review the admin reason and re-submit your valid ID documents below.</div>' : ''}
       `;
       const formBody = document.querySelector('.form-body') || form;
       if (formBody) formBody.parentNode.insertBefore(banner, formBody);
+
+      // Pre-fill existing submission previews if available
+      if (kycRes.latest_submission) {
+        const sub = kycRes.latest_submission;
+        if (sub.name && nameInput) nameInput.value = sub.name;
+        if (sub.investment_amount && investmentInput) investmentInput.value = sub.investment_amount;
+        if (sub.front_id_image) {
+          const frontImg = document.getElementById('frontPreviewImg');
+          const frontContainer = document.getElementById('frontPreviewContainer');
+          const frontPlaceholder = document.getElementById('frontUploadPlaceholder');
+          if (frontImg) frontImg.src = sub.front_id_image;
+          if (frontContainer) frontContainer.style.display = 'block';
+          if (frontPlaceholder) frontPlaceholder.style.display = 'none';
+        }
+        if (sub.back_id_image) {
+          const backImg = document.getElementById('backPreviewImg');
+          const backContainer = document.getElementById('backPreviewContainer');
+          const backPlaceholder = document.getElementById('backUploadPlaceholder');
+          if (backImg) backImg.src = sub.back_id_image;
+          if (backContainer) backContainer.style.display = 'block';
+          if (backPlaceholder) backPlaceholder.style.display = 'none';
+        }
+      }
     }
 
+    // Helper: compress data URL
     async function ensureCompressedDataUrl(dataUrl, maxDim = 1200, quality = 0.72) {
       if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
         return dataUrl;
       }
-      if (dataUrl.length < 200000) return dataUrl; // Already compact
+      if (dataUrl.length < 180000) return dataUrl; // Already compact
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
@@ -1547,73 +1609,225 @@
       });
     }
 
-    if (form) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const nameInput = document.getElementById('name');
-        const investmentInput = document.getElementById('investmentAmount');
-        const sigInput = document.getElementById('signatureCInput');
-        const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
-
-        const name = nameInput ? nameInput.value.trim() : (user.fullname || '');
-        const investment_amount = investmentInput ? investmentInput.value.trim() : 5000;
-        let signature = sigInput ? sigInput.value.trim() : '';
-
-        if (!signature) {
-          const canvas = document.getElementById('signature_c');
-          if (canvas) signature = canvas.toDataURL();
+    // Helper: detect if a canvas contains any user drawing
+    function isCanvasSigned(canvas) {
+      if (!canvas) return false;
+      try {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        if (!w || !h) return false;
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        let drawnPixels = 0;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] > 20) {
+            drawnPixels++;
+            if (drawnPixels > 25) return true;
+          }
         }
+      } catch (_) {}
+      return false;
+    }
 
-        const frontImgEl = document.getElementById('frontPreviewImg');
-        const backImgEl = document.getElementById('backPreviewImg');
+    // Helper: read file as data URL
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve) => {
+        if (!file || !(file instanceof Blob)) return resolve(null);
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    }
 
-        let front_id = (frontImgEl && frontImgEl.src) || 'assets/uploads/contracts/id_sample_front.png';
-        let back_id = (backImgEl && backImgEl.src) || 'assets/uploads/contracts/id_sample_back.png';
+    // Core Submit Handler
+    async function handleKycSubmit(e) {
+      if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      }
 
-        if (!name) {
-          showBridgeToast('Name Required', 'Please enter your full legal name.', 'error');
-          return;
+      const activeBtn = document.getElementById('invite_submit_form_btn') || (form && form.querySelector('button.form-submit-btn, button[type="submit"], button[type="button"]'));
+
+      const nameEl = document.getElementById('name');
+      const investmentEl = document.getElementById('investmentAmount');
+      const sigCEl = document.getElementById('signatureCInput');
+      const sigAEl = document.getElementById('signatureAInput');
+      const canvasC = document.getElementById('signature_c');
+      const canvasA = document.getElementById('signature_a');
+      const frontImgEl = document.getElementById('frontPreviewImg');
+      const backImgEl = document.getElementById('backPreviewImg');
+      const frontInput = document.getElementById('frontIdInput');
+      const backInput = document.getElementById('backIdInput');
+
+      let nameVal = nameEl ? nameEl.value.trim() : (user.fullname || user.username || '');
+      let investmentVal = investmentEl ? investmentEl.value.trim() : '5000';
+
+      // 1. Validate Name
+      if (!nameVal) {
+        if (nameEl) {
+          nameEl.focus();
+          nameEl.style.border = '2px solid #ef4444';
+          nameEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        showBridgeToast('Name Required', 'Please enter your full legal name.', 'error');
+        return false;
+      }
+      if (nameEl) nameEl.style.border = '';
 
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Submitting Contract & KYC...';
+      // 2. Validate Front ID
+      let front_id = '';
+      if (frontImgEl && frontImgEl.src && frontImgEl.src.startsWith('data:image/')) {
+        front_id = frontImgEl.src;
+      } else if (frontInput && frontInput.files && frontInput.files[0]) {
+        front_id = await readFileAsDataUrl(frontInput.files[0]);
+      }
+
+      if (!front_id) {
+        const frontBox = document.getElementById('frontUploadBox');
+        if (frontBox) {
+          frontBox.style.border = '2px dashed #ef4444';
+          frontBox.style.background = '#fef2f2';
+          frontBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        const frontErr = document.getElementById('frontIdError');
+        if (frontErr) frontErr.textContent = 'Please select or upload the front side of your ID card.';
+        showBridgeToast('Front ID Required', 'Please upload the front side of your ID card.', 'error');
+        return false;
+      }
+      const frontErr = document.getElementById('frontIdError');
+      if (frontErr) frontErr.textContent = '';
 
-        try {
-          // Compress uploaded ID images before submitting so upload is instantaneous (< 100KB)
-          front_id = await ensureCompressedDataUrl(front_id);
-          back_id = await ensureCompressedDataUrl(back_id);
+      // 3. Validate Back ID
+      let back_id = '';
+      if (backImgEl && backImgEl.src && backImgEl.src.startsWith('data:image/')) {
+        back_id = backImgEl.src;
+      } else if (backInput && backInput.files && backInput.files[0]) {
+        back_id = await readFileAsDataUrl(backInput.files[0]);
+      }
 
-          const res = await Promise.race([
-            API.post('/api/user/kyc', {
-              name,
-              front_id,
-              back_id,
-              signature: signature || 'assets/uploads/contracts/defaultsignature.jpeg',
-              investment_amount
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Submission timed out. Please try again.')), 15000))
-          ]);
+      if (!back_id) {
+        const backBox = document.getElementById('backUploadBox');
+        if (backBox) {
+          backBox.style.border = '2px dashed #ef4444';
+          backBox.style.background = '#fef2f2';
+          backBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        const backErr = document.getElementById('backIdError');
+        if (backErr) backErr.textContent = 'Please select or upload the back side of your ID card.';
+        showBridgeToast('Back ID Required', 'Please upload the back side of your ID card.', 'error');
+        return false;
+      }
+      const backErr = document.getElementById('backIdError');
+      if (backErr) backErr.textContent = '';
 
-          if (res && res.success) {
-            showBridgeToast('Contract Submitted!', res.message, 'success');
+      // 4. Validate Signature
+      let signature = '';
+      if (sigCEl && sigCEl.value && sigCEl.value.length > 200) {
+        signature = sigCEl.value.trim();
+      } else if (isCanvasSigned(canvasC)) {
+        signature = canvasC.toDataURL('image/png');
+        if (sigCEl) sigCEl.value = signature;
+      } else if (sigAEl && sigAEl.value && sigAEl.value.length > 200) {
+        signature = sigAEl.value.trim();
+      } else if (isCanvasSigned(canvasA)) {
+        signature = canvasA.toDataURL('image/png');
+        if (sigAEl) sigAEl.value = signature;
+      }
+
+      if (!signature) {
+        if (canvasC) {
+          canvasC.style.border = '2px solid #ef4444';
+          canvasC.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        const sigErr = document.getElementById('signature_c_error');
+        if (sigErr) sigErr.textContent = 'Please draw your signature before submitting.';
+        showBridgeToast('Signature Required', 'Please draw your signature before submitting.', 'error');
+        return false;
+      }
+      const sigErr = document.getElementById('signature_c_error');
+      if (sigErr) sigErr.textContent = '';
+      if (canvasC) canvasC.style.border = '';
+
+      // Set Loading State
+      if (activeBtn) {
+        activeBtn.disabled = true;
+        activeBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Submitting Contract & KYC...';
+      }
+
+      try {
+        // High quality client-side compression (< 150KB per image)
+        front_id = await ensureCompressedDataUrl(front_id, 1200, 0.72);
+        back_id = await ensureCompressedDataUrl(back_id, 1200, 0.72);
+
+        const payload = {
+          name: nameVal,
+          front_id,
+          back_id,
+          signature,
+          investment_amount: parseFloat(investmentVal) || 5000
+        };
+
+        const res = await Promise.race([
+          API.post('/api/user/kyc', payload),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Submission timed out. Please check your network connection.')), 25000))
+        ]);
+
+        if (res && res.success) {
+          if (window.__currentUser) {
+            window.__currentUser.kyc_status = 'pending';
+          }
+          if (typeof Swal !== 'undefined') {
+            await Swal.fire({
+              icon: 'success',
+              title: 'Contract Submitted!',
+              text: res.message || 'Merchant KYC and verification contract submitted successfully! Under review by administration.',
+              confirmButtonText: 'Go to Dashboard',
+              confirmButtonColor: '#007bff'
+            });
+            window.location.href = '/dashboard';
+          } else {
+            showBridgeToast('Contract Submitted!', res.message || 'Verification submitted! Under review.', 'success');
             setTimeout(() => {
               window.location.href = '/dashboard';
-            }, 1000);
-          } else {
-            showBridgeToast('Submission Error', (res && res.message) || 'Error submitting KYC', 'error');
+            }, 1500);
           }
-        } catch (err) {
-          console.error('KYC submit error:', err);
-          showBridgeToast('Submission Error', err.message || 'Network error processing your request.', 'error');
-        } finally {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit Application';
+        } else {
+          const errMsg = (res && res.message) || 'Error submitting KYC verification contract.';
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Submission Error', text: errMsg });
+          } else {
+            showBridgeToast('Submission Error', errMsg, 'error');
+          }
+          if (activeBtn) {
+            activeBtn.disabled = false;
+            activeBtn.innerHTML = 'Submit';
           }
         }
-      });
+      } catch (err) {
+        console.error('KYC submit error:', err);
+        const errMsg = err.message || 'Network error processing your request.';
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'Network Error', text: errMsg });
+        } else {
+          showBridgeToast('Submission Error', errMsg, 'error');
+        }
+        if (activeBtn) {
+          activeBtn.disabled = false;
+          activeBtn.innerHTML = 'Submit';
+        }
+      }
+      return false;
+    }
+
+    // Expose globally and bind events
+    window.handleKycSubmit = handleKycSubmit;
+    if (submitBtn) {
+      submitBtn.onclick = handleKycSubmit;
+    }
+    if (form) {
+      form.onsubmit = handleKycSubmit;
     }
   }
 
