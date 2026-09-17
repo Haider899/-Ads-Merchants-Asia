@@ -28,9 +28,6 @@ historyBtn.addEventListener('click', function(){
     depositSection.style.display = 'none';
     historyBtn.classList.add('deposit-nav-item-active');
     depositBtn.classList.remove('deposit-nav-item-active');
-    if (typeof window.loadDepositHistory === 'function') {
-        window.loadDepositHistory();
-    }
 });
 
 cryptoBtn.addEventListener('click', function(){

@@ -714,7 +714,7 @@
 
                 				    
 
-                <form id="depositForm" action="javascript:void(0);" onsubmit="return false;" autocomplete="off" class="withdrawal-form" method="post" enctype="multipart/form-data">
+                <form action="Payment/addDeposit" autocomplete="off" class="withdrawal-form" method="post"  enctype="multipart/form-data">
 
                         <input type="hidden" name="csrf_token" value=""> 
 
@@ -805,7 +805,7 @@
                                 </div>
                             </div>
 
-                            <input type="file" id="depositReceiptInput" name="userfile" accept="image/*" style="display: none;">
+                            <input type="file" id="depositReceiptInput" name="userfile" accept="image/*" style="display: none;" required>
 
                         </div>
 
@@ -931,7 +931,7 @@
 
     <script src="assets/theme_elements/js/waves.js"></script>
 
-    <script src="client/assets/js/deposit.js?v=3.9.0"></script>
+    <script src="client/assets/js/deposit.js"></script>
 
     <script src="assets/theme_elements/plugins/moment/moment.js"></script>
 
@@ -1057,7 +1057,7 @@
 
 </script>
 
-<script src="client/assets/js/portal-bridge.js?v=3.9.0"></script>
+<script src="client/assets/js/portal-bridge.js?v=3.6.0"></script>
 </body>
 
 </html>

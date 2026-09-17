@@ -172,7 +172,7 @@
       initRegisterPage();
     } else if (pathname.includes('start')) {
       initStartPage(currentUser);
-    } else if (pathname.includes('deposit') || pathname.includes('recharge') || document.getElementById('deposit-amount') || document.querySelector('form.withdrawal-form')) {
+    } else if (pathname.includes('deposit')) {
       initDepositPage(currentUser);
     } else if (pathname.includes('withdraw')) {
       initWithdrawPage(currentUser);
@@ -230,12 +230,10 @@
     });
   }
 
-  // Check unread admin notifications for user (Strictly toast once; never spam on re-login)
-  let _notificationsInitialLoadDone = false;
-
+  // Check unread admin notifications for user
   function getShownToastIds() {
     try {
-      const raw = localStorage.getItem('ama_shown_toast_ids');
+      const raw = sessionStorage.getItem('ama_shown_toast_ids');
       return raw ? new Set(JSON.parse(raw)) : new Set();
     } catch (_) {
       return new Set();
@@ -244,7 +242,7 @@
 
   function saveShownToastIds(setObj) {
     try {
-      localStorage.setItem('ama_shown_toast_ids', JSON.stringify(Array.from(setObj)));
+      sessionStorage.setItem('ama_shown_toast_ids', JSON.stringify(Array.from(setObj)));
     } catch (_) {}
   }
 
@@ -254,21 +252,6 @@
       if (res && res.success && res.notifications && res.notifications.length > 0) {
         const shownToastIds = getShownToastIds();
         let hasNewNotification = false;
-
-        // On first run upon login / page load:
-        // Do NOT spam user with previous historical notifications as popups.
-        // Pre-fill shownToastIds with existing notifications so only newly arriving events toast.
-        if (!_notificationsInitialLoadDone) {
-          for (const notif of res.notifications) {
-            const nid = String(notif.id);
-            shownToastIds.add(nid);
-          }
-          saveShownToastIds(shownToastIds);
-          _notificationsInitialLoadDone = true;
-          return;
-        }
-
-        // On subsequent polls, show toast ONLY for new unread notifications that arrive in real time
         for (const notif of res.notifications) {
           const nid = String(notif.id);
           if (!notif.is_read && !shownToastIds.has(nid)) {
@@ -286,8 +269,6 @@
             populateUserData(updatedMe.user);
           }
         }
-      } else {
-        _notificationsInitialLoadDone = true;
       }
 
       // Check unread chat messages from admin for floating button red badge
@@ -388,18 +369,9 @@
       pendingComm = parseFloat(pTask.commission_amount !== undefined && pTask.commission_amount !== null ? pTask.commission_amount : (pTask.commission_earned || 0));
     }
 
-    const commBalNum = parseFloat(user.commission_balance !== undefined ? user.commission_balance : ((window.__currentUser && window.__currentUser.commission_balance) || 0));
-    let totalBalWithCommNum = commBalNum;
-    if (pTask) {
-      totalBalWithCommNum += (pendingPrice + pendingComm);
-    }
-    if (totalBalWithCommNum === 0 && workingBalNum < 0) {
-      totalBalWithCommNum = frozenBalNum + userProfitNum;
-    } else if (totalBalWithCommNum === 0 && userProfitNum > 0) {
-      totalBalWithCommNum = userProfitNum + (pTask ? pendingPrice + pendingComm : 0);
-    }
-
-    const totalBalNum = totalBalWithCommNum > 0 ? totalBalWithCommNum : workingBalNum;
+    const totalBalNum = workingBalNum >= 0 
+      ? (workingBalNum + pendingPrice + pendingComm + frozenBalNum) 
+      : (frozenBalNum + totalProfitNum);
     const userProfitNum = totalProfitNum + (workingBalNum >= 0 && pendingComm > 0 ? pendingComm : 0);
 
     const formatUSD = (num) => {
@@ -413,25 +385,32 @@
     const workingBal = formatUSD(workingBalNum);
     const frozenBal = formatUSD(frozenBalNum);
     const totalBal = formatUSD(totalBalNum);
-    const totalBalWithComm = formatUSD(totalBalWithCommNum);
     const userProfit = formatUSD(userProfitNum);
 
-    // 1. Total Balance (Withdrawable funds: Total Balance with Commission)
+    // 1. Total Balance (Working + Frozen funds)
     document.querySelectorAll(`
       .user-total-balance, 
       #userTotalBalance, 
       #profile-total-balance,
       .profile-total-balance,
-      .deposit-card-value,
-      .withdraw-card-value
+      .deposit-card-value
     `).forEach(el => {
       el.textContent = `USD ${totalBal}`;
     });
 
-    // Start Page specific: Total Balance with Commission represents accumulated order principal + profit
+    // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
+    // When Working Balance < 0: Frozen Balance + Today's Profit (AGENTS.md Rule 1.B.3, Voice Note V4).
+    // When Working Balance >= 0 and an active order is in progress: pending order gross + commission.
+    // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      startGrandTotalEl.textContent = `USD ${totalBalWithComm}`;
+      if (workingBalNum < 0) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(frozenBalNum + userProfitNum)}`;
+      } else if (pTask) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
+      } else {
+        startGrandTotalEl.textContent = `USD 0.00`;
+      }
     }
 
     // 2. Working Balance (Active funds available for tasks/withdrawals)
@@ -812,30 +791,30 @@
       pendingComm = parseFloat(pTask.commission_amount !== undefined && pTask.commission_amount !== null ? pTask.commission_amount : (pTask.commission_earned || 0));
     }
 
-    const commBalNum = parseFloat(data.commission_balance !== undefined ? data.commission_balance : ((window.__currentUser && window.__currentUser.commission_balance) || 0));
-    let totalBalWithCommNum = commBalNum;
-    if (pTask) {
-      totalBalWithCommNum += (pendingPrice + pendingComm);
-    }
-    if (totalBalWithCommNum === 0 && workBal < 0) {
-      totalBalWithCommNum = frozBal + profitVal;
-    } else if (totalBalWithCommNum === 0 && profitVal > 0) {
-      totalBalWithCommNum = profitVal + (pTask ? pendingPrice + pendingComm : 0);
-    }
-
-    const totBal = totalBalWithCommNum > 0 ? totalBalWithCommNum : workBal;
+    const totBal = workBal >= 0 
+      ? (workBal + pendingPrice + pendingComm + frozBal) 
+      : (frozBal + profitVal);
     const displayProfit = profitVal + (workBal >= 0 && pendingComm > 0 ? pendingComm : 0);
 
     document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, #start-total-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(workBal)}`;
     });
-    document.querySelectorAll('.user-total-balance, #profile-total-balance, .withdraw-card-value').forEach(el => {
+    document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
       el.textContent = `USD ${formatUSD(totBal)}`;
     });
-    // Start Page specific: Total Balance with Commission represents accumulated order principal + profit
+    // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
+    // When Working Balance < 0: Frozen Balance + Today's Profit (AGENTS.md Rule 1.B.3, Voice Note V4).
+    // When Working Balance >= 0 and an active order is in progress: pending order gross + commission.
+    // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      startGrandTotalEl.textContent = `USD ${formatUSD(totalBalWithCommNum)}`;
+      if (workBal < 0) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(frozBal + profitVal)}`;
+      } else if (pTask) {
+        startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
+      } else {
+        startGrandTotalEl.textContent = `USD 0.00`;
+      }
     }
     document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(frozBal)}`;
@@ -1003,19 +982,15 @@
   }
 
   // DEPOSIT PAGE HANDLER
-  function initDepositPage(user) {
-    // Fetch wallet addresses in background non-blockingly
-    API.get('/api/finance/wallets').then(walletsRes => {
-      if (walletsRes && walletsRes.success && walletsRes.wallets) {
-        const w = walletsRes.wallets;
-        const trcAddressEl = document.getElementById('divToCopy') || document.querySelector('.copy-address');
-        if (trcAddressEl && w.TRC20 && w.TRC20.address) {
-          trcAddressEl.textContent = w.TRC20.address;
-        }
-      }
-    }).catch(err => console.warn('Wallets fetch notice:', err.message));
+  async function initDepositPage(user) {
+    const walletsRes = await API.get('/api/finance/wallets');
+    if (walletsRes && walletsRes.success && walletsRes.wallets) {
+      const w = walletsRes.wallets;
+      const trcAddressEl = document.getElementById('divToCopy') || document.querySelector('.copy-address');
+      if (trcAddressEl) trcAddressEl.textContent = w.TRC20.address;
+    }
 
-    // Handle receipt file preview immediately
+    // Handle receipt file preview
     const receiptInput = document.getElementById('depositReceiptInput');
     const placeholder = document.getElementById('receiptUploadPlaceholder');
     const container = document.getElementById('receiptPreviewContainer');
@@ -1023,7 +998,7 @@
 
     if (receiptInput) {
       receiptInput.addEventListener('change', async (e) => {
-        const file = e.target.files && e.target.files[0];
+        const file = e.target.files[0];
         if (!file) return;
         if (placeholder) placeholder.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Optimizing receipt...';
         const compressed = await compressImageFile(file, 1400, 0.85);
@@ -1040,18 +1015,15 @@
 
     const form = document.querySelector('form.withdrawal-form') || document.getElementById('depositForm') || document.querySelector('form');
     if (form) {
-      const handleDepositSubmit = async (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         const amountInput = form.querySelector('input[name="deposit_amount"], input[name="amount"], #deposit-amount');
         const submitBtn = form.querySelector('button[type="submit"], input[type="submit"], .withdraw-btn');
 
         const amount = parseFloat(amountInput ? amountInput.value : 0);
         if (isNaN(amount) || amount < 20) {
           showBridgeToast('Invalid Amount', 'Minimum deposit is $20.00', 'error');
-          return false;
+          return;
         }
 
         let proofImage = previewImg && previewImg.src ? previewImg.src : 'assets/uploads/contracts/id_sample_front.png';
@@ -1061,43 +1033,29 @@
           submitBtn.textContent = 'Submitting Deposit...';
         }
 
-        try {
-          const res = await API.post('/api/finance/deposit', {
-            amount,
-            method: 'TRC20',
-            txid: '0x' + Math.random().toString(16).substring(2, 14) + Date.now().toString(16),
-            proof_image: proofImage
-          });
+        const res = await API.post('/api/finance/deposit', {
+          amount,
+          method: 'TRC20',
+          txid: '0x' + Math.random().toString(16).substring(2, 14) + Date.now().toString(16),
+          proof_image: proofImage
+        });
 
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit';
-          }
-
-          if (res && res.success) {
-            showBridgeToast('Deposit Submitted', res.message, 'success');
-            if (amountInput) amountInput.value = '';
-            if (receiptInput) receiptInput.value = '';
-            if (placeholder) placeholder.style.display = 'block';
-            if (container) container.style.display = 'none';
-            if (typeof window.loadDepositHistory === 'function') {
-              window.loadDepositHistory();
-            }
-          } else {
-            showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
-          }
-        } catch (err) {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit';
-          }
-          showBridgeToast('Deposit Error', 'Failed to communicate with server. Please try again.', 'error');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit';
         }
-        return false;
-      };
 
-      form.onsubmit = handleDepositSubmit;
-      form.addEventListener('submit', handleDepositSubmit);
+        if (res && res.success) {
+          showBridgeToast('Deposit Submitted', res.message, 'success');
+          if (amountInput) amountInput.value = '';
+          if (receiptInput) receiptInput.value = '';
+          if (placeholder) placeholder.style.display = 'block';
+          if (container) container.style.display = 'none';
+          if (typeof loadDepositHistory === 'function') loadDepositHistory();
+        } else {
+          showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
+        }
+      });
     }
 
     const historyBtn = document.getElementById('history-btn');

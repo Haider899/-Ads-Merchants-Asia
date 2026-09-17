@@ -95,14 +95,14 @@ mainApp.all(['/get_task_progress', '/User/get_task_progress'], async (req, res) 
       setName = '1st Set';
       totalInSet = 3;
       currentInSet = completed;
-    } else if (completed < 5) {
+    } else if (completed < 7) {
       setName = '2nd Set';
-      totalInSet = 2;
+      totalInSet = 4;
       currentInSet = completed - 3;
     } else {
       setName = '3rd Set';
       totalInSet = 1;
-      currentInSet = completed >= 6 ? 1 : (completed - 5);
+      currentInSet = completed >= 8 ? 1 : (completed - 7);
     }
 
     res.json({
@@ -143,7 +143,6 @@ mainApp.get(['/recordData', '/record', '/record.html'], servePage('record.html')
 mainApp.get(['/startData', '/start', '/start.html'], servePage('start.html'));
 mainApp.get(['/contactData', '/contact', '/contact.html'], servePage('contact.html'));
 mainApp.get(['/profileData', '/profile', '/profile.html'], servePage('profile.html'));
-mainApp.all(['/Payment/addDeposit', '/payment/adddeposit'], (req, res) => res.redirect('/deposit'));
 mainApp.get(['/deposit', '/deposit.html', '/recharge'], servePage('deposit.html'));
 mainApp.get(['/withdraw', '/withdraw.html', '/withdrawal'], servePage('withdraw.html'));
 mainApp.get(['/license', '/license.html'], servePage('license.html'));

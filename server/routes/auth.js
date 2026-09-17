@@ -149,14 +149,9 @@ router.get('/me', authMiddleware, async (req, res) => {
       return true;
     });
     const computedProfit = todaysCompleted.reduce((sum, t) => sum + parseFloat(t.commission_earned || t.commission_amount || 0), 0);
-    const computedCommBal = todaysCompleted.reduce((sum, t) => sum + parseFloat(t.product_price || 0) + parseFloat(t.commission_earned || t.commission_amount || 0), 0);
     if (computedProfit > parseFloat(safeUser.today_profit || 0)) {
       safeUser.today_profit = parseFloat(computedProfit.toFixed(2));
       await db.updateUser(safeUser.id, { today_profit: safeUser.today_profit }).catch(() => {});
-    }
-    if (computedCommBal > parseFloat(safeUser.commission_balance || 0)) {
-      safeUser.commission_balance = parseFloat(computedCommBal.toFixed(2));
-      await db.updateUser(safeUser.id, { commission_balance: safeUser.commission_balance }).catch(() => {});
     }
     if (todaysCompleted.length > parseInt(safeUser.today_tasks_completed || 0, 10)) {
       safeUser.today_tasks_completed = todaysCompleted.length;
