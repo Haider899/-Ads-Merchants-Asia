@@ -1463,7 +1463,17 @@
                 <button class="btn-action btn-approve" onclick="confirmDepositAction('${d.id}', 'approve')"><i class="fa fa-check"></i> Approve (Credit)</button>
                 <button class="btn-action btn-reject" onclick="confirmDepositAction('${d.id}', 'reject')"><i class="fa fa-times"></i> Reject</button>
               </div>
-            ` : `<small style="color: #64748b; font-weight: 600;">Resolved (${d.status})</small>`}
+            ` : d.status === 'approved' ? `
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <small style="color: #10b981; font-weight: 700;">Resolved (approved)</small>
+                <button class="btn-action btn-reject" style="font-size: 11px; padding: 4px 8px;" title="Reverse & Reject Deposit" onclick="confirmDepositAction('${d.id}', 'reject')"><i class="fa fa-undo"></i> Reject</button>
+              </div>
+            ` : `
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <small style="color: #ef4444; font-weight: 700;">Resolved (rejected)</small>
+                <button class="btn-action btn-approve" style="font-size: 11px; padding: 4px 8px;" title="Re-Approve & Credit Balance" onclick="confirmDepositAction('${d.id}', 'approve')"><i class="fa fa-check"></i> Approve</button>
+              </div>
+            `}
           </td>
         </tr>
       `).join('');
@@ -1509,7 +1519,19 @@
             <i class="fa fa-times"></i> Reject Deposit
           </button>
         </div>
-      ` : ''}
+      ` : dep.status === 'approved' ? `
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-action btn-reject" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'reject');">
+            <i class="fa fa-undo"></i> Reverse & Reject Deposit
+          </button>
+        </div>
+      ` : `
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-action btn-approve" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'approve');">
+            <i class="fa fa-check"></i> Re-Approve & Credit Balance
+          </button>
+        </div>
+      `}
     `;
 
     AdminUI.openModal('receiptInspectorModal');
@@ -1538,16 +1560,22 @@
         AdminUI.toast('Action Failed', (res && res.message) || 'Error approving deposit', 'error');
       }
     } else if (action === 'reject') {
+      const isReversing = dep && dep.status === 'approved';
+      const promptTitle = isReversing ? `Reverse & Reject Deposit (${amountStr})` : 'Reject Deposit Request';
+      const promptMsg = isReversing
+        ? `⚠️ This deposit of ${amountStr} was already approved. Rejecting it will reverse and deduct ${amountStr} from the user's balance. Reason:`
+        : 'Reason for rejection (e.g. Unverified blockchain transaction hash):';
+
       const notes = await AdminUI.prompt({
-        title: 'Reject Deposit Request',
-        message: 'Reason for rejection (e.g. Unverified blockchain transaction hash):',
+        title: promptTitle,
+        message: promptMsg,
         placeholder: 'Enter rejection reason (optional)',
         type: 'danger',
         required: false,
-        confirmText: 'Reject Deposit'
+        confirmText: isReversing ? 'Reverse & Reject' : 'Reject Deposit'
       });
       if (notes === null) return;
-      const finalNotes = (notes || '').trim() || 'Invalid transaction hash / receipt';
+      const finalNotes = (notes || '').trim() || (isReversing ? 'Reversed and rejected by admin' : 'Invalid transaction hash / receipt');
 
       const res = await AdminAPI.post('/api/admin/deposits/action', { depositId, action: 'reject', notes: finalNotes });
       if (res && res.success) {

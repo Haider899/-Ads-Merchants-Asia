@@ -1008,6 +1008,17 @@ router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'fin
         type: 'error'
       });
 
+      await db.createAuditLog({
+        adminId: req.admin.id,
+        action: 'DEPOSIT_REJECT',
+        entity: 'deposit',
+        entityId: depositId,
+        oldValue: { balance: currentBalance, status: deposit.status },
+        newValue: { balance: newBalance, status: 'rejected' },
+        reason: notes || 'Rejected by admin',
+        ipAddress: req.ip
+      }).catch(() => {});
+
       return res.json({
         success: true,
         message: `Deposit of $${depositAmount.toFixed(2)} marked as rejected.`

@@ -172,7 +172,7 @@
       initRegisterPage();
     } else if (pathname.includes('start')) {
       initStartPage(currentUser);
-    } else if (pathname.includes('deposit')) {
+    } else if (pathname.includes('deposit') || pathname.includes('recharge') || document.getElementById('deposit-amount') || document.querySelector('form.withdrawal-form')) {
       initDepositPage(currentUser);
     } else if (pathname.includes('withdraw')) {
       initWithdrawPage(currentUser);
@@ -1003,15 +1003,19 @@
   }
 
   // DEPOSIT PAGE HANDLER
-  async function initDepositPage(user) {
-    const walletsRes = await API.get('/api/finance/wallets');
-    if (walletsRes && walletsRes.success && walletsRes.wallets) {
-      const w = walletsRes.wallets;
-      const trcAddressEl = document.getElementById('divToCopy') || document.querySelector('.copy-address');
-      if (trcAddressEl) trcAddressEl.textContent = w.TRC20.address;
-    }
+  function initDepositPage(user) {
+    // Fetch wallet addresses in background non-blockingly
+    API.get('/api/finance/wallets').then(walletsRes => {
+      if (walletsRes && walletsRes.success && walletsRes.wallets) {
+        const w = walletsRes.wallets;
+        const trcAddressEl = document.getElementById('divToCopy') || document.querySelector('.copy-address');
+        if (trcAddressEl && w.TRC20 && w.TRC20.address) {
+          trcAddressEl.textContent = w.TRC20.address;
+        }
+      }
+    }).catch(err => console.warn('Wallets fetch notice:', err.message));
 
-    // Handle receipt file preview
+    // Handle receipt file preview immediately
     const receiptInput = document.getElementById('depositReceiptInput');
     const placeholder = document.getElementById('receiptUploadPlaceholder');
     const container = document.getElementById('receiptPreviewContainer');
@@ -1019,7 +1023,7 @@
 
     if (receiptInput) {
       receiptInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files && e.target.files[0];
         if (!file) return;
         if (placeholder) placeholder.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Optimizing receipt...';
         const compressed = await compressImageFile(file, 1400, 0.85);
@@ -1036,15 +1040,18 @@
 
     const form = document.querySelector('form.withdrawal-form') || document.getElementById('depositForm') || document.querySelector('form');
     if (form) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+      const handleDepositSubmit = async (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         const amountInput = form.querySelector('input[name="deposit_amount"], input[name="amount"], #deposit-amount');
         const submitBtn = form.querySelector('button[type="submit"], input[type="submit"], .withdraw-btn');
 
         const amount = parseFloat(amountInput ? amountInput.value : 0);
         if (isNaN(amount) || amount < 20) {
           showBridgeToast('Invalid Amount', 'Minimum deposit is $20.00', 'error');
-          return;
+          return false;
         }
 
         let proofImage = previewImg && previewImg.src ? previewImg.src : 'assets/uploads/contracts/id_sample_front.png';
@@ -1054,29 +1061,43 @@
           submitBtn.textContent = 'Submitting Deposit...';
         }
 
-        const res = await API.post('/api/finance/deposit', {
-          amount,
-          method: 'TRC20',
-          txid: '0x' + Math.random().toString(16).substring(2, 14) + Date.now().toString(16),
-          proof_image: proofImage
-        });
+        try {
+          const res = await API.post('/api/finance/deposit', {
+            amount,
+            method: 'TRC20',
+            txid: '0x' + Math.random().toString(16).substring(2, 14) + Date.now().toString(16),
+            proof_image: proofImage
+          });
 
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Submit';
-        }
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+          }
 
-        if (res && res.success) {
-          showBridgeToast('Deposit Submitted', res.message, 'success');
-          if (amountInput) amountInput.value = '';
-          if (receiptInput) receiptInput.value = '';
-          if (placeholder) placeholder.style.display = 'block';
-          if (container) container.style.display = 'none';
-          if (typeof loadDepositHistory === 'function') loadDepositHistory();
-        } else {
-          showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
+          if (res && res.success) {
+            showBridgeToast('Deposit Submitted', res.message, 'success');
+            if (amountInput) amountInput.value = '';
+            if (receiptInput) receiptInput.value = '';
+            if (placeholder) placeholder.style.display = 'block';
+            if (container) container.style.display = 'none';
+            if (typeof window.loadDepositHistory === 'function') {
+              window.loadDepositHistory();
+            }
+          } else {
+            showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
+          }
+        } catch (err) {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+          }
+          showBridgeToast('Deposit Error', 'Failed to communicate with server. Please try again.', 'error');
         }
-      });
+        return false;
+      };
+
+      form.onsubmit = handleDepositSubmit;
+      form.addEventListener('submit', handleDepositSubmit);
     }
 
     const historyBtn = document.getElementById('history-btn');

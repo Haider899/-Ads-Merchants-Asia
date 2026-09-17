@@ -143,6 +143,7 @@ mainApp.get(['/recordData', '/record', '/record.html'], servePage('record.html')
 mainApp.get(['/startData', '/start', '/start.html'], servePage('start.html'));
 mainApp.get(['/contactData', '/contact', '/contact.html'], servePage('contact.html'));
 mainApp.get(['/profileData', '/profile', '/profile.html'], servePage('profile.html'));
+mainApp.all(['/Payment/addDeposit', '/payment/adddeposit'], (req, res) => res.redirect('/deposit'));
 mainApp.get(['/deposit', '/deposit.html', '/recharge'], servePage('deposit.html'));
 mainApp.get(['/withdraw', '/withdraw.html', '/withdrawal'], servePage('withdraw.html'));
 mainApp.get(['/license', '/license.html'], servePage('license.html'));

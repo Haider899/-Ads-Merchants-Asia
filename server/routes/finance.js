@@ -156,8 +156,8 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       success: true,
       message: `Withdrawal request for $${numAmount.toFixed(2)} submitted successfully! Processing time is usually 15-60 minutes.`,
       withdrawal,
-      new_balance: updatedBalance,
-      new_frozen: updatedFrozen
+      new_balance: updates.balance !== undefined ? updates.balance : workBalance,
+      new_frozen: updates.frozen_balance
     });
   } catch (err) {
     console.error('Withdrawal error:', err);
