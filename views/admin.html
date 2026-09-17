@@ -1306,10 +1306,10 @@
                     <div class="form-group">
                         <label>VIP Tier</label>
                         <select id="editUserVip" class="form-control">
-                            <option value="Bronze">Bronze VIP (20% commission - 38 orders)</option>
-                            <option value="Silver">Silver VIP (30% commission - 45 orders)</option>
-                            <option value="Gold">Gold VIP (40% commission - 55 orders)</option>
-                            <option value="Diamond">Diamond VIP (50% commission - 65 orders)</option>
+                            <option value="Bronze">Bronze VIP (20% commission - Standard 5/6 orders)</option>
+                            <option value="Silver">Silver VIP (30% commission - Standard 5/6 orders)</option>
+                            <option value="Gold">Gold VIP (40% commission - Standard 5/6 orders)</option>
+                            <option value="Diamond">Diamond VIP (50% commission - Standard 5/6 orders)</option>
                         </select>
                     </div>
                     <!-- Reinvestment / Self-Balancing Control Card -->
@@ -1375,7 +1375,7 @@
                             </button>
                         </div>
                         <small style="color: #3730a3; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.5;">
-                            Override this user's daily task cap. Leave <strong>empty</strong> to use VIP tier default (Bronze=38, Silver=45, Gold=55). Resets automatically every day at midnight.
+                            Override this user's daily task cap. Leave <strong>empty</strong> to use standard daily limit (default 5 tasks). Resets automatically every day at midnight.
                         </small>
                     </div>
                     <button type="submit" class="btn-action btn-edit" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
@@ -1756,7 +1756,7 @@
                             </div>
                             <div>
                                 <small style="color: #64748b; display: block; font-size: 11px;">Today Tasks</small>
-                                <span id="orderUserTasks" style="font-weight: 700; font-size: 13px; color: #10b981;">0 / 38</span>
+                                <span id="orderUserTasks" style="font-weight: 700; font-size: 13px; color: #10b981;">0 / 5</span>
                             </div>
                         </div>
                     </div>

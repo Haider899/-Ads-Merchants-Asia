@@ -67,11 +67,13 @@ router.get('/status', authMiddleware, async (req, res) => {
   user = await autoResetIfNewDay(user);
 
   const settings = await db.getSettings();
-  const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 38 };
-  // Admin-set custom daily limit takes priority over VIP default
+  const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
+  // Admin-set custom daily limit or sequence plan takes priority over default
   const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
     ? user.custom_daily_limit
-    : (vipRate.max_tasks || settings.daily_tasks_limit || 38);
+    : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
+      ? user.task_sequence_plan.total_orders
+      : 5);
 
   const userTasks = await db.getTasks(user.id);
 
@@ -148,10 +150,12 @@ router.post('/generate', authMiddleware, async (req, res) => {
     user = await autoResetIfNewDay(user);
 
     const settings = await db.getSettings();
-    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 38 };
+    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
     const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
       ? user.custom_daily_limit
-      : (vipRate.max_tasks || 38);
+      : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
+        ? user.task_sequence_plan.total_orders
+        : 5);
 
     // Recompute actual completed tasks since last admin reset (to prevent false daily-limit block)
     const todayStr2 = toDateString(new Date());

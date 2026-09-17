@@ -526,7 +526,7 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     const targetOrder = parseInt(orderNum, 10) || (parseInt(user.today_tasks_completed, 10) || 0) + 1;
     const defAmount = parseFloat(deficitAmount) || 25.00;
     const settings = await db.getSettings();
-    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 38 };
+    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
     const commissionRate = vipRate.commission || 0.20;
 
     // Get catalog products to match images or fallback
