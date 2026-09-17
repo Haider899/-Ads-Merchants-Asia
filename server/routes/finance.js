@@ -97,13 +97,16 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       });
     }
 
-    const currentBalance = parseFloat(user.balance) || 0;
+    const commBalance = parseFloat(user.commission_balance || 0);
+    const workBalance = parseFloat(user.balance || 0);
+    // As instructed by client: user can only withdraw up to Total Balance with Commission (commission_balance)
+    const availableWithdrawable = commBalance > 0 ? commBalance : workBalance;
     const currentFrozen = parseFloat(user.frozen_balance) || 0;
 
-    if (currentBalance < numAmount) {
+    if (availableWithdrawable < numAmount) {
       return res.status(400).json({
         success: false,
-        message: `Insufficient working balance. Available balance: $${currentBalance.toFixed(2)}`
+        message: `Insufficient withdrawable balance. Available Total Balance with Commission: $${availableWithdrawable.toFixed(2)}`
       });
     }
 
@@ -119,14 +122,17 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       }
     }
 
-    // Deduct balance and add to frozen balance
-    const updatedBalance = parseFloat((currentBalance - numAmount).toFixed(2));
-    const updatedFrozen = parseFloat((currentFrozen + numAmount).toFixed(2));
+    // Deduct withdrawable balance and add to frozen balance
+    const updates = {
+      frozen_balance: parseFloat((currentFrozen + numAmount).toFixed(2))
+    };
+    if (commBalance > 0) {
+      updates.commission_balance = parseFloat(Math.max(0, commBalance - numAmount).toFixed(2));
+    } else {
+      updates.balance = parseFloat((workBalance - numAmount).toFixed(2));
+    }
 
-    await db.updateUser(user.id, {
-      balance: updatedBalance,
-      frozen_balance: updatedFrozen
-    });
+    await db.updateUser(user.id, updates);
 
     const withdrawal = {
       id: 'wth_' + Date.now(),

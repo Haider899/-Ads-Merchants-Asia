@@ -591,6 +591,9 @@
             <td><span class="badge-status badge-primary">${u.vip_level} VIP</span></td>
             <td style="font-weight: 800; color: ${bal < 0 ? '#ef4444' : '#10b981'}; font-size: 14.5px;">
               ${bal < 0 ? '-' : ''}$${Math.abs(bal).toFixed(2)}
+              <small style="display: block; color: #0284c7; font-size: 11px; font-weight: 600; margin-top: 2px;">
+                Tot w/ Comm: $${parseFloat(u.commission_balance || 0).toFixed(2)}
+              </small>
             </td>
             <td style="font-weight: 700; color: #64748b;">$${parseFloat(u.frozen_balance || 0).toFixed(2)}</td>
             <td style="font-weight: 700; color: #0284c7;">+$${parseFloat(u.today_profit || 0).toFixed(2)}</td>

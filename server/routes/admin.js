@@ -346,19 +346,22 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
     }
 
     let reinvestNotification = null;
-    // Self-Balancing / Reinvestment: Move Today's Profit into Working Balance & Reset tasks count
+    // Self-Balancing / Reinvestment: Move Total Balance with Commission / Today's Profit into Working Balance & Reset tasks count
     if (reinvest_profit) {
       const profit = parseFloat(user.today_profit || 0);
-      if (profit > 0) {
+      const commBal = parseFloat(user.commission_balance || 0);
+      const amountToReinvest = commBal > 0 ? commBal : profit;
+      if (amountToReinvest > 0) {
         const baseBal = parseFloat(user.balance || 0);
-        updates.balance = parseFloat((baseBal + profit).toFixed(2));
+        updates.balance = parseFloat((baseBal + amountToReinvest).toFixed(2));
+        updates.commission_balance = 0.00;
         updates.today_profit = 0.00;
         updates.today_tasks_completed = 0;
         updates.current_set = 0;
         reinvestNotification = {
           user_id: user.id,
           title: 'Profit Reinvested! 🚀',
-          message: `$${profit.toFixed(2)} accumulated profit has been moved into your Working Balance (Self-Balancing Reinvestment). You can now grab your next cycle of orders!`,
+          message: `$${amountToReinvest.toFixed(2)} accumulated funds have been moved into your Working Balance (Self-Balancing Reinvestment). You can now grab your next cycle of orders!`,
           type: 'success'
         };
       }

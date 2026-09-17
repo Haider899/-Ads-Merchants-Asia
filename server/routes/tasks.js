@@ -67,13 +67,13 @@ router.get('/status', authMiddleware, async (req, res) => {
   user = await autoResetIfNewDay(user);
 
   const settings = await db.getSettings();
-  const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
+  const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 6 };
   // Admin-set custom daily limit or sequence plan takes priority over default
   const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
     ? user.custom_daily_limit
     : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
       ? user.task_sequence_plan.total_orders
-      : 5);
+      : 6);
 
   const userTasks = await db.getTasks(user.id);
 
@@ -98,18 +98,31 @@ router.get('/status', authMiddleware, async (req, res) => {
     return sum + parseFloat(t.commission_earned || t.commission_amount || 0);
   }, 0);
 
+  // Dynamically compute accumulated commission_balance (completed orders principal + profit)
+  const computedCommBal = todaysCompletedTasks.reduce((sum, t) => {
+    return sum + parseFloat(t.product_price || 0) + parseFloat(t.commission_earned || t.commission_amount || 0);
+  }, 0);
+
   let currentTodayProfit = parseFloat(user.today_profit || 0);
   let currentTasksCompleted = parseInt(user.today_tasks_completed || 0, 10);
+  let currentCommissionBalance = parseFloat(user.commission_balance || 0);
 
-  // Self-heal if user.today_profit was prematurely zeroed out by previous date bug
-  // Only heal upward if the computed value reflects tasks AFTER the last reset
+  // Self-heal profit and commission balance if not synced
+  const userUpdates = {};
   if (computedProfit > currentTodayProfit) {
     currentTodayProfit = round(computedProfit);
-    await db.updateUser(user.id, { today_profit: currentTodayProfit }).catch(() => {});
+    userUpdates.today_profit = currentTodayProfit;
   }
   if (todaysCompletedTasks.length > currentTasksCompleted) {
     currentTasksCompleted = todaysCompletedTasks.length;
-    await db.updateUser(user.id, { today_tasks_completed: currentTasksCompleted }).catch(() => {});
+    userUpdates.today_tasks_completed = currentTasksCompleted;
+  }
+  if (computedCommBal > currentCommissionBalance) {
+    currentCommissionBalance = round(computedCommBal);
+    userUpdates.commission_balance = currentCommissionBalance;
+  }
+  if (Object.keys(userUpdates).length > 0) {
+    await db.updateUser(user.id, userUpdates).catch(() => {});
   }
 
   // Find any active pending task for this user
@@ -120,6 +133,7 @@ router.get('/status', authMiddleware, async (req, res) => {
     data: {
       balance: user.balance,
       frozen_balance: user.frozen_balance,
+      commission_balance: currentCommissionBalance,
       today_profit: currentTodayProfit,
       today_tasks_completed: currentTasksCompleted,
       current_set: user.current_set || 0,
@@ -151,12 +165,12 @@ router.post('/generate', authMiddleware, async (req, res) => {
     user = await autoResetIfNewDay(user);
 
     const settings = await db.getSettings();
-    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
+    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 6 };
     const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
       ? user.custom_daily_limit
       : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
         ? user.task_sequence_plan.total_orders
-        : 5);
+        : 6);
 
     // Recompute actual completed tasks since last admin reset (to prevent false daily-limit block)
     const todayStr2 = toDateString(new Date());
@@ -566,24 +580,23 @@ router.post('/submit', authMiddleware, async (req, res) => {
     }
 
     // Financial Calculation:
-    // 1. Principal Release: return the reserved order price
-    // 2. Reward Credit: add the earned commission
-    const balBeforeRelease = round(userBalance);
-    const balAfterRelease = round(balBeforeRelease + taskPrice);
-    const balAfterReward = round(balAfterRelease + commAmount);
+    // As instructed by client: Order principal + profit move from Working Balance into Total Balance with Commission (commission_balance)
+    const remainingWorkingBalance = round(userBalance);
+    const prevCommBal = parseFloat(user.commission_balance || 0);
+    const newCommissionBalance = round(prevCommBal + taskPrice + commAmount);
 
-    // Record Ledger Entry 1: ORDER_RELEASE (principal returned)
+    // Record Ledger Entry 1: ORDER_RELEASE (credited to commission_balance)
     await db.createLedgerTransaction({
       userId: user.id,
       taskId: task.id,
       adminId: null,
       type: 'ORDER_RELEASE',
       amount: taskPrice,
-      balanceBefore: balBeforeRelease,
-      balanceAfter: balAfterRelease,
+      balanceBefore: prevCommBal,
+      balanceAfter: prevCommBal + taskPrice,
       currency: 'USD',
       reference: task.order_number || task.id,
-      description: `Principal release for completed order: ${task.product_name}`
+      description: `Principal credited to Total Balance with Commission: ${task.product_name}`
     });
 
     // Record Ledger Entry 2: REWARD (commission earned)
@@ -593,8 +606,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
       adminId: null,
       type: 'REWARD',
       amount: commAmount,
-      balanceBefore: balAfterRelease,
-      balanceAfter: balAfterReward,
+      balanceBefore: prevCommBal + taskPrice,
+      balanceAfter: newCommissionBalance,
       currency: 'USD',
       reference: task.order_number || task.id,
       description: `Optimization reward for order: ${task.product_name}`
@@ -605,7 +618,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
     const newTotalTasks = (parseInt(user.total_tasks_completed, 10) || 0) + 1;
 
     const updates = {
-      balance: balAfterReward,
+      balance: remainingWorkingBalance,
+      commission_balance: newCommissionBalance,
       frozen_balance: 0.00, // Deficit cleared on successful completion
       today_profit: newTodayProfit,
       today_tasks_completed: newCompletedTasks,
@@ -642,9 +656,10 @@ router.post('/submit', authMiddleware, async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Optimization successful! +$${commAmount.toFixed(2)} credited to your account.`,
+      message: `Optimization successful! +$${commAmount.toFixed(2)} added to Total Balance with Commission.`,
       data: {
-        balance: balAfterReward,
+        balance: remainingWorkingBalance,
+        commission_balance: newCommissionBalance,
         frozen_balance: 0.00,
         today_profit: newTodayProfit,
         today_tasks_completed: newCompletedTasks,

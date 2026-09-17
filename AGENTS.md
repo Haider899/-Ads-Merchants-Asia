@@ -24,8 +24,15 @@ This document is the single source of truth for all business logic, financial ca
    - **CRITICAL**: When working balance is negative, **Today's Profit MUST NOT be wiped to 0.00**. It retains the profits earned from previous completed tasks of the day (e.g. `USD 2,762.40` in screenshot `07.10.33 (1).jpeg`).
 
 3. **Total Balance with Commission**:
-   - When `Working Balance >= 0`: `Working Balance + Frozen Balance`.
-   - When `Working Balance < 0`: `Frozen Balance + Today's Profit` (reflects total funds returning upon clearing deficit + commission).
+   - Represents the accumulated completed orders' principal + profit earned (`commission_balance`).
+   - As orders are placed: order amount is deducted from Working Balance (upper section) and moves into Total Balance with Commission (lower section) along with the commission profit.
+   - When an active order is in progress: displays `commission_balance + pending order gross + pending commission`.
+   - When in deficit (`Working Balance < 0`): displays `Frozen Balance + Today's Profit` (total funds returning upon clearing deficit + commission).
+   - **Withdrawal Rule**: User can only withdraw up to the **Total Balance with Commission** amount.
+
+4. **Notifications & Toast Alerts**:
+   - Real-time toasts ONLY trigger once when an admin approves/acts while user is online.
+   - On new login or browser reload, historical notifications are silenced from triggering repetitive toast popups, while all records remain permanently visible in the notification bell modal.
 
 4. **24-Hour Daily Reset Rule**:
    - Specified in Voice Note **T1**: Today's profit and task count ONLY reset after a full 24-hour cycle / calendar date change.
