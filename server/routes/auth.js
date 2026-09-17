@@ -157,6 +157,22 @@ router.get('/me', authMiddleware, async (req, res) => {
       safeUser.today_tasks_completed = todaysCompleted.length;
       await db.updateUser(safeUser.id, { today_tasks_completed: safeUser.today_tasks_completed }).catch(() => {});
     }
+    let commBal = parseFloat(safeUser.commission_balance || 0);
+    if (commBal === 0 && todaysCompleted.length > 0) {
+      const computedComm = todaysCompleted.reduce((sum, t) => {
+        const p = parseFloat(t.product_price || 0);
+        const c = parseFloat(t.commission_earned || t.commission_amount || 0);
+        return sum + p + c;
+      }, 0);
+      if (computedComm > 0) {
+        commBal = parseFloat(computedComm.toFixed(2));
+        safeUser.commission_balance = commBal;
+        await db.updateUser(safeUser.id, { commission_balance: commBal }).catch(() => {});
+      }
+    }
+    safeUser.commission_balance = parseFloat(safeUser.commission_balance || commBal || 0);
+    safeUser.balance = parseFloat(safeUser.balance || 0);
+    safeUser.frozen_balance = parseFloat(safeUser.frozen_balance || 0);
     const activePending = (userTasks || []).find(t => t.status === 'pending');
     if (activePending) {
       safeUser.pending_task = {

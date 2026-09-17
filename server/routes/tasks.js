@@ -586,7 +586,24 @@ router.post('/submit', authMiddleware, async (req, res) => {
     // - Working balance remains at current level (unspent amount).
     // - Total Balance with Commission (commission_balance) accumulates: previous commission_balance + taskPrice + commAmount.
     // - Today's profit accumulates: previous today_profit + commAmount.
-    const prevCommBalance = parseFloat(user.commission_balance || 0);
+    let prevCommBalance = parseFloat(user.commission_balance || 0);
+    if (prevCommBalance === 0) {
+      const todayStr = toDateString(new Date());
+      const resetCutoff = user.tasks_reset_at ? new Date(user.tasks_reset_at) : null;
+      const priorCompleted = (tasks || []).filter(t => {
+        if (t.status !== 'completed' || String(t.id) === String(task.id)) return false;
+        const taskDate = toDateString(t.completed_at || t.created_at);
+        if (taskDate !== todayStr) return false;
+        if (resetCutoff && new Date(t.completed_at || t.created_at) < resetCutoff) return false;
+        return true;
+      });
+      const priorSum = priorCompleted.reduce((sum, t) => {
+        const p = parseFloat(t.product_price || 0);
+        const c = parseFloat(t.commission_earned || t.commission_amount || 0);
+        return sum + p + c;
+      }, 0);
+      prevCommBalance = round(priorSum);
+    }
     const newCommBalance = round(prevCommBalance + taskPrice + commAmount);
     const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
     const newCompletedTasks = (parseInt(user.today_tasks_completed, 10) || 0) + 1;

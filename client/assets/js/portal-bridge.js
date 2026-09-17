@@ -652,6 +652,12 @@
   async function initStartPage(user) {
     const taskStatus = await API.get('/api/tasks/status');
     if (taskStatus && taskStatus.success) {
+      if (window.__currentUser && taskStatus.data) {
+        window.__currentUser.balance = taskStatus.data.balance;
+        window.__currentUser.commission_balance = taskStatus.data.commission_balance;
+        window.__currentUser.today_profit = taskStatus.data.today_profit;
+        window.__currentUser.today_tasks_completed = taskStatus.data.today_tasks_completed;
+      }
       updateTaskDisplay(taskStatus.data);
     }
 
@@ -717,8 +723,13 @@
             window.__activePendingTask = res.task;
             if (res.new_balance !== undefined) {
               const currentProfit = parseFloat((window.__currentUser && window.__currentUser.today_profit) || 0);
+              const currentCommBal = parseFloat((window.__currentUser && window.__currentUser.commission_balance) || 0);
+              if (window.__currentUser) {
+                window.__currentUser.balance = res.new_balance;
+              }
               updateTaskDisplay({
                 balance: res.new_balance,
+                commission_balance: currentCommBal,
                 frozen_balance: (window.__currentUser && window.__currentUser.frozen_balance) || 0,
                 today_profit: currentProfit,
                 pending_task: res.task,
@@ -824,7 +835,13 @@
     // Start Page specific: Total Balance with Commission represents accumulated order gross + commission.
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      const commBal = parseFloat(data.commission_balance !== undefined && data.commission_balance !== null ? data.commission_balance : 0);
+      const commBal = parseFloat(
+        data.commission_balance !== undefined && data.commission_balance !== null
+          ? data.commission_balance
+          : (window.__currentUser && window.__currentUser.commission_balance !== undefined && window.__currentUser.commission_balance !== null
+              ? window.__currentUser.commission_balance
+              : 0)
+      );
       if (workBal < 0) {
         startGrandTotalEl.textContent = `USD ${formatUSD(frozBal + profitVal)}`;
       } else if (pTask) {
@@ -955,13 +972,28 @@
           window.__activePendingTask = null;
           modal.style.display = 'none';
           showBridgeToast('Optimization Complete!', res.message, 'success');
+
+          if (window.__currentUser) {
+            window.__currentUser.balance = parseFloat(res.data.balance || 0);
+            window.__currentUser.commission_balance = parseFloat(res.data.commission_balance || 0);
+            window.__currentUser.today_profit = parseFloat(res.data.today_profit || 0);
+            window.__currentUser.today_tasks_completed = parseInt(res.data.today_tasks_completed || 0, 10);
+            window.__currentUser.frozen_balance = parseFloat(res.data.frozen_balance || 0);
+          }
+
           updateTaskDisplay({
             balance: res.data.balance,
+            commission_balance: res.data.commission_balance,
+            frozen_balance: 0.00,
             today_profit: res.data.today_profit,
             today_tasks_completed: res.data.today_tasks_completed,
             pending_task: null,
             max_tasks: (res.data && res.data.max_tasks) || (window.__currentUser && window.__currentUser.max_tasks) || 5
           });
+
+          if (window.__currentUser) {
+            updateUserBalanceDisplay(window.__currentUser);
+          }
         } else {
           submitBtn.disabled = false;
           submitBtn.innerHTML = '<span>Submit Optimization</span>';
