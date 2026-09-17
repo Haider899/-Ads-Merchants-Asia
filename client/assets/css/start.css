@@ -1,7 +1,7 @@
 .start-container{
     display: flex;
     flex-direction: column;
-    padding: 15px 15px 120px 15px;
+    padding: 0 0 120px 0;
     gap: 16px;
     width: 100%;
     box-sizing: border-box;
@@ -185,13 +185,7 @@ ul, li{
     padding: 0px;
     margin-left: 10px;
 }
-.page-body {
-    color: black;
-    background-image: url(../images/BG-36.png);
-    background-size: cover;
-    background-repeat: no-repeat;
-    height: 100%; /* Sets the height to 100% of the viewport height */
-}
+
 
 #success-message, #error-message {
   padding: 10px;
@@ -362,35 +356,4 @@ ul, li{
   color: white;
   z-index: 9999;
   position: relative;
-}
-
-body {
-  padding: 0;
-  margin: 0 auto;
-  max-width: 440px;
-  box-sizing: border-box;
-}
-
-@media screen and (min-width: 600px) {
-  body {
-      max-width: 440px !important;
-      margin: 0 auto !important;
-      box-shadow: 0 0 35px rgba(0, 0, 0, 0.18);
-  }
-
-  .inner-header {
-      max-width: 440px !important;
-      margin: 0 auto !important;
-      padding-left: 15px !important;
-      padding-right: 15px !important;
-  }
-
-  .footer-container {
-      max-width: 440px !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      width: 100% !important;
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-  }
-}
+}
