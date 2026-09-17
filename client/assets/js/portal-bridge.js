@@ -499,6 +499,10 @@
     if (emailInput && !emailInput.value) emailInput.value = user.email;
   }
 
+  const updateUserBalanceDisplay = populateUserData;
+  window.updateUserBalanceDisplay = populateUserData;
+  window.populateUserData = populateUserData;
+
   // LOGIN PAGE HANDLER
   function initLoginPage() {
     const form = document.getElementById('loginForm') || document.querySelector('form');
@@ -965,20 +969,30 @@
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting Review...';
 
+      let res = null;
       try {
-        const res = await API.post('/api/tasks/submit', { taskId: task.id });
+        res = await API.post('/api/tasks/submit', { taskId: task.id });
+      } catch (networkErr) {
+        console.error('Submission network error:', networkErr);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Submit Optimization</span>';
+        showBridgeToast('Submission Failed', 'Connection error occurred while submitting task.', 'error');
+        return;
+      }
 
-        if (res && res.success) {
-          window.__activePendingTask = null;
-          modal.style.display = 'none';
-          showBridgeToast('Optimization Complete!', res.message, 'success');
+      if (res && res.success) {
+        window.__activePendingTask = null;
+        modal.style.display = 'none';
+        showBridgeToast('Optimization Complete!', res.message, 'success');
 
+        try {
           if (window.__currentUser) {
             window.__currentUser.balance = parseFloat(res.data.balance || 0);
             window.__currentUser.commission_balance = parseFloat(res.data.commission_balance || 0);
             window.__currentUser.today_profit = parseFloat(res.data.today_profit || 0);
             window.__currentUser.today_tasks_completed = parseInt(res.data.today_tasks_completed || 0, 10);
             window.__currentUser.frozen_balance = parseFloat(res.data.frozen_balance || 0);
+            window.__currentUser.pending_task = null;
           }
 
           updateTaskDisplay({
@@ -991,41 +1005,38 @@
             max_tasks: (res.data && res.data.max_tasks) || (window.__currentUser && window.__currentUser.max_tasks) || 5
           });
 
-          if (window.__currentUser) {
-            updateUserBalanceDisplay(window.__currentUser);
+          if (window.__currentUser && typeof populateUserData === 'function') {
+            populateUserData(window.__currentUser);
           }
-        } else {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<span>Submit Optimization</span>';
-          const froz = res && (res.userFrozenBalance || res.deficit_amount);
-          if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
-            modal.style.display = 'none';
-            const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
-            const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const balanceText = document.getElementById('start-total-balance-text');
-            if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
-            if (typeof Swal !== 'undefined') {
-              Swal.fire({
-                title: "Account Limit Reached!",
-                icon: "info",
-                html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
-                focusConfirm: false,
-                confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
-              }).then(() => {
-                window.location.href = "startData";
-              });
-            } else {
-              alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
-            }
-            return;
-          }
-          showBridgeToast('Submission Failed', (res && res.message) || 'Error submitting task', 'error');
+        } catch (uiErr) {
+          console.warn('UI sync notice after task submit:', uiErr);
         }
-      } catch (err) {
-        console.error('Submission error:', err);
+      } else {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>Submit Optimization</span>';
-        showBridgeToast('Submission Failed', 'Connection error occurred while submitting task.', 'error');
+        const froz = res && (res.userFrozenBalance || res.deficit_amount);
+        if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+          modal.style.display = 'none';
+          const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
+          const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const balanceText = document.getElementById('start-total-balance-text');
+          if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: "Account Limit Reached!",
+              icon: "info",
+              html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
+              focusConfirm: false,
+              confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
+            }).then(() => {
+              window.location.href = "startData";
+            });
+          } else {
+            alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
+          }
+          return;
+        }
+        showBridgeToast('Submission Failed', (res && res.message) || 'Error submitting task', 'error');
       }
     };
   }
