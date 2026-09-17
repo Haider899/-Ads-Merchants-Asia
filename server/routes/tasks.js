@@ -112,6 +112,20 @@ router.get('/status', authMiddleware, async (req, res) => {
     await db.updateUser(user.id, { today_tasks_completed: currentTasksCompleted }).catch(() => {});
   }
 
+  // Self-heal commission_balance if 0 but user has completed tasks
+  let currentCommBalance = parseFloat(user.commission_balance || 0);
+  if (currentCommBalance === 0 && todaysCompletedTasks.length > 0) {
+    const computedComm = todaysCompletedTasks.reduce((sum, t) => {
+      const p = parseFloat(t.product_price || 0);
+      const c = parseFloat(t.commission_earned || t.commission_amount || 0);
+      return sum + p + c;
+    }, 0);
+    if (computedComm > 0) {
+      currentCommBalance = round(computedComm);
+      await db.updateUser(user.id, { commission_balance: currentCommBalance }).catch(() => {});
+    }
+  }
+
   // Find any active pending task for this user
   const pendingTask = (userTasks || []).find(t => t.status === 'pending');
 
@@ -120,6 +134,7 @@ router.get('/status', authMiddleware, async (req, res) => {
     data: {
       balance: user.balance,
       frozen_balance: user.frozen_balance,
+      commission_balance: currentCommBalance,
       today_profit: currentTodayProfit,
       today_tasks_completed: currentTasksCompleted,
       current_set: user.current_set || 0,
@@ -566,46 +581,34 @@ router.post('/submit', authMiddleware, async (req, res) => {
     }
 
     // Financial Calculation:
-    // 1. Principal Release: return the reserved order price
-    // 2. Reward Credit: add the earned commission
-    const balBeforeRelease = round(userBalance);
-    const balAfterRelease = round(balBeforeRelease + taskPrice);
-    const balAfterReward = round(balAfterRelease + commAmount);
+    // Order amount was deducted from working balance at task match.
+    // At task submit:
+    // - Working balance remains at current level (unspent amount).
+    // - Total Balance with Commission (commission_balance) accumulates: previous commission_balance + taskPrice + commAmount.
+    // - Today's profit accumulates: previous today_profit + commAmount.
+    const prevCommBalance = parseFloat(user.commission_balance || 0);
+    const newCommBalance = round(prevCommBalance + taskPrice + commAmount);
+    const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
+    const newCompletedTasks = (parseInt(user.today_tasks_completed, 10) || 0) + 1;
+    const newTotalTasks = (parseInt(user.total_tasks_completed, 10) || 0) + 1;
 
-    // Record Ledger Entry 1: ORDER_RELEASE (principal returned)
-    await db.createLedgerTransaction({
-      userId: user.id,
-      taskId: task.id,
-      adminId: null,
-      type: 'ORDER_RELEASE',
-      amount: taskPrice,
-      balanceBefore: balBeforeRelease,
-      balanceAfter: balAfterRelease,
-      currency: 'USD',
-      reference: task.order_number || task.id,
-      description: `Principal release for completed order: ${task.product_name}`
-    });
-
-    // Record Ledger Entry 2: REWARD (commission earned)
+    // Record Ledger Entry: REWARD (commission earned)
     await db.createLedgerTransaction({
       userId: user.id,
       taskId: task.id,
       adminId: null,
       type: 'REWARD',
       amount: commAmount,
-      balanceBefore: balAfterRelease,
-      balanceAfter: balAfterReward,
+      balanceBefore: round(userBalance),
+      balanceAfter: round(userBalance),
       currency: 'USD',
       reference: task.order_number || task.id,
       description: `Optimization reward for order: ${task.product_name}`
     });
 
-    const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
-    const newCompletedTasks = (parseInt(user.today_tasks_completed, 10) || 0) + 1;
-    const newTotalTasks = (parseInt(user.total_tasks_completed, 10) || 0) + 1;
-
     const updates = {
-      balance: balAfterReward,
+      balance: userBalance,
+      commission_balance: newCommBalance,
       frozen_balance: 0.00, // Deficit cleared on successful completion
       today_profit: newTodayProfit,
       today_tasks_completed: newCompletedTasks,
@@ -644,7 +647,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
       success: true,
       message: `Optimization successful! +$${commAmount.toFixed(2)} credited to your account.`,
       data: {
-        balance: balAfterReward,
+        balance: userBalance,
+        commission_balance: newCommBalance,
         frozen_balance: 0.00,
         today_profit: newTodayProfit,
         today_tasks_completed: newCompletedTasks,

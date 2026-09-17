@@ -95,14 +95,14 @@ mainApp.all(['/get_task_progress', '/User/get_task_progress'], async (req, res) 
       setName = '1st Set';
       totalInSet = 3;
       currentInSet = completed;
-    } else if (completed < 7) {
+    } else if (completed < 5) {
       setName = '2nd Set';
-      totalInSet = 4;
+      totalInSet = 2;
       currentInSet = completed - 3;
     } else {
       setName = '3rd Set';
       totalInSet = 1;
-      currentInSet = completed >= 8 ? 1 : (completed - 7);
+      currentInSet = completed >= 6 ? 1 : (completed - 5);
     }
 
     res.json({

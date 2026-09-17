@@ -231,9 +231,11 @@
   }
 
   // Check unread admin notifications for user
+  let _hasDoneInitialNotifCheck = false;
+
   function getShownToastIds() {
     try {
-      const raw = sessionStorage.getItem('ama_shown_toast_ids');
+      const raw = localStorage.getItem('ama_shown_toast_ids');
       return raw ? new Set(JSON.parse(raw)) : new Set();
     } catch (_) {
       return new Set();
@@ -242,7 +244,8 @@
 
   function saveShownToastIds(setObj) {
     try {
-      sessionStorage.setItem('ama_shown_toast_ids', JSON.stringify(Array.from(setObj)));
+      const arr = Array.from(setObj).slice(-200);
+      localStorage.setItem('ama_shown_toast_ids', JSON.stringify(arr));
     } catch (_) {}
   }
 
@@ -251,6 +254,18 @@
       const res = await API.get('/api/user/notifications');
       if (res && res.success && res.notifications && res.notifications.length > 0) {
         const shownToastIds = getShownToastIds();
+
+        // On first check upon page load / login:
+        // Mark all existing notifications as seen so user doesn't get flooded with past toasts
+        if (!_hasDoneInitialNotifCheck) {
+          _hasDoneInitialNotifCheck = true;
+          for (const notif of res.notifications) {
+            shownToastIds.add(String(notif.id));
+          }
+          saveShownToastIds(shownToastIds);
+          return;
+        }
+
         let hasNewNotification = false;
         for (const notif of res.notifications) {
           const nid = String(notif.id);
@@ -398,18 +413,16 @@
       el.textContent = `USD ${totalBal}`;
     });
 
-    // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
-    // When Working Balance < 0: Frozen Balance + Today's Profit (AGENTS.md Rule 1.B.3, Voice Note V4).
-    // When Working Balance >= 0 and an active order is in progress: pending order gross + commission.
-    // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
+    // Start Page specific: Total Balance with Commission represents accumulated order gross + commission.
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
+      const commBal = parseFloat(user.commission_balance !== undefined && user.commission_balance !== null ? user.commission_balance : 0);
       if (workingBalNum < 0) {
         startGrandTotalEl.textContent = `USD ${formatUSD(frozenBalNum + userProfitNum)}`;
       } else if (pTask) {
-        startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
+        startGrandTotalEl.textContent = `USD ${formatUSD(commBal + pendingPrice + pendingComm)}`;
       } else {
-        startGrandTotalEl.textContent = `USD 0.00`;
+        startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
       }
     }
 
@@ -422,12 +435,18 @@
       #userWorkingBalance,
       #profile-working-balance,
       .profile-working-balance,
-      .withdraw-card-value,
       #start-total-balance-text,
       .task-balance,
       #workingBalance
     `).forEach(el => {
       el.textContent = `USD ${workingBal}`;
+    });
+
+    // Withdraw page withdrawable balance (Total Balance with Commission)
+    const commBalNum = parseFloat(user.commission_balance !== undefined && user.commission_balance !== null ? user.commission_balance : 0);
+    const withdrawableBal = commBalNum > 0 ? formatUSD(commBalNum) : workingBal;
+    document.querySelectorAll('.withdraw-card-value').forEach(el => {
+      el.textContent = `USD ${withdrawableBal}`;
     });
 
     // 3. Today's Profit
@@ -802,18 +821,16 @@
     document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
       el.textContent = `USD ${formatUSD(totBal)}`;
     });
-    // Start Page specific: Total Balance with Commission represents the active in-progress order gross + commission.
-    // When Working Balance < 0: Frozen Balance + Today's Profit (AGENTS.md Rule 1.B.3, Voice Note V4).
-    // When Working Balance >= 0 and an active order is in progress: pending order gross + commission.
-    // If no order is in progress, it must display USD 0.00 (Voice Note S1 & S2).
+    // Start Page specific: Total Balance with Commission represents accumulated order gross + commission.
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
+      const commBal = parseFloat(data.commission_balance !== undefined && data.commission_balance !== null ? data.commission_balance : 0);
       if (workBal < 0) {
         startGrandTotalEl.textContent = `USD ${formatUSD(frozBal + profitVal)}`;
       } else if (pTask) {
-        startGrandTotalEl.textContent = `USD ${formatUSD(pendingPrice + pendingComm)}`;
+        startGrandTotalEl.textContent = `USD ${formatUSD(commBal + pendingPrice + pendingComm)}`;
       } else {
-        startGrandTotalEl.textContent = `USD 0.00`;
+        startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
       }
     }
     document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {

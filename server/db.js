@@ -55,7 +55,8 @@ async function ensureUserTaskSettingColumns() {
       { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
       { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
       { name: 'last_reset_date', type: 'DATE DEFAULT NULL' },
-      { name: 'tasks_reset_at', type: 'DATETIME DEFAULT NULL' }
+      { name: 'tasks_reset_at', type: 'DATETIME DEFAULT NULL' },
+      { name: 'commission_balance', type: 'DECIMAL(12,2) DEFAULT 0.00' }
     ];
 
     for (const col of columns) {
@@ -110,6 +111,7 @@ const db = {
       ...u,
       balance: parseFloat(u.balance || 0),
       frozen_balance: parseFloat(u.frozen_balance || 0),
+      commission_balance: parseFloat(u.commission_balance || 0),
       today_profit: parseFloat(u.today_profit || 0),
       today_tasks_completed: parseInt(u.today_tasks_completed || 0, 10),
       total_tasks_completed: parseInt(u.total_tasks_completed || 0, 10),
@@ -243,7 +245,7 @@ const db = {
       'invite_code', 'kyc_status', 'kyc_notes', 'status',
       'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price',
       'custom_daily_limit', 'task_sequence_plan', 'last_reset_date', 'tasks_reset_at',
-      'country_code', 'country_name', 'last_ip'
+      'commission_balance', 'country_code', 'country_name', 'last_ip'
     ];
     const filteredUpdates = {};
     for (const key of Object.keys(updates)) {
