@@ -76,6 +76,6 @@ This document is the single source of truth for all business logic, financial ca
   - **KYC**: New pending KYC submission triggers audio chime.
   - **Live Chat (CRITICAL & RECURRING)**:
     - When any customer sends a chat message and it is unread / awaiting admin response:
-    - **Recurring Ring Alert**: Ring message chime repeats every **15 seconds** (interval between 10-20s) until an admin responds or opens the chat with that customer!
+    - **Recurring Ring Alert**: Ring message chime lasts **3 seconds** and repeats every **5 seconds** until an admin responds or opens the chat with that customer!
     - Visual indicator / pulse banner in the admin header.
 - **Browser Audio Policy**: Must support user interaction unlock to ensure sound plays cleanly without browser autoplay restrictions.

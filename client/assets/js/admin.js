@@ -335,6 +335,7 @@
     isChatRinging: false,
     chatRingTimer: null,
     lastRingTimestamp: 0,
+    activeOscillators: [],
 
     init() {
       try {
@@ -479,7 +480,7 @@
       }
     },
 
-    // Realistic telephone ring tone pulse (Ding-dong... Ding-dong!)
+    // Realistic telephone ring melody (3.0 seconds duration)
     playChatRingPulse() {
       if (!this.enabled) return;
       const ctx = this.ensureContext();
@@ -487,11 +488,28 @@
 
       try {
         const now = ctx.currentTime;
+        // 3-second structured telephony chime cadence:
+        // Burst 1 (0.00s - 0.80s)
+        // Burst 2 (1.10s - 1.90s)
+        // Burst 3 (2.20s - 3.00s)
         const notes = [
+          // Burst 1
           { freq: 587.33, start: 0.00, dur: 0.12 },
-          { freq: 880.00, start: 0.10, dur: 0.20 },
-          { freq: 587.33, start: 0.35, dur: 0.12 },
-          { freq: 880.00, start: 0.45, dur: 0.35 }
+          { freq: 880.00, start: 0.10, dur: 0.22 },
+          { freq: 587.33, start: 0.32, dur: 0.12 },
+          { freq: 880.00, start: 0.44, dur: 0.35 },
+
+          // Burst 2
+          { freq: 587.33, start: 1.10, dur: 0.12 },
+          { freq: 880.00, start: 1.20, dur: 0.22 },
+          { freq: 587.33, start: 1.42, dur: 0.12 },
+          { freq: 880.00, start: 1.54, dur: 0.35 },
+
+          // Burst 3 (resolving to 3.0 seconds)
+          { freq: 587.33, start: 2.20, dur: 0.12 },
+          { freq: 880.00, start: 2.30, dur: 0.22 },
+          { freq: 659.25, start: 2.52, dur: 0.15 },
+          { freq: 1046.50, start: 2.65, dur: 0.35 }
         ];
 
         notes.forEach(n => {
@@ -510,13 +528,19 @@
 
           osc.start(now + n.start);
           osc.stop(now + n.start + n.dur + 0.02);
+
+          this.activeOscillators.push(osc);
+          osc.onended = () => {
+            const idx = this.activeOscillators.indexOf(osc);
+            if (idx !== -1) this.activeOscillators.splice(idx, 1);
+          };
         });
       } catch (err) {
         console.warn('Error playing chat ring pulse:', err);
       }
     },
 
-    // Recurring chat ring every 15 seconds (within client's 10-20s requirement)
+    // Recurring chat ring: 3s ring duration, repeats every 5 seconds until responded
     startRecurringChatRing() {
       if (this.isChatRinging) return;
       this.isChatRinging = true;
@@ -530,16 +554,26 @@
         if (!this.isChatRinging || !this.enabled) return;
         this.lastRingTimestamp = Date.now();
         this.playChatRingPulse();
-      }, 15000);
+      }, 5000); // exactly 5 seconds timer interval
     },
 
-    // Stops recurring chat ring when admin responds or all customer messages are handled
+    // Stops recurring chat ring immediately when admin responds or opens chat
     stopRecurringChatRing() {
       if (!this.isChatRinging && !this.chatRingTimer) return;
       this.isChatRinging = false;
       if (this.chatRingTimer) {
         clearInterval(this.chatRingTimer);
         this.chatRingTimer = null;
+      }
+      // Instantly cut off any currently playing ring audio
+      if (this.activeOscillators && this.activeOscillators.length) {
+        this.activeOscillators.forEach(osc => {
+          try {
+            osc.stop();
+            osc.disconnect();
+          } catch (_) {}
+        });
+        this.activeOscillators = [];
       }
       this.updateUI();
     }
