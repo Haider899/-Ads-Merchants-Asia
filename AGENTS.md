@@ -58,3 +58,24 @@ This document is the single source of truth for all business logic, financial ca
 - **`All/WhatsApp Image 2026-09-07 at 07.10.31.jpeg`**: Normal state reference UI (`1st Set: 0 / 3`).
 - **`All/WhatsApp Image 2026-09-07 at 07.10.33 (1).jpeg`**: Deficit state reference UI (`2nd Set: 1 / 2`, `Working Balance -$3666.00`, `Today's Profit $2762.40`, `Total Balance with Commission $5068.20`).
 - **`All/WhatsApp Image 2026-09-07 at 07.10.33.jpeg`**: Deficit state reference UI (`3rd Set: 0 / 1`, `Working Balance -$3479.00`, `Today's Profit $7171.20`, `Total Balance with Commission $13338.00`).
+
+---
+
+## 5. Pending Client Decision: Total Balance with Commission during Deficit
+- **Question sent to Client**: During a deficit order (e.g. 4th order of $50 when balance is $20, resulting in -$30 working balance):
+  - **Option A (Freeze Completed Funds)**: Show current completed balance ($108.00). Only jump to $168.00 after user deposits the $30 shortfall and submits the order.
+  - **Option B (Expected Total Return)**: Show $168.00 immediately to display the unlocked total funds after shortfall clearance.
+- **Status**: Waiting for client reply. DO NOT change this logic until client confirms.
+
+---
+
+## 6. Admin Panel Real-Time Audio Alerts & Ringing System
+- When new administrative requests arrive in Control Center:
+  - **Deposits**: New pending deposit request triggers audio chime + notification badge.
+  - **Withdrawals**: New pending withdrawal request triggers audio chime + notification badge.
+  - **KYC**: New pending KYC submission triggers audio chime.
+  - **Live Chat (CRITICAL & RECURRING)**:
+    - When any customer sends a chat message and it is unread / awaiting admin response:
+    - **Recurring Ring Alert**: Ring message chime repeats every **15 seconds** (interval between 10-20s) until an admin responds or opens the chat with that customer!
+    - Visual indicator / pulse banner in the admin header.
+- **Browser Audio Policy**: Must support user interaction unlock to ensure sound plays cleanly without browser autoplay restrictions.

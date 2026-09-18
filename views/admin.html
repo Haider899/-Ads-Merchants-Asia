@@ -659,6 +659,15 @@
             from { opacity: 0; transform: translateX(50px); }
             to { opacity: 1; transform: translateX(0); }
         }
+
+        @keyframes pulseRinging {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 9px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .pulse-ringing {
+            animation: pulseRinging 1.5s infinite !important;
+        }
     </style>
 </head>
 <body>
@@ -736,7 +745,13 @@
             <span>Ads Merchants Asia</span>
             <span id="adminRoleBadge" class="badge-admin">Master Authority</span>
         </a>
-        <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- Real-time Audio Alerts Controller -->
+            <button id="adminAudioToggleBtn" type="button" title="Sound Notifications & Live Chat Ringing (Click to toggle)" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #059669; border-radius: 10px; height: 38px; padding: 0 13px; font-size: 12.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; transition: all 0.2s ease; outline: none;">
+                <i class="fa fa-volume-up" id="adminAudioIcon"></i>
+                <span id="adminAudioLabel">Sound: ON</span>
+            </button>
+
             <div style="position: relative;">
                 <div id="adminNotificationBellBtn" title="Pending Action Alerts" style="cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; background: rgba(0, 123, 255, 0.1); color: var(--primary);">
                     <i class="fa fa-bell" style="font-size: 16px;"></i>
@@ -1903,6 +1918,6 @@
     </div>
 
     <!-- Dedicated Admin Script -->
-    <script src="/client/assets/js/admin.js?v=4.3.0"></script>
+    <script src="/client/assets/js/admin.js?v=4.4.0"></script>
 </body>
 </html>

@@ -326,6 +326,233 @@
     activeChatUserId: null
   };
 
+  // ==========================================
+  // REAL-TIME AUDIO ALERTS & RINGING ENGINE
+  // ==========================================
+  const AdminAudio = {
+    ctx: null,
+    enabled: true,
+    isChatRinging: false,
+    chatRingTimer: null,
+    lastRingTimestamp: 0,
+
+    init() {
+      try {
+        const saved = localStorage.getItem('admin_audio_enabled');
+        if (saved !== null) {
+          this.enabled = (saved === 'true');
+        }
+      } catch (_) {}
+
+      // Auto-unlock AudioContext on user interaction
+      const unlockAudio = () => {
+        try {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch (e) {
+          console.warn('AudioContext auto-unlock failed:', e);
+        }
+      };
+
+      ['click', 'keydown', 'touchstart'].forEach(evt => {
+        document.addEventListener(evt, unlockAudio, { passive: true });
+      });
+
+      // Bind header button toggle
+      const btn = document.getElementById('adminAudioToggleBtn');
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggle();
+        });
+      }
+
+      this.updateUI();
+    },
+
+    ensureContext() {
+      try {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+        return this.ctx;
+      } catch (e) {
+        console.warn('Unable to initialize AudioContext:', e);
+        return null;
+      }
+    },
+
+    toggle() {
+      this.enabled = !this.enabled;
+      try {
+        localStorage.setItem('admin_audio_enabled', String(this.enabled));
+      } catch (_) {}
+
+      if (this.enabled) {
+        this.ensureContext();
+        this.playChime('deposit');
+        if (window.AdminUI && window.AdminUI.toast) {
+          window.AdminUI.toast('Audio Alerts Active', 'Audio alerts & live chat ringing are enabled.', 'success');
+        }
+      } else {
+        this.stopRecurringChatRing();
+        if (window.AdminUI && window.AdminUI.toast) {
+          window.AdminUI.toast('Audio Alerts Muted', 'Sound alerts are currently turned off.', 'warning');
+        }
+      }
+      this.updateUI();
+    },
+
+    updateUI() {
+      const btn = document.getElementById('adminAudioToggleBtn');
+      const icon = document.getElementById('adminAudioIcon');
+      const label = document.getElementById('adminAudioLabel');
+      if (!btn || !icon || !label) return;
+
+      if (!this.enabled) {
+        btn.style.background = 'rgba(239, 68, 68, 0.08)';
+        btn.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+        btn.style.color = '#ef4444';
+        icon.className = 'fa fa-volume-mute';
+        label.textContent = 'Sound: OFF';
+        btn.classList.remove('pulse-ringing');
+      } else if (this.isChatRinging) {
+        btn.style.background = 'rgba(239, 68, 68, 0.15)';
+        btn.style.borderColor = '#ef4444';
+        btn.style.color = '#dc2626';
+        icon.className = 'fa fa-phone-volume fa-shake';
+        label.textContent = 'Chat Ringing...';
+        btn.classList.add('pulse-ringing');
+      } else {
+        btn.style.background = 'rgba(16, 185, 129, 0.1)';
+        btn.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        btn.style.color = '#059669';
+        icon.className = 'fa fa-volume-up';
+        label.textContent = 'Sound: ON';
+        btn.classList.remove('pulse-ringing');
+      }
+    },
+
+    // Pleasant high-definition chime for Deposit, Withdrawal, KYC
+    playChime(type = 'deposit') {
+      if (!this.enabled) return;
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+
+      try {
+        const now = ctx.currentTime;
+        let notes = [523.25, 659.25, 783.99]; // C5, E5, G5 (Deposit)
+        if (type === 'withdrawal') {
+          notes = [587.33, 739.99, 880.00]; // D5, F#5, A5 (Withdrawal)
+        } else if (type === 'kyc') {
+          notes = [440.00, 554.37, 659.25]; // A4, C#5, E5 (KYC)
+        }
+
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+
+          gain.gain.setValueAtTime(0.0001, now + idx * 0.09);
+          gain.gain.exponentialRampToValueAtTime(0.22, now + idx * 0.09 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.09 + 0.38);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now + idx * 0.09);
+          osc.stop(now + idx * 0.09 + 0.40);
+        });
+      } catch (err) {
+        console.warn('Error synthesizing chime:', err);
+      }
+    },
+
+    // Realistic telephone ring tone pulse (Ding-dong... Ding-dong!)
+    playChatRingPulse() {
+      if (!this.enabled) return;
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+
+      try {
+        const now = ctx.currentTime;
+        const notes = [
+          { freq: 587.33, start: 0.00, dur: 0.12 },
+          { freq: 880.00, start: 0.10, dur: 0.20 },
+          { freq: 587.33, start: 0.35, dur: 0.12 },
+          { freq: 880.00, start: 0.45, dur: 0.35 }
+        ];
+
+        notes.forEach(n => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(n.freq, now + n.start);
+
+          gain.gain.setValueAtTime(0.0001, now + n.start);
+          gain.gain.exponentialRampToValueAtTime(0.24, now + n.start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + n.start + n.dur);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now + n.start);
+          osc.stop(now + n.start + n.dur + 0.02);
+        });
+      } catch (err) {
+        console.warn('Error playing chat ring pulse:', err);
+      }
+    },
+
+    // Recurring chat ring every 15 seconds (within client's 10-20s requirement)
+    startRecurringChatRing() {
+      if (this.isChatRinging) return;
+      this.isChatRinging = true;
+      this.updateUI();
+
+      this.lastRingTimestamp = Date.now();
+      this.playChatRingPulse();
+
+      if (this.chatRingTimer) clearInterval(this.chatRingTimer);
+      this.chatRingTimer = setInterval(() => {
+        if (!this.isChatRinging || !this.enabled) return;
+        this.lastRingTimestamp = Date.now();
+        this.playChatRingPulse();
+      }, 15000);
+    },
+
+    // Stops recurring chat ring when admin responds or all customer messages are handled
+    stopRecurringChatRing() {
+      if (!this.isChatRinging && !this.chatRingTimer) return;
+      this.isChatRinging = false;
+      if (this.chatRingTimer) {
+        clearInterval(this.chatRingTimer);
+        this.chatRingTimer = null;
+      }
+      this.updateUI();
+    }
+  };
+
+  // State tracker for incoming requests count
+  let prevAlertCounts = {
+    deposits: null,
+    withdrawals: null,
+    kycs: null,
+    initialized: false
+  };
+
   // Real-time Automated Polling for Badges & Incoming Chats (Every 4s)
   let adminPollingTimer = null;
   function startAdminPolling() {
@@ -457,6 +684,43 @@
       if (document.getElementById('statPendingDeposits')) document.getElementById('statPendingDeposits').textContent = res.metrics.pendingDeposits;
       if (document.getElementById('statPendingWithdrawals')) document.getElementById('statPendingWithdrawals').textContent = res.metrics.pendingWithdrawals;
       if (document.getElementById('statPendingKycs')) document.getElementById('statPendingKycs').textContent = res.metrics.pendingKycs;
+
+      // Audio Alerts & Toast Notifications for incoming admin requests
+      const curDeposits = parseInt(res.metrics.pendingDeposits, 10) || 0;
+      const curWithdrawals = parseInt(res.metrics.pendingWithdrawals, 10) || 0;
+      const curKycs = parseInt(res.metrics.pendingKycs, 10) || 0;
+
+      if (!prevAlertCounts.initialized) {
+        prevAlertCounts.deposits = curDeposits;
+        prevAlertCounts.withdrawals = curWithdrawals;
+        prevAlertCounts.kycs = curKycs;
+        prevAlertCounts.initialized = true;
+      } else {
+        if (curDeposits > prevAlertCounts.deposits) {
+          const diff = curDeposits - prevAlertCounts.deposits;
+          AdminAudio.playChime('deposit');
+          if (window.AdminUI && window.AdminUI.toast) {
+            window.AdminUI.toast('Deposit Request Alert', `${diff} new deposit payment awaiting verification.`, 'info');
+          }
+        }
+        if (curWithdrawals > prevAlertCounts.withdrawals) {
+          const diff = curWithdrawals - prevAlertCounts.withdrawals;
+          AdminAudio.playChime('withdrawal');
+          if (window.AdminUI && window.AdminUI.toast) {
+            window.AdminUI.toast('Withdrawal Request Alert', `${diff} new withdrawal payout request submitted.`, 'warning');
+          }
+        }
+        if (curKycs > prevAlertCounts.kycs) {
+          const diff = curKycs - prevAlertCounts.kycs;
+          AdminAudio.playChime('kyc');
+          if (window.AdminUI && window.AdminUI.toast) {
+            window.AdminUI.toast('KYC Document Alert', `${diff} new identity verification awaiting review.`, 'info');
+          }
+        }
+        prevAlertCounts.deposits = curDeposits;
+        prevAlertCounts.withdrawals = curWithdrawals;
+        prevAlertCounts.kycs = curKycs;
+      }
 
       // Update Navigation Tab Badges
       const depBadge = document.getElementById('adminDepositUnreadBadge');
@@ -1709,6 +1973,14 @@
           }
         }
 
+        // Live Chat Recurring Ring Alert:
+        // When any user sends a message, ring alert repeats every 15 seconds until responded or opened!
+        if (totalUnread > 0) {
+          AdminAudio.startRecurringChatRing();
+        } else {
+          AdminAudio.stopRecurringChatRing();
+        }
+
         if (res.conversations.length === 0) {
           listEl.innerHTML = `<div style="text-align: center; color: #64748b; padding: 24px; font-size: 13px;">No active conversations.</div>`;
           return;
@@ -1771,8 +2043,8 @@
       document.getElementById('adminChatSelectedBalance').textContent = `$${parseFloat(userConv.balance || 0).toFixed(2)}`;
     }
 
-    loadChatConversations();
     await loadActiveUserMessages();
+    await loadChatConversations();
   };
 
   async function loadActiveUserMessages() {
@@ -2854,6 +3126,9 @@
         }
       });
     });
+
+    // Initialize Real-time Audio Alerts & Autoplay Unlocking
+    AdminAudio.init();
 
     // Check Authentication & Load Data
     checkAuthAndLoad();
