@@ -2548,15 +2548,16 @@
       window._nativeChatOpen = chatOpen;
       chatWin.style.display = chatOpen ? 'flex' : 'none';
       if (chatOpen) {
+        window._chatSessionStart = Date.now();
         floatBtn.style.display = 'none';
         if (promptBox) promptBox.style.display = 'none';
         const chatBadge = document.getElementById('nativeChatBadge');
         if (chatBadge) chatBadge.style.display = 'none';
         API.post('/api/user/chat/read', {});
 
-        // Direct clean active session greeting (Do NOT load old bloated history)
+        // Clean active session container (No old bloated history or past greetings)
         const container = document.getElementById('nativeChatMsgContainer');
-        if (container && (!container.children.length || container.querySelector('.text-muted'))) {
+        if (container) {
           container.innerHTML = `
             <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 24px 16px;">
               <div style="font-size: 34px; margin-bottom: 8px;">💬</div>
@@ -2581,6 +2582,9 @@
           clearInterval(pollInterval);
           pollInterval = null;
         }
+        // Clean messages container upon closing
+        const container = document.getElementById('nativeChatMsgContainer');
+        if (container) container.innerHTML = '';
       }
     }
 
@@ -2616,7 +2620,7 @@
       });
     });
 
-    // Poll for new admin replies during open chat session
+    // Poll for new admin replies during active open chat session ONLY
     async function pollAdminReplies() {
       try {
         const res = await API.get('/api/user/chat');
@@ -2624,7 +2628,15 @@
         const container = document.getElementById('nativeChatMsgContainer');
         if (!container) return;
 
-        const adminMessages = res.messages.filter(m => m.sender === 'admin');
+        // Session cutoff: Only show replies sent during current session (do not pull old historical greetings)
+        const sessionStart = window._chatSessionStart || Date.now();
+        const adminMessages = res.messages.filter(m => {
+          if (m.sender !== 'admin') return false;
+          if (!m.created_at) return false;
+          const msgTime = new Date(m.created_at).getTime();
+          return msgTime >= (sessionStart - 2000);
+        });
+
         adminMessages.forEach(m => {
           const msgId = `chat-msg-${m.id}`;
           if (!document.getElementById(msgId)) {

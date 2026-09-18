@@ -89,6 +89,14 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
+    // Account restriction check (when disabled by admin: deposit allowed, withdrawal blocked)
+    if (user.status === 'disabled' || user.status === 'banned') {
+      return res.status(403).json({
+        success: false,
+        message: 'Withdrawals are currently suspended on your account. Please contact customer support.'
+      });
+    }
+
     // 1. Mandatory requirement: All assigned tasks and daily orders must be completed before withdrawal
     const isNegative = parseFloat(user.balance || 0) < 0;
     const userTasks = await db.getTasks(user.id);

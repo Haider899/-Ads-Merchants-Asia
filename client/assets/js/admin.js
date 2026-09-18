@@ -806,6 +806,54 @@
   // 3. Users Management
   window.loadUsers = async function() {
     const res = await AdminAPI.get('/api/admin/users');
+    window.renderUsers(res);
+  };
+
+  function getUserCountryFlagHtml(u) {
+    let code = (u.country_code || '').trim().toLowerCase();
+    if (!code || code.length !== 2) {
+      const phone = String(u.phone || '').trim();
+      if (phone.startsWith('+92') || phone.startsWith('0092')) code = 'pk';
+      else if (phone.startsWith('+60') || phone.startsWith('0060')) code = 'my';
+      else if (phone.startsWith('+1')) code = 'us';
+      else if (phone.startsWith('+44')) code = 'gb';
+      else if (phone.startsWith('+971')) code = 'ae';
+      else if (phone.startsWith('+91')) code = 'in';
+      else if (phone.startsWith('+62')) code = 'id';
+      else if (phone.startsWith('+880')) code = 'bd';
+      else if (phone.startsWith('+63')) code = 'ph';
+      else if (phone.startsWith('+65')) code = 'sg';
+      else if (phone.startsWith('+84')) code = 'vn';
+      else if (phone.startsWith('+66')) code = 'th';
+      else code = 'us';
+    }
+    return `<img src="https://flagcdn.com/24x18/${code}.png" style="width: 18px; height: 13px; border-radius: 2px; vertical-align: middle; box-shadow: 0 1px 2px rgba(0,0,0,0.2); display: inline-block; margin-left: 6px;" alt="${code.toUpperCase()}" title="${code.toUpperCase()}">`;
+  }
+
+  window.toggleUserStatus = async function(userId, newStatus) {
+    const user = state.users.find(u => String(u.id) === String(userId));
+    const name = user ? (user.fullname || user.username) : 'User';
+    const isDisable = newStatus === 'disabled';
+    
+    if (!confirm(`Are you sure you want to ${isDisable ? 'DISABLE' : 'ENABLE'} ${name}?${isDisable ? '\n\nWhen disabled:\n- User CANNOT start tasks\n- User CAN deposit\n- User CANNOT withdraw' : '\n\nUser will regain full access to start tasks and request withdrawals.'}`)) {
+      return;
+    }
+
+    try {
+      const res = await AdminAPI.post(`/api/admin/users/${userId}/toggle-status`, { status: newStatus });
+      if (res && res.success) {
+        AdminUI.toast('Account Updated', res.message || `User is now ${newStatus}.`, 'success');
+        if (user) user.status = newStatus;
+        loadUsers();
+      } else {
+        AdminUI.toast('Error', (res && res.message) || 'Failed to update user status.', 'error');
+      }
+    } catch (e) {
+      AdminUI.toast('Error', e.message || 'Failed to toggle status.', 'error');
+    }
+  };
+
+  window.renderUsers = function(res) {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
 
@@ -828,7 +876,7 @@
       }
 
       if (state.users.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">No registered users found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 24px; color: #64748b;">No registered users found.</td></tr>`;
         return;
       }
       const role = (state.currentRole || 'super_admin').toLowerCase();
@@ -848,11 +896,15 @@
             <button class="btn-action btn-reset" onclick="openPasswordResetModal('${u.id}')" title="Reset Password">
               <i class="fa fa-key"></i> Reset Pass
             </button>
-            ${u.is_online ? `
-              <button class="btn-action" style="background: #64748b; color: white;" onclick="kickUserSession('${u.id}', '${escapeHtml(u.fullname || u.username)}')" title="End Active Session">
-                <i class="fa fa-power-off"></i> End Session
+            ${u.status === 'disabled' ? `
+              <button class="btn-action" style="background: #10b981; color: white;" onclick="toggleUserStatus('${u.id}', 'active')" title="Account is Disabled. Click to Enable user.">
+                <i class="fa fa-user-check"></i> Enable
               </button>
-            ` : ''}
+            ` : `
+              <button class="btn-action" style="background: #f43f5e; color: white;" onclick="toggleUserStatus('${u.id}', 'disabled')" title="Account is Active. Click to Disable user (Blocks tasks & withdrawals).">
+                <i class="fa fa-user-slash"></i> Disable
+              </button>
+            `}
             <button class="btn-action btn-reject" onclick="deleteUser('${u.id}', '${escapeHtml(u.fullname || u.username)}')" title="Permanently Delete User" style="background: #ef4444; color: white;">
               <i class="fa fa-trash"></i> Delete
             </button>
@@ -869,7 +921,9 @@
                   ? `<span style="display:inline-block; width:10px; height:10px; min-width:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;" title="🟢 Online Now (Active Session)"></span>` 
                   : `<span style="display:inline-block; width:8px; height:8px; min-width:8px; border-radius:50%; background:#cbd5e1;" title="Offline"></span>`
                 }
-                <div style="font-weight: 700; color: #0f172a; font-size: 14px;">${escapeHtml(u.fullname || u.username || 'User')}</div>
+                <div style="font-weight: 700; color: #0f172a; font-size: 14px; display: inline-flex; align-items: center;">
+                  ${escapeHtml(u.fullname || u.username || 'User')} ${getUserCountryFlagHtml(u)}
+                </div>
               </div>
               <div style="font-size: 12px; color: #0284c7; font-weight: 600; margin-left: ${u.is_online ? '16px' : '14px'};">@${escapeHtml(u.username || 'user')}</div>
               <small style="color: #94a3b8; font-size: 11px; margin-left: ${u.is_online ? '16px' : '14px'};">ID: ${u.id}</small>
@@ -883,6 +937,7 @@
               ${bal < 0 ? '-' : ''}$${Math.abs(bal).toFixed(2)}
             </td>
             <td style="font-weight: 700; color: #64748b;">$${parseFloat(u.frozen_balance || 0).toFixed(2)}</td>
+            <td style="font-weight: 700; color: #7c3aed;">$${parseFloat(u.commission_balance || 0).toFixed(2)}</td>
             <td style="font-weight: 700; color: #0284c7;">+$${parseFloat(u.today_profit || 0).toFixed(2)}</td>
             <td>
               <span class="badge-status badge-${(u.kyc_status || 'none').toLowerCase()}">
@@ -891,7 +946,9 @@
             </td>
             <td>
               <div style="display: flex; flex-direction: column; gap: 4px;">
-                <span class="badge-status badge-${u.status === 'active' ? 'active' : 'banned'}">${(u.status || 'active').toUpperCase()}</span>
+                <span class="badge-status" style="${u.status === 'disabled' ? 'background: #fee2e2; color: #b91c1c; font-weight: 700; border: 1px solid #fca5a5;' : (u.status === 'active' ? 'background: #dcfce7; color: #166534; font-weight: 700; border: 1px solid #86efac;' : 'background: #fef3c7; color: #b45309; font-weight: 700; border: 1px solid #fde68a;')}">
+                  ${(u.status || 'active').toUpperCase()}
+                </span>
                 ${u.is_online 
                   ? `<span class="badge-status" style="background: #dcfce7; color: #166534; font-size: 11px; font-weight: 700; border: 1px solid #86efac; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span> Active Session</span>` 
                   : `<span class="badge-status" style="background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 600;">Offline</span>`
@@ -905,7 +962,7 @@
         `;
       }).join('');
     } else {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #dc2626;">Failed to load user accounts.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 24px; color: #dc2626;">Failed to load user accounts.</td></tr>`;
     }
   };
 

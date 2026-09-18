@@ -502,6 +502,42 @@ router.post('/users/reset-password', adminAuthMiddleware, checkRole('sub_admin')
   });
 });
 
+// POST /api/admin/users/:id/toggle-status - Enable or disable user account
+router.post('/users/:id/toggle-status', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await db.findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const currentStatus = (user.status || 'active').toLowerCase();
+    const newStatus = req.body.status ? req.body.status.toLowerCase() : (currentStatus === 'disabled' ? 'active' : 'disabled');
+
+    const updated = await db.updateUser(userId, { status: newStatus });
+
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'USER_STATUS_TOGGLE',
+      entity: 'user',
+      entityId: userId,
+      oldValue: { status: currentStatus },
+      newValue: { status: newStatus },
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      message: `User account is now ${newStatus.toUpperCase()}.`,
+      user: updated,
+      new_status: newStatus
+    });
+  } catch (err) {
+    console.error('Toggle User Status Error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update user status: ' + err.message });
+  }
+});
+
 // POST /api/admin/users/assign-task - Assign / push task with forced deficit or schedule custom task
 router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
@@ -582,136 +618,42 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
 
     const commEarned = parseFloat((pPrice * commissionRate).toFixed(2));
 
-    if (pushImmediate) {
-      // Push immediately as a pending order and deduct balance into deficit
-      const currentBalance = parseFloat(user.balance || 0);
-      const calc = calculateOrder({
-        unit_price: pPrice,
-        quantity: 1,
-        commission_rate: commissionRate,
-        reward_rate: commissionRate,
-        available_balance: currentBalance
-      });
+    const assignedProdName = categoryKey && !explicitCategoryProduct ? makeCategoryMarker(categoryKey) : pName;
 
-      const newBalance = round(currentBalance - calc.gross_amount);
-      const frozenBal = newBalance < 0 ? round(Math.abs(newBalance)) : (user.frozen_balance || 0);
-      const orderNumber = generateOrderNumber();
-      const taskId = generateTaskNumber();
-      const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
+    // Queue override on user record so it triggers and deducts balance ONLY when user clicks Start
+    await db.updateUser(userId, {
+      custom_order_num: targetOrder,
+      custom_deficit_amount: defAmount,
+      custom_product_name: assignedProdName,
+      custom_product_price: pPrice
+    });
 
-      // Check if user has an existing pending task - if so, delete it or replace it
-      const existingTasks = await db.getTasks(user.id);
-      const existingPending = existingTasks.find(t => t.status === 'pending');
-      if (existingPending) {
-        await db.query('DELETE FROM tasks WHERE id = ?', [existingPending.id]).catch(() => {});
-      }
+    // Send push notification to user so they see the task notification
+    await db.createNotification({
+      user_id: user.id,
+      type: 'ORDER_PUSH',
+      title: 'New Task Assigned!',
+      message: `Admin has assigned task #${targetOrder} (${pName || 'Custom Task'}). Please proceed to the Start page to start your order.`
+    }).catch(() => {});
 
-      // Create Order Record in orders table
-      await db.createOrder({
-        id: orderId,
-        order_number: orderNumber,
-        user_id: user.id,
-        merchant_id: null,
-        task_id: taskId,
-        product_id: null,
-        product_name: pName,
-        product_image: pImage,
-        category: selectedCategory ? selectedCategory.label : 'General',
-        unit_price: calc.unit_price,
-        quantity: calc.quantity,
-        subtotal: calc.subtotal,
-        discount_rate: calc.discount_rate,
-        discount_amount: calc.discount_amount,
-        tax_rate: calc.tax_rate,
-        tax_amount: calc.tax_amount,
-        fee_amount: calc.fee_amount,
-        gross_amount: calc.gross_amount,
-        commission_rate: calc.commission_rate,
-        commission_amount: calc.commission_amount,
-        reward_rate: calc.reward_rate,
-        reward_amount: calc.reward_amount,
-        user_deduction: calc.gross_amount,
-        payment_status: calc.is_deficit ? 'SHORTFALL' : 'PAID',
-        order_status: 'PROCESSING',
-        created_at: new Date()
-      });
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: 'TASK_ASSIGN_SCHEDULED',
+      entity: 'user',
+      entityId: user.id,
+      oldValue: null,
+      newValue: { targetOrder, pName, pPrice, defAmount, pushImmediate: Boolean(pushImmediate) },
+      ipAddress: req.ip
+    }).catch(() => {});
 
-      const task = {
-        id: taskId,
-        order_number: orderNumber,
-        user_id: user.id,
-        product_name: pName,
-        product_image: pImage,
-        product_price: calc.gross_amount,
-        commission_rate: calc.commission_rate,
-        commission_earned: calc.commission_amount,
-        commission_amount: calc.commission_amount,
-        status: 'pending',
-        order_num: targetOrder,
-        is_deficit: calc.is_deficit ? 1 : 0,
-        deficit_amount: calc.funding_shortfall,
-        created_at: new Date().toISOString()
-      };
-
-      await db.createTask(task);
-
-      // Record Ledger Entry: ORDER_RESERVE
-      await db.createLedgerTransaction({
-        userId: user.id,
-        orderId: orderId,
-        taskId: taskId,
-        adminId: req.admin.id,
-        type: 'ORDER_RESERVE',
-        amount: -calc.gross_amount,
-        balanceBefore: currentBalance,
-        balanceAfter: newBalance,
-        currency: 'USD',
-        reference: orderNumber,
-        description: `Immediate deficit task push: ${pName}`
-      }).catch(() => {});
-
-      await db.updateUser(user.id, {
-        balance: newBalance,
-        frozen_balance: frozenBal,
-        custom_order_num: null,
-        custom_deficit_amount: null,
-        custom_product_name: null,
-        custom_product_price: null
-      });
-
-      await db.createAuditLog({
-        adminId: req.admin.id,
-        action: 'TASK_PUSH_IMMEDIATE',
-        entity: 'task',
-        entityId: taskId,
-        oldValue: { balance: currentBalance },
-        newValue: { balance: newBalance, order_number: orderNumber, deficit: calc.funding_shortfall },
-        ipAddress: req.ip
-      }).catch(() => {});
-
-      return res.json({
-        success: true,
-        message: `Task pushed immediately! User working balance is now $${newBalance.toFixed(2)}${newBalance < 0 ? ' (Deficit: $' + Math.abs(newBalance).toFixed(2) + ')' : ''}.`,
-        task,
-        order_number: orderNumber,
-        new_balance: newBalance
-      });
-    } else {
-      // Schedule override for target order
-      await db.updateUser(userId, {
-        custom_order_num: targetOrder,
-        custom_deficit_amount: defAmount,
-        custom_product_name: categoryKey && !explicitCategoryProduct ? makeCategoryMarker(categoryKey) : pName,
-        custom_product_price: pPrice
-      });
-
-      return res.json({
-        success: true,
-        message: categoryKey && !explicitCategoryProduct
-          ? `Smart task override scheduled for Order #${targetOrder}. Product will be randomly selected from ${selectedCategory.label} without repeating where possible.`
-          : `Smart task override scheduled for Order #${targetOrder} (Deficit: $${defAmount.toFixed(2)}, Price: $${pPrice.toFixed(2)}).`
-      });
-    }
+    return res.json({
+      success: true,
+      message: `Task assigned successfully for Order #${targetOrder} (${pName || 'Item'}, Price: $${pPrice.toFixed(2)}, Deficit: $${defAmount.toFixed(2)}). User received notification. Balance will deduct when user starts the order.`,
+      target_order: targetOrder,
+      product_name: pName,
+      product_price: pPrice,
+      deficit_amount: defAmount
+    });
   } catch (err) {
     console.error('Assign Task Error:', err);
     res.status(500).json({ success: false, message: 'Error assigning task: ' + err.message });
@@ -1500,13 +1442,15 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
     const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
     const prodImg = productImage || 'client/assets/uploads/products/outdoor_shed.jpg';
 
-    // Insert into orders table
+    const targetOrder = (user.today_tasks_completed || 0) + 1;
+
+    // Insert into orders table with status ASSIGNED (waiting for user to start)
     const order = await db.createOrder({
       id: orderId,
       order_number: orderNumber,
       user_id: user.id,
       merchant_id: null,
-      task_id: pushAsTask ? taskId : null,
+      task_id: null,
       product_id: null,
       product_name: productName || 'Amazon Asia Merchant Order',
       product_image: prodImg,
@@ -1525,55 +1469,26 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
       reward_rate: calc.reward_rate,
       reward_amount: calc.reward_amount,
       user_deduction: calc.gross_amount,
-      payment_status: calc.is_deficit ? 'SHORTFALL' : 'PAID',
-      order_status: pushAsTask ? 'PROCESSING' : 'PENDING',
+      payment_status: 'PENDING',
+      order_status: 'ASSIGNED',
       created_at: new Date()
     });
 
-    let newBalance = currentBalance;
-    if (pushAsTask) {
-      newBalance = round(currentBalance - calc.gross_amount);
-      const frozenBal = newBalance < 0 ? round(Math.abs(newBalance)) : (user.frozen_balance || 0);
+    // Queue custom order on user record so it generates when user starts order on Start page
+    await db.updateUser(user.id, {
+      custom_order_num: targetOrder,
+      custom_deficit_amount: calc.funding_shortfall,
+      custom_product_name: productName || 'Amazon Asia Merchant Order',
+      custom_product_price: calc.gross_amount
+    });
 
-      // Create task in tasks table
-      await db.createTask({
-        id: taskId,
-        order_number: orderNumber,
-        user_id: user.id,
-        product_name: productName || 'Amazon Asia Merchant Order',
-        product_image: prodImg,
-        product_price: calc.gross_amount,
-        commission_rate: calc.commission_rate,
-        commission_earned: calc.commission_amount,
-        commission_amount: calc.commission_amount,
-        status: 'pending',
-        order_num: (user.today_tasks_completed || 0) + 1,
-        is_deficit: calc.is_deficit ? 1 : 0,
-        deficit_amount: calc.funding_shortfall,
-        created_at: new Date().toISOString()
-      });
-
-      // Ledger entry: ORDER_RESERVE
-      await db.createLedgerTransaction({
-        userId: user.id,
-        orderId: orderId,
-        taskId: taskId,
-        adminId: req.admin.id,
-        type: 'ORDER_RESERVE',
-        amount: -calc.gross_amount,
-        balanceBefore: currentBalance,
-        balanceAfter: newBalance,
-        currency: 'USD',
-        reference: orderNumber,
-        description: `Order created by admin: ${productName}`
-      }).catch(() => {});
-
-      // Update user balance
-      await db.updateUser(user.id, {
-        balance: newBalance,
-        frozen_balance: frozenBal
-      });
-    }
+    // Send real-time notification to user
+    await db.createNotification({
+      user_id: user.id,
+      type: 'ORDER_PUSH',
+      title: 'New Order Assigned!',
+      message: `Admin has assigned order #${orderNumber} (${productName || 'Assigned Order'}). Please start your order on the Start page to proceed.`
+    }).catch(() => {});
 
     // Record audit log
     await db.createAuditLog({

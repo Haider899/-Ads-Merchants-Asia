@@ -191,6 +191,14 @@ router.post('/generate', authMiddleware, async (req, res) => {
     // Use whichever count is lower (DB field vs actual count) to prevent false blocks
     const effectiveCompleted = Math.min(parseInt(user.today_tasks_completed || 0, 10), trulyCompleted > 0 ? trulyCompleted : parseInt(user.today_tasks_completed || 0, 10));
 
+    // Disabled / Restricted user check
+    if (user.status === 'disabled' || user.status === 'banned') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is currently disabled from starting tasks. Please contact customer support.'
+      });
+    }
+
     // Strict KYC & Merchant Contract Guard (Voice Note S8)
     if (user.kyc_status !== 'approved') {
       let msg = 'Please sign your Merchant Contract and complete KYC verification before starting optimization tasks.';
@@ -436,40 +444,61 @@ router.post('/generate', authMiddleware, async (req, res) => {
     }
     await db.updateUser(user.id, userUpdates);
 
-    // Create Order Record in orders table
-    await db.createOrder({
-      id: orderId,
-      order_number: orderNumber,
-      user_id: user.id,
-      merchant_id: null,
-      task_id: taskId,
-      product_id: selectedProduct.id || null,
-      product_name: productName,
-      product_image: productImage,
-      category: selectedProduct.category || 'General',
-      unit_price: calc.unit_price,
-      quantity: calc.quantity,
-      subtotal: calc.subtotal,
-      discount_rate: calc.discount_rate,
-      discount_amount: calc.discount_amount,
-      tax_rate: calc.tax_rate,
-      tax_amount: calc.tax_amount,
-      fee_amount: calc.fee_amount,
-      gross_amount: calc.gross_amount,
-      commission_rate: calc.commission_rate,
-      commission_amount: calc.commission_amount,
-      reward_rate: calc.reward_rate,
-      reward_amount: calc.reward_amount,
-      user_deduction: calc.gross_amount,
-      payment_status: calc.is_deficit ? 'SHORTFALL' : 'PAID',
-      order_status: 'PROCESSING',
-      created_at: new Date()
-    });
+    // Check if there is an ASSIGNED order already queued for this user by admin push
+    const assignedOrders = await db.query('SELECT * FROM orders WHERE user_id = ? AND order_status = "ASSIGNED" ORDER BY created_at DESC LIMIT 1', [user.id]).catch(() => []);
+    let activeOrderId = orderId;
+    let activeOrderNum = orderNumber;
+    if (assignedOrders && assignedOrders.length > 0) {
+      const ao = assignedOrders[0];
+      activeOrderId = ao.id;
+      activeOrderNum = ao.order_number;
+      await db.query(`
+        UPDATE orders SET 
+          task_id = ?, 
+          product_name = ?, 
+          product_image = ?, 
+          gross_amount = ?, 
+          commission_amount = ?, 
+          payment_status = ?, 
+          order_status = "PROCESSING" 
+        WHERE id = ?
+      `, [taskId, productName, productImage, calc.gross_amount, calc.commission_amount, calc.is_deficit ? 'SHORTFALL' : 'PAID', ao.id]).catch(() => {});
+    } else {
+      // Create Order Record in orders table
+      await db.createOrder({
+        id: orderId,
+        order_number: orderNumber,
+        user_id: user.id,
+        merchant_id: null,
+        task_id: taskId,
+        product_id: selectedProduct.id || null,
+        product_name: productName,
+        product_image: productImage,
+        category: selectedProduct.category || 'General',
+        unit_price: calc.unit_price,
+        quantity: calc.quantity,
+        subtotal: calc.subtotal,
+        discount_rate: calc.discount_rate,
+        discount_amount: calc.discount_amount,
+        tax_rate: calc.tax_rate,
+        tax_amount: calc.tax_amount,
+        fee_amount: calc.fee_amount,
+        gross_amount: calc.gross_amount,
+        commission_rate: calc.commission_rate,
+        commission_amount: calc.commission_amount,
+        reward_rate: calc.reward_rate,
+        reward_amount: calc.reward_amount,
+        user_deduction: calc.gross_amount,
+        payment_status: calc.is_deficit ? 'SHORTFALL' : 'PAID',
+        order_status: 'PROCESSING',
+        created_at: new Date()
+      });
+    }
 
     // Record Ledger Entry: ORDER_RESERVE
     await db.createLedgerTransaction({
       userId: user.id,
-      orderId: orderId,
+      orderId: activeOrderId,
       taskId: taskId,
       adminId: null,
       type: 'ORDER_RESERVE',
@@ -477,14 +506,14 @@ router.post('/generate', authMiddleware, async (req, res) => {
       balanceBefore: currentBalance,
       balanceAfter: newBalance,
       currency: 'USD',
-      reference: orderNumber,
+      reference: activeOrderNum,
       description: `Order reserve deduction for ${productName}`
     });
 
     // Create Task Record
     const task = {
       id: taskId,
-      order_number: orderNumber,
+      order_number: activeOrderNum,
       user_id: user.id,
       product_name: productName,
       product_image: productImage,
