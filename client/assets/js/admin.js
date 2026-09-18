@@ -480,36 +480,26 @@
       }
     },
 
-    // Realistic telephone ring melody (3.0 seconds duration)
+    // Realistic telephone ring melody - Continuous Repeating Alarm Loop
     playChatRingPulse() {
-      if (!this.enabled) return;
+      if (!this.enabled || !this.isChatRinging) return;
       const ctx = this.ensureContext();
       if (!ctx) return;
 
       try {
         const now = ctx.currentTime;
-        // 3-second structured telephony chime cadence:
-        // Burst 1 (0.00s - 0.80s)
-        // Burst 2 (1.10s - 1.90s)
-        // Burst 3 (2.20s - 3.00s)
+        // Continuous telephone alarm cadence with 587.33Hz (D5) & 880.00Hz (A5)
         const notes = [
           // Burst 1
           { freq: 587.33, start: 0.00, dur: 0.12 },
           { freq: 880.00, start: 0.10, dur: 0.22 },
-          { freq: 587.33, start: 0.32, dur: 0.12 },
-          { freq: 880.00, start: 0.44, dur: 0.35 },
-
+          { freq: 587.33, start: 0.35, dur: 0.12 },
+          { freq: 880.00, start: 0.45, dur: 0.35 },
           // Burst 2
-          { freq: 587.33, start: 1.10, dur: 0.12 },
-          { freq: 880.00, start: 1.20, dur: 0.22 },
-          { freq: 587.33, start: 1.42, dur: 0.12 },
-          { freq: 880.00, start: 1.54, dur: 0.35 },
-
-          // Burst 3 (resolving to 3.0 seconds)
-          { freq: 587.33, start: 2.20, dur: 0.12 },
-          { freq: 880.00, start: 2.30, dur: 0.22 },
-          { freq: 659.25, start: 2.52, dur: 0.15 },
-          { freq: 1046.50, start: 2.65, dur: 0.35 }
+          { freq: 587.33, start: 0.95, dur: 0.12 },
+          { freq: 880.00, start: 1.05, dur: 0.22 },
+          { freq: 587.33, start: 1.30, dur: 0.12 },
+          { freq: 880.00, start: 1.40, dur: 0.38 }
         ];
 
         notes.forEach(n => {
@@ -540,7 +530,7 @@
       }
     },
 
-    // Recurring chat ring: 3s ring duration, repeats every 5 seconds until responded
+    // Recurring chat ring: Non-stop repeating alarm loop every 2 seconds until answered
     startRecurringChatRing() {
       if (this.isChatRinging) return;
       this.isChatRinging = true;
@@ -554,10 +544,10 @@
         if (!this.isChatRinging || !this.enabled) return;
         this.lastRingTimestamp = Date.now();
         this.playChatRingPulse();
-      }, 5000); // exactly 5 seconds timer interval
+      }, 2000); // continuous alarm loop every 2 seconds
     },
 
-    // Stops recurring chat ring immediately when admin responds or opens chat
+    // Stops recurring chat ring immediately when admin responds, silences, or mutes
     stopRecurringChatRing() {
       if (!this.isChatRinging && !this.chatRingTimer) return;
       this.isChatRinging = false;
@@ -2008,11 +1998,19 @@
         }
 
         // Live Chat Recurring Ring Alert:
-        // When any user sends a message, ring alert repeats every 15 seconds until responded or opened!
+        // When any user sends a message, alarm rings continuously until admin responds or silences!
         if (totalUnread > 0) {
           AdminAudio.startRecurringChatRing();
         } else {
           AdminAudio.stopRecurringChatRing();
+        }
+
+        // Update Silence button state for active chat
+        const silenceBtn = document.getElementById('adminChatSilenceBtn');
+        if (silenceBtn) {
+          const activeConv = state.activeChatUserId ? res.conversations.find(c => c.user_id === state.activeChatUserId) : null;
+          const hasUnread = activeConv && ((activeConv.unread_admin_count || activeConv.unread_count || 0) > 0);
+          silenceBtn.style.display = hasUnread ? 'inline-flex' : 'none';
         }
 
         if (res.conversations.length === 0) {
@@ -2141,6 +2139,22 @@
     if (input) {
       input.value = text;
       input.focus();
+    }
+  };
+
+  window.silenceActiveChatAlarm = async function() {
+    if (!state.activeChatUserId) return;
+    try {
+      await AdminAPI.post(`/api/admin/chat/${state.activeChatUserId}/silence`, {});
+      AdminAudio.stopRecurringChatRing();
+      const silenceBtn = document.getElementById('adminChatSilenceBtn');
+      if (silenceBtn) silenceBtn.style.display = 'none';
+      await loadChatConversations();
+      if (window.AdminUI && window.AdminUI.toast) {
+        window.AdminUI.toast('Alarm Silenced', 'Incoming message alert silenced for this customer.', 'info');
+      }
+    } catch (err) {
+      console.error('Error silencing chat alarm:', err);
     }
   };
 

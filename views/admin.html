@@ -963,6 +963,9 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
+                                    <button type="button" id="adminChatSilenceBtn" onclick="silenceActiveChatAlarm()" title="Silence incoming message alarm for this chat" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #dc2626; border-radius: 8px; font-size: 12px; font-weight: 700; padding: 6px 12px; cursor: pointer; align-items: center; gap: 6px;">
+                                        <i class="fa fa-bell-slash"></i> Silence Alarm
+                                    </button>
                                     <span id="adminChatSelectedVip" class="badge-status badge-primary">Bronze VIP</span>
                                     <span id="adminChatSelectedBalance" class="badge-status badge-success">$0.00</span>
                                 </div>
@@ -1918,6 +1921,6 @@
     </div>
 
     <!-- Dedicated Admin Script -->
-    <script src="/client/assets/js/admin.js?v=4.4.1"></script>
+    <script src="/client/assets/js/admin.js?v=4.4.2"></script>
 </body>
 </html>

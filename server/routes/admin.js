@@ -1211,7 +1211,8 @@ router.get('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support
   const { userId } = req.params;
   const user = await db.findUserById(userId);
   const messages = await db.getChatMessages(userId);
-  await db.markChatReadByAdmin(userId);
+  // Note: markChatReadByAdmin is called when admin replies or explicitly silences,
+  // so background polling does not prematurely clear unread alarm state.
 
   const code = (user && user.country_code ? user.country_code : 'PK').toUpperCase();
   const name = (user && user.country_name) ? user.country_name : geo.getCountryName(code);
@@ -1232,6 +1233,13 @@ router.get('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support
     } : null,
     messages
   });
+});
+
+// POST /api/admin/chat/:userId/silence - Silence alarm and mark messages read for this user
+router.post('/chat/:userId/silence', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
+  const { userId } = req.params;
+  await db.markChatReadByAdmin(userId);
+  res.json({ success: true, message: 'Alarm silenced for this conversation.' });
 });
 
 // POST /api/admin/chat/:userId - Send admin reply to a user
@@ -1255,6 +1263,9 @@ router.post('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'suppor
     userName: user.fullname || user.username,
     userEmail: user.email
   });
+
+  // Mark all previous customer messages in this thread as handled/read by admin
+  await db.markChatReadByAdmin(userId);
 
   // Also send notification alert to user
   await db.createNotification({
