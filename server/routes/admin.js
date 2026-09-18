@@ -340,7 +340,7 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
       updates.today_profit = 0.00;
       updates.current_set = 0;
       updates.last_reset_date = new Date().toISOString().slice(0, 10);
-      updates.tasks_reset_at = new Date(); // Cutoff timestamp for self-heal
+      updates.tasks_reset_at = new Date().toISOString().slice(0, 19).replace('T', ' '); // Formatted for MySQL DATETIME
       await db.query('DELETE FROM tasks WHERE user_id = ? AND status = "pending"', [user.id]).catch(() => {});
       await db.query('UPDATE orders SET order_status = "CANCELLED", payment_status = "CANCELLED" WHERE user_id = ? AND payment_status = "SHORTFALL"', [user.id]).catch(() => {});
     }
