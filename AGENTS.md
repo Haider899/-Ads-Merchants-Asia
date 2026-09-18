@@ -61,11 +61,13 @@ This document is the single source of truth for all business logic, financial ca
 
 ---
 
-## 5. Pending Client Decision: Total Balance with Commission during Deficit
-- **Question sent to Client**: During a deficit order (e.g. 4th order of $50 when balance is $20, resulting in -$30 working balance):
-  - **Option A (Freeze Completed Funds)**: Show current completed balance ($108.00). Only jump to $168.00 after user deposits the $30 shortfall and submits the order.
-  - **Option B (Expected Total Return)**: Show $168.00 immediately to display the unlocked total funds after shortfall clearance.
-- **Status**: Waiting for client reply. DO NOT change this logic until client confirms.
+## 5. Client Confirmed Decision: Option A (Total Balance with Commission during Deficit)
+- **Client Selected**: **Option A (Freeze Completed Funds)**.
+- **Rule**: During a deficit order (e.g. 4th order of $50 when working balance is $20, resulting in -$30 working balance):
+  - **Total Balance with Commission** displays the accumulated completed funds from previously completed orders ($108.00 in the example).
+  - It remains frozen at $108.00 and does NOT wipe or jump to $168.00 during deficit.
+  - Only when the user clears the deficit (e.g. deposits the $30 shortfall) and submits the order does the balance jump to $168.00 ($108 + $50 + $10 commission).
+- **Status**: Confirmed & Implemented. Matches screenshot `07.10.33 (1).jpeg` ($5068.20) and `07.10.33.jpeg` ($13338.00).
 
 ---
 

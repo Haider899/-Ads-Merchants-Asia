@@ -426,9 +426,13 @@
     // Start Page specific: Total Balance with Commission represents accumulated order gross + commission.
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      const commBal = parseFloat(user.commission_balance !== undefined && user.commission_balance !== null ? user.commission_balance : 0);
+      let commBal = parseFloat(user.commission_balance !== undefined && user.commission_balance !== null ? user.commission_balance : 0);
+      if (commBal === 0 && window.__currentUser && parseFloat(window.__currentUser.commission_balance || 0) > 0) {
+        commBal = parseFloat(window.__currentUser.commission_balance);
+      }
       if (workingBalNum < 0) {
-        startGrandTotalEl.textContent = `USD ${formatUSD(frozenBalNum + userProfitNum)}`;
+        // Option A (Client Confirmed): Freeze completed funds during deficit
+        startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
       } else if (pTask) {
         startGrandTotalEl.textContent = `USD ${formatUSD(commBal + pendingPrice + pendingComm)}`;
       } else {
@@ -849,15 +853,19 @@
     // Start Page specific: Total Balance with Commission represents accumulated order gross + commission.
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      const commBal = parseFloat(
+      let commBal = parseFloat(
         data.commission_balance !== undefined && data.commission_balance !== null
           ? data.commission_balance
           : (window.__currentUser && window.__currentUser.commission_balance !== undefined && window.__currentUser.commission_balance !== null
               ? window.__currentUser.commission_balance
               : 0)
       );
+      if (commBal === 0 && window.__currentUser && parseFloat(window.__currentUser.commission_balance || 0) > 0) {
+        commBal = parseFloat(window.__currentUser.commission_balance);
+      }
       if (workBal < 0) {
-        startGrandTotalEl.textContent = `USD ${formatUSD(frozBal + profitVal)}`;
+        // Option A (Client Confirmed): Freeze completed funds during deficit
+        startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
       } else if (pTask) {
         startGrandTotalEl.textContent = `USD ${formatUSD(commBal + pendingPrice + pendingComm)}`;
       } else {
@@ -1199,79 +1207,84 @@
   }
 
   // Pending Task Withdrawal Modal Pop-up
-  window.showPendingTaskWithdrawalModal = function(options = {}) {
-    const existing = document.getElementById('pending-task-withdraw-modal');
-    if (existing) existing.remove();
+  // Helper to ensure SweetAlert2 is loaded
+  function ensureSwal(callback) {
+    if (typeof Swal !== 'undefined') {
+      return callback();
+    }
+    const existing = document.querySelector('script[src*="sweetalert2"]');
+    if (existing) {
+      existing.addEventListener('load', () => callback());
+      setTimeout(() => {
+        if (typeof Swal !== 'undefined') callback();
+      }, 300);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+    script.onload = () => callback();
+    script.onerror = () => callback();
+    document.head.appendChild(script);
+  }
 
-    const title = options.title || 'Task Completion Required';
-    const message = options.message || 'You have to complete your pending task and assigned orders before you can request a withdrawal.';
+  // Pending Task Withdrawal Modal Pop-up (SweetAlert2 UI/UX matching platform standard)
+  window.showPendingTaskWithdrawalModal = function(options = {}) {
+    const title = options.title || 'You Have to Complete Your Pending Task';
+    const message = options.message || 'You have an active pending order in progress. You have to complete your pending task and assigned orders before you can make a withdrawal.';
     const orderNum = options.pending_order_number || options.order_number || null;
     const prodName = options.product_name || null;
-    const completed = options.completed_tasks !== undefined ? options.completed_tasks : null;
-    const max = options.max_tasks !== undefined ? options.max_tasks : null;
+    const completed = options.completed_tasks !== undefined && options.completed_tasks !== null ? parseInt(options.completed_tasks, 10) : null;
+    const max = options.max_tasks !== undefined && options.max_tasks !== null ? parseInt(options.max_tasks, 10) : 5;
 
     let detailsBox = '';
     if ((completed !== null && max !== null) || orderNum) {
+      const pct = max > 0 ? Math.min(100, Math.round(((completed || 0) / max) * 100)) : 0;
       detailsBox = `
-        <div style="background: #f8fafc; border-radius: 14px; padding: 14px 16px; margin: 16px 0; border: 1.5px dashed #cbd5e1; text-align: left;">
+        <div style="background: #f8fafc; border-radius: 12px; padding: 13px 15px; margin: 14px 0 6px 0; border: 1.5px dashed #cbd5e1; text-align: left;">
           ${completed !== null && max !== null ? `
             <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569; font-weight: 600;">
               <span>Daily Tasks Progress:</span>
               <span style="color: #0f172a; font-weight: 800;">${completed} / ${max} Completed</span>
             </div>
             <div style="background: #e2e8f0; height: 8px; border-radius: 4px; margin: 8px 0 10px 0; overflow: hidden;">
-              <div style="background: linear-gradient(90deg, #f59e0b, #ea580c); width: ${Math.min(100, Math.round((completed / (max || 1)) * 100))}%; height: 100%;"></div>
+              <div style="background: linear-gradient(90deg, #f59e0b, #ea580c); width: ${pct}%; height: 100%; border-radius: 4px;"></div>
             </div>
           ` : ''}
           ${orderNum ? `
-            <div style="font-size: 12.5px; color: #9a3412; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-              <i class="fa fa-spinner fa-spin" style="color: #ea580c;"></i>
+            <div style="font-size: 12px; color: #c2410c; font-weight: 600; line-height: 1.4;">
               <span>Active Pending Order: <strong style="font-family: monospace; color: #0f172a;">${orderNum}</strong></span>
             </div>
-            ${prodName ? `<div style="font-size: 11.5px; color: #64748b; margin-top: 3px; padding-left: 18px;">${prodName}</div>` : ''}
+            ${prodName ? `<div style="font-size: 11.5px; color: #64748b; margin-top: 3px; line-height: 1.35;">${prodName}</div>` : ''}
           ` : ''}
         </div>
       `;
     }
 
-    const modal = document.createElement('div');
-    modal.id = 'pending-task-withdraw-modal';
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(15, 23, 42, 0.72);
-      backdrop-filter: blur(6px);
-      z-index: 99999999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 18px;
-    `;
-
-    modal.innerHTML = `
-      <div style="background: #ffffff; border-radius: 24px; max-width: 420px; width: 100%; padding: 28px 22px; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.8); position: relative; animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
-        <button style="position: absolute; top: 14px; right: 16px; background: #f1f5f9; border: none; font-size: 18px; width: 32px; height: 32px; border-radius: 50%; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;" onclick="document.getElementById('pending-task-withdraw-modal').remove()">&times;</button>
-        <div style="width: 68px; height: 68px; border-radius: 50%; background: #fef2f2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 30px; margin: 0 auto 16px auto; box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.12);">
-          <i class="fa fa-exclamation-circle"></i>
-        </div>
-        <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0;">${title}</h3>
-        <p style="font-size: 13.5px; color: #475569; line-height: 1.5; margin: 0 0 8px 0;">${message}</p>
-        ${detailsBox}
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-          <button style="flex: 1; padding: 13px 14px; border-radius: 14px; font-weight: 700; font-size: 13.5px; background: #f1f5f9; color: #475569; border: none; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('pending-task-withdraw-modal').remove()">
-            Close
-          </button>
-          <button style="flex: 2; padding: 13px 14px; border-radius: 14px; font-weight: 700; font-size: 13.5px; background: linear-gradient(135deg, #ea580c, #dc2626); color: #ffffff; border: none; cursor: pointer; box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35); transition: all 0.2s;" onclick="window.location.href='/home'">
-            <i class="fa fa-arrow-right mr-1"></i> Go to Tasks
-          </button>
-        </div>
+    const htmlContent = `
+      <div style="font-size: 14.5px; color: #545454; line-height: 1.55; margin-bottom: 6px;">
+        ${message}
       </div>
+      ${detailsBox}
     `;
 
-    document.body.appendChild(modal);
+    ensureSwal(() => {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: title,
+          icon: "info",
+          html: htmlContent,
+          focusConfirm: false,
+          confirmButtonText: "Ok",
+          confirmButtonColor: "#7066e0"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            window.location.href = "startData";
+          }
+        });
+      } else {
+        alert(`${title}\n\n${message}`);
+      }
+    });
   };
 
   // Intercept global withdraw clicks across dashboard/profile if tasks are incomplete
