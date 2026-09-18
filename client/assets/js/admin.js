@@ -825,9 +825,18 @@
       else if (phone.startsWith('+65')) code = 'sg';
       else if (phone.startsWith('+84')) code = 'vn';
       else if (phone.startsWith('+66')) code = 'th';
-      else code = 'us';
+      else code = 'pk';
     }
     return `<img src="https://flagcdn.com/24x18/${code}.png" style="width: 18px; height: 13px; border-radius: 2px; vertical-align: middle; box-shadow: 0 1px 2px rgba(0,0,0,0.2); display: inline-block; margin-left: 6px;" alt="${code.toUpperCase()}" title="${code.toUpperCase()}">`;
+  }
+
+  function populateChatUserSelect() {
+    const sel = document.getElementById('chatStartUserSelect');
+    if (!sel || !state.users) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">➕ Start New Chat with User...</option>' +
+      state.users.map(u => `<option value="${u.id}">${escapeHtml(u.fullname || u.username)} (@${escapeHtml(u.username)}) - ${u.vip_level} VIP ($${parseFloat(u.balance || 0).toFixed(2)})</option>`).join('');
+    sel.value = cur;
   }
 
   window.toggleUserStatus = async function(userId, newStatus) {

@@ -11,7 +11,8 @@ const activeSessions = new Map();
 function trackUserSession(user, req) {
   if (!user || !user.id) return;
   const clientIp = geo.extractClientIp ? geo.extractClientIp(req) : (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : (req.socket.remoteAddress || req.ip));
-  const location = geo.lookupIp ? geo.lookupIp(clientIp, user.timezone) : { ip: clientIp, countryCode: 'PK', countryName: 'Pakistan', city: 'Islamabad', flagEmoji: '🇵🇰' };
+  const tz = req.headers['x-client-timezone'] || (req.body && req.body.timezone) || user.timezone;
+  const location = geo.lookupIp ? geo.lookupIp(clientIp, tz) : { ip: clientIp, countryCode: 'PK', countryName: 'Pakistan', city: 'Islamabad', flagEmoji: '🇵🇰' };
 
   activeSessions.set(String(user.id), {
     userId: String(user.id),
@@ -30,6 +31,18 @@ function trackUserSession(user, req) {
     user_agent: req.headers['user-agent'] || 'Unknown Device',
     path: req.headers['referer'] ? req.headers['referer'].split('/').slice(3).join('/') : (req.originalUrl || '/')
   });
+
+  // Automatically update user's location in the database if unset or changed
+  if (location.countryCode && (user.country_code !== location.countryCode || user.last_ip !== location.ip)) {
+    user.country_code = location.countryCode;
+    user.country_name = location.countryName;
+    user.last_ip = location.ip;
+    db.updateUser(user.id, {
+      country_code: location.countryCode,
+      country_name: location.countryName,
+      last_ip: location.ip
+    }).catch(() => {});
+  }
 }
 
 function isUserOnline(userId) {

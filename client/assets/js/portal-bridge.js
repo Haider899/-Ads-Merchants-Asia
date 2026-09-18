@@ -16,8 +16,12 @@
   window.API = {
     async get(endpoint) {
       try {
+        const tz = (window.Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
         const res = await fetch(endpoint, {
-          headers: { 'Accept': 'application/json' }
+          headers: {
+            'Accept': 'application/json',
+            'x-client-timezone': tz
+          }
         });
         if (res.status === 401 && !window.location.pathname.includes('login') && !window.location.pathname.includes('register') && !window.location.pathname.includes('admin')) {
           window.location.href = '/login';
@@ -31,11 +35,13 @@
     },
     async post(endpoint, data) {
       try {
+        const tz = (window.Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'x-client-timezone': tz
           },
           body: JSON.stringify(data)
         });

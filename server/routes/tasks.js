@@ -69,11 +69,18 @@ router.get('/status', authMiddleware, async (req, res) => {
   const settings = await db.getSettings();
   const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
   // Admin-set custom daily limit or sequence plan takes priority over default
-  const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
+  let maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
     ? user.custom_daily_limit
     : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
       ? user.task_sequence_plan.total_orders
       : 5);
+
+  // If admin pushed orders to this user, expand maxTasks so progress bars and limits reflect assigned quantity
+  const pendingAssignedOrders = await db.query('SELECT COUNT(*) as cnt FROM orders WHERE user_id = ? AND order_status = "ASSIGNED"', [user.id]).catch(() => [{ cnt: 0 }]);
+  const assignedCnt = (pendingAssignedOrders && pendingAssignedOrders[0] && parseInt(pendingAssignedOrders[0].cnt, 10)) || 0;
+  if (assignedCnt > 0) {
+    maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + assignedCnt);
+  }
 
   const userTasks = await db.getTasks(user.id);
 
@@ -215,7 +222,11 @@ router.post('/generate', authMiddleware, async (req, res) => {
       });
     }
 
-    if (effectiveCompleted >= maxTasks) {
+    // Check if there are admin pushed assigned orders or custom order overrides
+    const assignedOrdersQueue = await db.query('SELECT * FROM orders WHERE user_id = ? AND order_status = "ASSIGNED" ORDER BY created_at ASC', [user.id]).catch(() => []);
+    const hasPushedOrders = (assignedOrdersQueue && assignedOrdersQueue.length > 0) || (user.custom_order_num && user.custom_order_num > effectiveCompleted);
+
+    if (!hasPushedOrders && effectiveCompleted >= maxTasks) {
       return res.status(400).json({
         success: false,
         message: `You have completed all ${maxTasks} daily optimization tasks. Please return tomorrow!`
@@ -566,7 +577,37 @@ router.post('/submit', authMiddleware, async (req, res) => {
     }
 
     const tasks = await db.getTasks(user.id);
-    const task = tasks.find(t => String(t.id) === String(taskId));
+    let task = tasks.find(t => String(t.id) === String(taskId) || String(t.order_number) === String(taskId));
+
+    if (!task) {
+      // Check if taskId matches an order in orders table (e.g. pushed by admin)
+      const userOrders = await db.getOrders({ user_id: user.id }).catch(() => []);
+      const matchedOrder = userOrders.find(o => String(o.id) === String(taskId) || String(o.order_number) === String(taskId) || String(o.task_id) === String(taskId));
+      if (matchedOrder) {
+        const commAmt = parseFloat(matchedOrder.commission_amount || 0);
+        const price = parseFloat(matchedOrder.gross_amount || matchedOrder.unit_price || 0);
+        const isDeficit = matchedOrder.payment_status === 'SHORTFALL' || (parseFloat(user.balance || 0) < 0);
+        const generatedTaskId = matchedOrder.task_id || ('TSK-' + Date.now() + '-' + Math.floor(100 + Math.random() * 900));
+        task = {
+          id: generatedTaskId,
+          order_number: matchedOrder.order_number,
+          user_id: user.id,
+          product_name: matchedOrder.product_name,
+          product_image: matchedOrder.product_image,
+          product_price: price,
+          commission_rate: matchedOrder.commission_rate || 0.20,
+          commission_amount: commAmt,
+          commission_earned: commAmt,
+          status: 'pending',
+          order_num: (user.today_tasks_completed || 0) + 1,
+          is_deficit: isDeficit ? 1 : 0,
+          deficit_amount: isDeficit ? Math.abs(parseFloat(user.balance || 0)) : 0,
+          created_at: matchedOrder.created_at || new Date()
+        };
+        await db.createTask(task).catch(() => {});
+        await db.updateOrder(matchedOrder.id, { task_id: task.id }).catch(() => {});
+      }
+    }
 
     if (!task) {
       return res.status(404).json({ success: false, message: 'Optimization task not found' });
