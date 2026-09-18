@@ -685,6 +685,8 @@
     if (r === 'super_admin' || r === 'sub_admin' || r === 'finance' || r === 'finance_officer') {
       loadDeposits();
       loadWithdrawals();
+      loadLedger();
+      loadAuditLogs();
     }
     if (r === 'super_admin' || r === 'sub_admin' || r === 'support' || r === 'support_operator') {
       loadKycs();
@@ -2526,15 +2528,25 @@
   // -------------------------------------------------------------
   // LEDGER & AUDIT LOGS
   // -------------------------------------------------------------
-  window.loadLedger = async function() {
+  // -------------------------------------------------------------
+  // LEDGER & AUDIT LOGS
+  // -------------------------------------------------------------
+  window.loadLedger = async function(userId = null) {
     const tbody = document.getElementById('ledgerTableBody');
     if (!tbody) return;
 
-    const res = await AdminAPI.get('/api/admin/ledger');
-    if (res && res.success && Array.isArray(res.transactions)) {
-      renderLedgerTable(res.transactions);
-    } else {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load financial ledger.</td></tr>`;
+    try {
+      const url = userId ? `/api/admin/ledger?userId=${encodeURIComponent(userId)}` : '/api/admin/ledger';
+      const res = await AdminAPI.get(url);
+      if (res && res.success && Array.isArray(res.transactions)) {
+        state.ledgerTransactions = res.transactions;
+        renderLedgerTable(res.transactions);
+      } else {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load financial ledger.</td></tr>`;
+      }
+    } catch (err) {
+      console.error('loadLedger error:', err);
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #ef4444;">Error loading ledger: ${escapeHtml(err.message)}</td></tr>`;
     }
   };
 
@@ -2542,54 +2554,69 @@
     const tbody = document.getElementById('ledgerTableBody');
     if (!tbody) return;
 
-    if (!transactions || transactions.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;">No wallet ledger transactions recorded yet.</td></tr>`;
-      return;
+    try {
+      if (!transactions || transactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;">No wallet ledger transactions recorded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = transactions.map(t => {
+        const amt = parseFloat(t.amount || 0);
+        const isPos = amt >= 0;
+        const amtColor = isPos ? '#16a34a' : '#dc2626';
+        const amtStr = (isPos ? '+' : '') + amt.toFixed(2);
+
+        let badgeColor = '#64748b';
+        const type = (t.transaction_type || '').toUpperCase();
+        if (type === 'ORDER_RESERVE') badgeColor = '#b45309';
+        else if (type === 'ORDER_RELEASE') badgeColor = '#2563eb';
+        else if (type === 'ORDER_REFUND') badgeColor = '#0284c7';
+        else if (type === 'REWARD' || type === 'TASK_REWARD') badgeColor = '#16a34a';
+        else if (type === 'DEPOSIT') badgeColor = '#10b981';
+        else if (type === 'WITHDRAWAL') badgeColor = '#ef4444';
+        else if (type === 'ADMIN_CREDIT') badgeColor = '#059669';
+        else if (type === 'ADMIN_DEBIT') badgeColor = '#dc2626';
+
+        const userDisplay = t.fullname ? `${t.fullname} (@${t.username})` : (t.username || `User #${t.user_id}`);
+
+        return `
+          <tr>
+            <td><code style="font-size:11.5px; font-weight:700; color:#334155;">${escapeHtml(t.id)}</code></td>
+            <td><strong>${escapeHtml(userDisplay)}</strong></td>
+            <td><span class="badge-status" style="background:${badgeColor}; color:#fff; font-size:10.5px;">${escapeHtml(t.transaction_type)}</span></td>
+            <td><strong style="color:${amtColor}; font-size:14px;">${amtStr} USD</strong></td>
+            <td>
+              <span style="color:#64748b; font-size:12px;">$${parseFloat(t.balance_before || 0).toFixed(2)}</span>
+              <i class="fa fa-arrow-right" style="font-size:10px; color:#94a3b8; margin:0 4px;"></i>
+              <strong style="color:#0f172a; font-size:12.5px;">$${parseFloat(t.balance_after || 0).toFixed(2)}</strong>
+            </td>
+            <td><code style="font-size:11px; color:#475569;">${escapeHtml(t.reference || '--')}</code></td>
+            <td><small style="color:#475569;">${escapeHtml(t.description || '--')}</small></td>
+            <td><small style="color:#64748b; white-space:nowrap;">${formatDate(t.created_at)}</small></td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error('renderLedgerTable error:', err);
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #ef4444;">Error rendering ledger table: ${escapeHtml(err.message)}</td></tr>`;
     }
-
-    tbody.innerHTML = transactions.map(t => {
-      const amt = parseFloat(t.amount || 0);
-      const isPos = amt >= 0;
-      const amtColor = isPos ? '#16a34a' : '#dc2626';
-      const amtStr = (isPos ? '+' : '') + amt.toFixed(2);
-
-      let badgeColor = '#64748b';
-      if (t.transaction_type === 'ORDER_RESERVE') badgeColor = '#b45309';
-      else if (t.transaction_type === 'ORDER_RELEASE') badgeColor = '#2563eb';
-      else if (t.transaction_type === 'REWARD') badgeColor = '#16a34a';
-      else if (t.transaction_type === 'DEPOSIT') badgeColor = '#10b981';
-      else if (t.transaction_type === 'WITHDRAWAL') badgeColor = '#ef4444';
-      else if (t.transaction_type === 'ADMIN_CREDIT') badgeColor = '#059669';
-      else if (t.transaction_type === 'ADMIN_DEBIT') badgeColor = '#dc2626';
-
-      return `
-        <tr>
-          <td><code style="font-size:11.5px;">${escapeHtml(t.id)}</code></td>
-          <td><strong>${escapeHtml(t.username || 'User #' + t.user_id)}</strong></td>
-          <td><span class="badge-status" style="background:${badgeColor}; color:#fff; font-size:10.5px;">${escapeHtml(t.transaction_type)}</span></td>
-          <td><strong style="color:${amtColor}; font-size:14px;">${amtStr} USD</strong></td>
-          <td>
-            <span style="color:#64748b; font-size:12px;">$${parseFloat(t.balance_before || 0).toFixed(2)}</span>
-            <i class="fa fa-arrow-right" style="font-size:10px; color:#94a3b8; margin:0 4px;"></i>
-            <strong style="color:#0f172a; font-size:12.5px;">$${parseFloat(t.balance_after || 0).toFixed(2)}</strong>
-          </td>
-          <td><code style="font-size:11px; color:#475569;">${escapeHtml(t.reference || '--')}</code></td>
-          <td><small style="color:#475569;">${escapeHtml(t.description || '--')}</small></td>
-          <td><small style="color:#64748b;">${formatDate(t.created_at)}</small></td>
-        </tr>
-      `;
-    }).join('');
   }
 
-  window.loadAuditLogs = async function() {
+  window.loadAuditLogs = async function(limit = 100) {
     const tbody = document.getElementById('auditLogsTableBody');
     if (!tbody) return;
 
-    const res = await AdminAPI.get('/api/admin/audit-logs');
-    if (res && res.success && Array.isArray(res.logs)) {
-      renderAuditLogsTable(res.logs);
-    } else {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load audit logs.</td></tr>`;
+    try {
+      const res = await AdminAPI.get(`/api/admin/audit-logs?limit=${limit}`);
+      if (res && res.success && Array.isArray(res.logs)) {
+        state.auditLogs = res.logs;
+        renderAuditLogsTable(res.logs);
+      } else {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load audit logs.</td></tr>`;
+      }
+    } catch (err) {
+      console.error('loadAuditLogs error:', err);
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #ef4444;">Error loading audit logs: ${escapeHtml(err.message)}</td></tr>`;
     }
   };
 
@@ -2597,31 +2624,52 @@
     const tbody = document.getElementById('auditLogsTableBody');
     if (!tbody) return;
 
-    if (!logs || logs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">No admin audit logs recorded.</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = logs.map(l => {
-      let detailsStr = '';
-      if (l.new_value) {
-        try {
-          detailsStr = typeof l.new_value === 'string' ? l.new_value : JSON.stringify(l.new_value);
-        } catch (_) { detailsStr = String(l.new_value); }
+    try {
+      if (!logs || logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">No admin audit logs recorded.</td></tr>`;
+        return;
       }
 
-      return `
-        <tr>
-          <td><small style="color:#64748b;">${formatDate(l.created_at)}</small></td>
-          <td><strong>${escapeHtml(l.admin_name || 'Admin #' + l.admin_id)}</strong></td>
-          <td><span class="badge-status" style="background:#3b82f6; color:#fff; font-size:11px;">${escapeHtml(l.action)}</span></td>
-          <td><span class="badge-status" style="background:#f1f5f9; color:#475569;">${escapeHtml(l.entity)}</span></td>
-          <td><code style="font-size:11px;">${escapeHtml(l.entity_id || '--')}</code></td>
-          <td><div style="max-width:280px; font-size:11.5px; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(detailsStr)}">${escapeHtml(detailsStr || '--')}</div></td>
-          <td><small style="color:#64748b;">${escapeHtml(l.ip_address || '--')}</small></td>
-        </tr>
-      `;
-    }).join('');
+      tbody.innerHTML = logs.map(l => {
+        let detailsStr = '';
+        if (l.new_value) {
+          try {
+            detailsStr = typeof l.new_value === 'string' ? l.new_value : JSON.stringify(l.new_value);
+          } catch (_) { detailsStr = String(l.new_value); }
+        } else if (l.reason) {
+          detailsStr = l.reason;
+        } else if (l.old_value) {
+          try {
+            detailsStr = typeof l.old_value === 'string' ? l.old_value : JSON.stringify(l.old_value);
+          } catch (_) { detailsStr = String(l.old_value); }
+        }
+
+        let actionColor = '#3b82f6';
+        const act = (l.action || '').toUpperCase();
+        if (act.includes('DELETE') || act.includes('REJECT') || act.includes('DEBIT') || act.includes('CANCEL')) {
+          actionColor = '#ef4444';
+        } else if (act.includes('APPROVE') || act.includes('CREDIT') || act.includes('CREATE') || act.includes('COMPLETE')) {
+          actionColor = '#10b981';
+        } else if (act.includes('UPDATE') || act.includes('OVERRIDE') || act.includes('PUSH') || act.includes('RESET')) {
+          actionColor = '#f59e0b';
+        }
+
+        return `
+          <tr>
+            <td><small style="color:#64748b; white-space:nowrap;">${formatDate(l.created_at)}</small></td>
+            <td><strong>${escapeHtml(l.admin_name || 'Admin #' + l.admin_id)}</strong></td>
+            <td><span class="badge-status" style="background:${actionColor}; color:#fff; font-size:11px;">${escapeHtml(l.action)}</span></td>
+            <td><span class="badge-status" style="background:#f1f5f9; color:#475569;">${escapeHtml(l.entity)}</span></td>
+            <td><code style="font-size:11px;">${escapeHtml(l.entity_id || '--')}</code></td>
+            <td><div style="max-width:280px; font-size:11.5px; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(detailsStr)}">${escapeHtml(detailsStr || '--')}</div></td>
+            <td><small style="color:#64748b;">${escapeHtml(l.ip_address || '--')}</small></td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error('renderAuditLogsTable error:', err);
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #ef4444;">Error rendering audit logs: ${escapeHtml(err.message)}</td></tr>`;
+    }
   }
 
   // -------------------------------------------------------------
@@ -3195,10 +3243,33 @@
 
 
   function escapeHtml(str) {
-    return (str || '').replace(/[&<>'"]/g, 
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>'"]/g, 
       tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
     );
   }
+  window.escapeHtml = escapeHtml;
+
+  function formatDate(dateVal) {
+    if (!dateVal) return '--';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return String(dateVal);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      let hours = d.getHours();
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const hStr = String(hours).padStart(2, '0');
+      return `${y}-${m}-${day} ${hStr}:${mins} ${ampm}`;
+    } catch (_) {
+      return String(dateVal);
+    }
+  }
+  window.formatDate = formatDate;
 
   // Tab switcher helper for navigation from notifications
   window.switchAdminTab = function(tabId) {
