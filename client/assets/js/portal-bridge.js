@@ -1229,8 +1229,8 @@
 
   // Pending Task Withdrawal Modal Pop-up (SweetAlert2 UI/UX matching platform standard)
   window.showPendingTaskWithdrawalModal = function(options = {}) {
-    const title = options.title || 'You Have to Complete Your Pending Task';
-    const message = options.message || 'You have an active pending order in progress. You have to complete your pending task and assigned orders before you can make a withdrawal.';
+    const title = options.title || 'You Have to Complete Your Pending Order';
+    const message = options.message || 'You have an active pending order in progress. You have to complete your assigned orders before you can make a withdrawal.';
     const orderNum = options.pending_order_number || options.order_number || null;
     const prodName = options.product_name || null;
     const completed = options.completed_tasks !== undefined && options.completed_tasks !== null ? parseInt(options.completed_tasks, 10) : null;
@@ -1243,7 +1243,7 @@
         <div style="background: #f8fafc; border-radius: 12px; padding: 13px 15px; margin: 14px 0 6px 0; border: 1.5px dashed #cbd5e1; text-align: left;">
           ${completed !== null && max !== null ? `
             <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569; font-weight: 600;">
-              <span>Daily Tasks Progress:</span>
+              <span>Daily Orders Progress:</span>
               <span style="color: #0f172a; font-weight: 800;">${completed} / ${max} Completed</span>
             </div>
             <div style="background: #e2e8f0; height: 8px; border-radius: 4px; margin: 8px 0 10px 0; overflow: hidden;">
@@ -1301,17 +1301,19 @@
 
       if (isNeg || hasPending || completed < max) {
         e.preventDefault();
-        let reason = 'You have to complete your pending task before requesting a withdrawal.';
+        let reason = 'You have to complete your pending order before requesting a withdrawal.';
         if (hasPending) {
-          reason = 'You have an active pending order in progress. You have to complete your pending task and assigned orders before you can make a withdrawal.';
+          reason = 'You have an active pending order in progress. You have to complete your assigned orders before you can make a withdrawal.';
         } else if (isNeg) {
-          reason = 'Your working balance is currently negative due to a deficit order. Please clear the deficit and complete your order before requesting a withdrawal.';
+          const numVal = Math.abs(parseFloat(ts.balance || 0));
+          const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          reason = `Your working balance is currently negative (-${formattedDeficit} USDT). You have to complete your pending order and clear the deficit before you can make a withdrawal.`;
         } else if (completed < max) {
-          reason = `You have to complete all daily tasks (${completed}/${max} completed) before requesting a withdrawal.`;
+          reason = `You have to complete all daily orders (${completed}/${max} completed) before requesting a withdrawal.`;
         }
 
         window.showPendingTaskWithdrawalModal({
-          title: 'You Have to Complete Your Pending Task',
+          title: 'You Have to Complete Your Pending Order',
           message: reason,
           pending_order_number: ts.pending_task ? ts.pending_task.order_number : null,
           product_name: ts.pending_task ? ts.pending_task.product_name : null,
@@ -1424,13 +1426,13 @@
                   <i class="fa fa-lock"></i>
                 </div>
                 <div style="flex: 1;">
-                  <div style="font-weight: 800; color: #9a3412; font-size: 14px;">Task Completion Required</div>
+                  <div style="font-weight: 800; color: #9a3412; font-size: 14px;">Order Completion Required</div>
                   <div style="color: #c2410c; font-size: 12.5px; margin-top: 3px; line-height: 1.4;">
-                    You have pending tasks in progress (${completed}/${max} completed). All assigned tasks must be completed before you can withdraw.
+                    You have pending orders in progress (${completed}/${max} completed). All assigned orders must be completed before you can withdraw.
                   </div>
                   <div style="margin-top: 10px;">
-                    <a href="/home" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: linear-gradient(135deg, #ea580c, #dc2626); color: #ffffff; border-radius: 8px; font-weight: 700; font-size: 12px; text-decoration: none; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25);">
-                      <i class="fa fa-tasks"></i> Complete Tasks Now
+                    <a href="startData" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: linear-gradient(135deg, #ea580c, #dc2626); color: #ffffff; border-radius: 8px; font-weight: 700; font-size: 12px; text-decoration: none; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25);">
+                      <i class="fa fa-tasks"></i> Complete Orders Now
                     </a>
                   </div>
                 </div>
@@ -1455,17 +1457,19 @@
           const max = parseInt(ts.max_tasks || 5, 10);
 
           if (isNeg || hasPending || completed < max) {
-            let reason = 'You have to complete your pending task before requesting a withdrawal.';
+            let reason = 'You have to complete your pending order before requesting a withdrawal.';
             if (hasPending) {
-              reason = 'You have an active pending order in progress. You have to complete your pending task and assigned orders before you can make a withdrawal.';
+              reason = 'You have an active pending order in progress. You have to complete your assigned orders before you can make a withdrawal.';
             } else if (isNeg) {
-              reason = 'Your working balance is currently negative due to a deficit order. Please clear the deficit and complete your order before requesting a withdrawal.';
+              const numVal = Math.abs(parseFloat(ts.balance || 0));
+              const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              reason = `Your working balance is currently negative (-${formattedDeficit} USDT). You have to complete your pending order and clear the deficit before you can make a withdrawal.`;
             } else if (completed < max) {
-              reason = `You have to complete all daily tasks (${completed}/${max} completed) before requesting a withdrawal.`;
+              reason = `You have to complete all daily orders (${completed}/${max} completed) before requesting a withdrawal.`;
             }
 
             window.showPendingTaskWithdrawalModal({
-              title: 'You Have to Complete Your Pending Task',
+              title: 'You Have to Complete Your Pending Order',
               message: reason,
               pending_order_number: ts.pending_task ? ts.pending_task.order_number : null,
               product_name: ts.pending_task ? ts.pending_task.product_name : null,
@@ -1547,7 +1551,7 @@
           } else {
             if (res && res.has_pending_tasks) {
               window.showPendingTaskWithdrawalModal({
-                title: 'You Have to Complete Your Pending Task',
+                title: 'You Have to Complete Your Pending Order',
                 message: res.message,
                 pending_order_number: res.pending_order_number,
                 product_name: res.product_name,

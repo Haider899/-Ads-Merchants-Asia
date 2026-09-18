@@ -108,13 +108,13 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
     const completedTasks = parseInt(user.today_tasks_completed || 0, 10);
 
     if (isNegative || pendingTask || pendingOrder || completedTasks < maxTasks) {
-      let reason = 'You have to complete your pending task before requesting a withdrawal.';
+      let reason = 'You have to complete your pending order before requesting a withdrawal.';
       if (pendingTask || pendingOrder) {
-        reason = 'You have to complete your pending task. All assigned orders must be completed before you can make a withdrawal.';
+        reason = 'You have an active pending order in progress. You have to complete your assigned orders before you can make a withdrawal.';
       } else if (isNegative) {
         reason = 'Your working balance is currently negative. Please clear the deficit and complete your order before requesting a withdrawal.';
       } else if (completedTasks < maxTasks) {
-        reason = `You have to complete your pending tasks (${completedTasks}/${maxTasks} completed) before requesting a withdrawal.`;
+        reason = `You have to complete all daily orders (${completedTasks}/${maxTasks} completed) before requesting a withdrawal.`;
       }
 
       return res.status(400).json({
