@@ -769,6 +769,12 @@ const db = {
     return true;
   },
 
+  deleteTask: async (id) => {
+    await db.ensureTasksTable();
+    await query(`DELETE FROM tasks WHERE id = ?`, [id]);
+    return true;
+  },
+
   getProducts: async () => {
     await query(`CREATE TABLE IF NOT EXISTS products (
       id INT AUTO_INCREMENT PRIMARY KEY,

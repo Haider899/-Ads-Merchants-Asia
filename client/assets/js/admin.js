@@ -875,6 +875,8 @@
         onlineBadge.style.display = onlineCount > 0 ? 'inline-block' : 'none';
       }
 
+      populateChatUserSelect();
+
       if (state.users.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 24px; color: #64748b;">No registered users found.</td></tr>`;
         return;
@@ -886,6 +888,9 @@
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <button class="btn-action btn-edit" onclick="openEditUserModal('${u.id}')" title="Edit Balance & User Details">
               <i class="fa fa-pen"></i> Edit
+            </button>
+            <button class="btn-action" style="background: #0284c7; color: white;" onclick="openChatWithUser('${u.id}')" title="Chat with this User">
+              <i class="fa fa-comment-dots"></i> Chat
             </button>
             <button class="btn-action" style="background: #2563eb; color: white;" onclick="openCreateOrderModal('${u.id}')" title="Create Merchant Order & Push Task">
               <i class="fa fa-cart-plus"></i> Push Order
@@ -963,6 +968,16 @@
       }).join('');
     } else {
       tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 24px; color: #dc2626;">Failed to load user accounts.</td></tr>`;
+    }
+  };
+
+  window.openChatWithUser = function(userId) {
+    const chatTabBtn = document.querySelector('.admin-tab-btn[data-tab="tabChat"]') || document.getElementById('tabBtnChat');
+    if (chatTabBtn) {
+      chatTabBtn.click();
+    }
+    if (typeof selectChatUser === 'function') {
+      selectChatUser(userId);
     }
   };
 
@@ -2045,6 +2060,30 @@
 
       if (res && res.success && res.conversations) {
         state.chatConversations = res.conversations;
+
+        // Ensure new chat user is visible in list if active
+        if (state.activeChatUserId && !res.conversations.some(c => String(c.user_id) === String(state.activeChatUserId))) {
+          const u = (state.users || []).find(usr => String(usr.id) === String(state.activeChatUserId));
+          if (u) {
+            res.conversations.unshift({
+              user_id: u.id,
+              user_name: u.fullname || u.username,
+              user_email: u.email,
+              vip_level: u.vip_level,
+              balance: u.balance,
+              country_code: u.country_code,
+              country_name: u.country_name,
+              flag_emoji: u.flag_emoji,
+              last_message: 'Started new chat',
+              last_message_at: new Date().toISOString(),
+              unread_count: 0,
+              unread_admin_count: 0
+            });
+          }
+        }
+
+        populateChatUserSelect();
+
         const totalUnread = res.conversations.reduce((sum, c) => sum + (c.unread_count || c.unread_admin_count || 0), 0);
         const badge = document.getElementById('adminChatUnreadBadge');
         if (badge) {
@@ -2073,7 +2112,7 @@
         }
 
         if (res.conversations.length === 0) {
-          listEl.innerHTML = `<div style="text-align: center; color: #64748b; padding: 24px; font-size: 13px;">No active conversations.</div>`;
+          listEl.innerHTML = `<div style="text-align: center; color: #64748b; padding: 24px; font-size: 13px;">No active conversations. Use dropdown above or Users table to start a chat.</div>`;
           return;
         }
 
@@ -2112,7 +2151,23 @@
 
   window.selectChatUser = async function(userId) {
     state.activeChatUserId = userId;
-    const userConv = state.chatConversations.find(c => c.user_id === userId);
+    let userConv = (state.chatConversations || []).find(c => String(c.user_id) === String(userId));
+    if (!userConv) {
+      const u = (state.users || []).find(usr => String(usr.id) === String(userId));
+      if (u) {
+        userConv = {
+          user_id: u.id,
+          user_name: u.fullname || u.username,
+          user_email: u.email,
+          vip_level: u.vip_level,
+          balance: u.balance,
+          country_code: u.country_code,
+          country_name: u.country_name,
+          flag_emoji: u.flag_emoji,
+          ip_address: u.last_ip || u.ip_address || '127.0.0.1'
+        };
+      }
+    }
 
     document.getElementById('adminChatNoSelection').style.display = 'none';
     document.getElementById('adminChatMainContent').style.display = 'flex';
@@ -2143,6 +2198,29 @@
     try {
       const res = await AdminAPI.get(`/api/admin/chat/${state.activeChatUserId}`);
       const container = document.getElementById('adminChatMessagesContainer');
+
+      if (res && res.success && res.user) {
+        const u = res.user;
+        function renderFlagBadge(code, emoji) {
+          if (code && typeof code === 'string' && code.length === 2) {
+            const c = code.toLowerCase();
+            return `<img src="https://flagcdn.com/24x18/${c}.png" style="width: 20px; height: 14px; border-radius: 2px; vertical-align: middle; margin-right: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.18); display: inline-block;" onerror="this.outerHTML='${emoji || '🌐'}';" alt="${code}">`;
+          }
+          return emoji ? `<span style="margin-right: 4px;">${emoji}</span>` : '🌐 ';
+        }
+        const flagHtml = renderFlagBadge(u.country_code, u.flag_emoji);
+        const country = u.country_name || 'Unknown';
+        const ip = u.ip_address || '127.0.0.1';
+        const nameEl = document.getElementById('adminChatSelectedName');
+        if (nameEl) nameEl.innerHTML = `<span style="display: inline-flex; align-items: center;">${flagHtml} ${escapeHtml(u.fullname || 'Customer')}</span> <span style="font-size: 12px; font-weight: normal; color: #64748b; margin-left: 6px;">📍 ${escapeHtml(country)} (${escapeHtml(ip)})</span>`;
+        const emailEl = document.getElementById('adminChatSelectedEmail');
+        if (emailEl) emailEl.textContent = u.email || '';
+        const vipEl = document.getElementById('adminChatSelectedVip');
+        if (vipEl) vipEl.textContent = `${u.vip_level || 'Bronze'} VIP`;
+        const balEl = document.getElementById('adminChatSelectedBalance');
+        if (balEl) balEl.textContent = `$${parseFloat(u.balance || 0).toFixed(2)}`;
+      }
+
       if (container && res && res.success && res.messages) {
         if (res.messages.length === 0) {
           container.innerHTML = `<div style="text-align: center; color: #94a3b8; margin: auto; font-size: 13px;">No message history. Type a message below to start chatting.</div>`;

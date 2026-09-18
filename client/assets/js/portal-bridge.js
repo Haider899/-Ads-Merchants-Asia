@@ -840,9 +840,9 @@
     }
 
     const totBal = workBal >= 0 
-      ? (workBal + pendingPrice + pendingComm + frozBal) 
+      ? (workBal + frozBal) 
       : (frozBal + profitVal);
-    const displayProfit = profitVal + (workBal >= 0 && pendingComm > 0 ? pendingComm : 0);
+    const displayProfit = profitVal;
 
     document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, #start-total-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(workBal)}`;
@@ -850,7 +850,7 @@
     document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
       el.textContent = `USD ${formatUSD(totBal)}`;
     });
-    // Start Page specific: Total Balance with Commission represents accumulated order gross + commission.
+    // Start Page specific: Total Balance with Commission represents accumulated order gross + commission (Option A)
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
       let commBal = parseFloat(
@@ -863,14 +863,7 @@
       if (commBal === 0 && window.__currentUser && parseFloat(window.__currentUser.commission_balance || 0) > 0) {
         commBal = parseFloat(window.__currentUser.commission_balance);
       }
-      if (workBal < 0) {
-        // Option A (Client Confirmed): Freeze completed funds during deficit
-        startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
-      } else if (pTask) {
-        startGrandTotalEl.textContent = `USD ${formatUSD(commBal + pendingPrice + pendingComm)}`;
-      } else {
-        startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
-      }
+      startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
     }
     document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(frozBal)}`;
@@ -968,8 +961,10 @@
           </div>
         </div>
         <div style="display: flex; gap: 10px;">
-          <button id="cancelTaskBtn" style="flex: 1; padding: 12px; border: 1px solid #ddd; background: #fff; border-radius: 8px; font-weight: 600; cursor: pointer; color: #555;">Cancel</button>
-          <button id="submitTaskBtn" style="flex: 2; padding: 12px; border: none; background: #28a745; color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          ${!task.is_deficit ? `
+            <button id="cancelTaskBtn" style="flex: 1; padding: 12px; border: 1px solid #ddd; background: #fff; border-radius: 8px; font-weight: 600; cursor: pointer; color: #555;">Cancel</button>
+          ` : ''}
+          <button id="submitTaskBtn" style="flex: ${!task.is_deficit ? '2' : '1'}; padding: 12px; border: none; background: #28a745; color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
             <span>Submit Optimization</span>
           </button>
         </div>
@@ -978,9 +973,36 @@
 
     modal.style.display = 'flex';
 
-    document.getElementById('cancelTaskBtn').onclick = () => {
-      modal.style.display = 'none';
-    };
+    const cancelBtn = document.getElementById('cancelTaskBtn');
+    if (cancelBtn) {
+      cancelBtn.onclick = async () => {
+        cancelBtn.disabled = true;
+        cancelBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelling...';
+        try {
+          const cancelRes = await API.post('/api/tasks/cancel', { taskId: task.id });
+          modal.style.display = 'none';
+          window.__activePendingTask = null;
+          if (window.__currentUser) {
+            window.__currentUser.pending_task = null;
+            if (cancelRes && cancelRes.data && cancelRes.data.balance !== undefined) {
+              window.__currentUser.balance = parseFloat(cancelRes.data.balance);
+            }
+          }
+          showBridgeToast('Order Cancelled', (cancelRes && cancelRes.message) || 'Order cancelled. Your working balance is unaffected.', 'info');
+          if (typeof window.fetchTaskStatus === 'function') {
+            window.fetchTaskStatus();
+          } else if (typeof window.refreshUserData === 'function') {
+            window.refreshUserData();
+          }
+        } catch (cancelErr) {
+          console.error('Cancel order error:', cancelErr);
+          modal.style.display = 'none';
+          window.__activePendingTask = null;
+          showBridgeToast('Notice', 'Order closed. Balance is unaffected.', 'info');
+          if (typeof window.fetchTaskStatus === 'function') window.fetchTaskStatus();
+        }
+      };
+    }
 
     document.getElementById('submitTaskBtn').onclick = async () => {
       const submitBtn = document.getElementById('submitTaskBtn');

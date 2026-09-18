@@ -435,14 +435,18 @@ router.post('/generate', authMiddleware, async (req, res) => {
     const taskId = generateTaskNumber();
     const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
 
-    // Deduct order price / gross amount from user's working balance
+    // Deduct order price / gross amount from user's working balance ONLY IF DEFICIT
+    // For normal orders: deduction happens upon submission so cancelling does NOT touch balance
     const currentBalance = round(user.balance);
-    const newBalance = round(currentBalance - calc.gross_amount);
-    const userUpdates = { balance: newBalance };
-    if (newBalance < 0) {
-      userUpdates.frozen_balance = round(Math.abs(newBalance));
+    let newBalance = currentBalance;
+    if (calc.is_deficit) {
+      newBalance = round(currentBalance - calc.gross_amount);
+      const userUpdates = { balance: newBalance };
+      if (newBalance < 0) {
+        userUpdates.frozen_balance = round(Math.abs(newBalance));
+      }
+      await db.updateUser(user.id, userUpdates);
     }
-    await db.updateUser(user.id, userUpdates);
 
     // Check if there is an ASSIGNED order already queued for this user by admin push
     const assignedOrders = await db.query('SELECT * FROM orders WHERE user_id = ? AND order_status = "ASSIGNED" ORDER BY created_at DESC LIMIT 1', [user.id]).catch(() => []);
@@ -495,20 +499,22 @@ router.post('/generate', authMiddleware, async (req, res) => {
       });
     }
 
-    // Record Ledger Entry: ORDER_RESERVE
-    await db.createLedgerTransaction({
-      userId: user.id,
-      orderId: activeOrderId,
-      taskId: taskId,
-      adminId: null,
-      type: 'ORDER_RESERVE',
-      amount: -calc.gross_amount,
-      balanceBefore: currentBalance,
-      balanceAfter: newBalance,
-      currency: 'USD',
-      reference: activeOrderNum,
-      description: `Order reserve deduction for ${productName}`
-    });
+    if (calc.is_deficit) {
+      // Record Ledger Entry: ORDER_RESERVE for deficit orders
+      await db.createLedgerTransaction({
+        userId: user.id,
+        orderId: activeOrderId,
+        taskId: taskId,
+        adminId: null,
+        type: 'ORDER_RESERVE',
+        amount: -calc.gross_amount,
+        balanceBefore: currentBalance,
+        balanceAfter: newBalance,
+        currency: 'USD',
+        reference: activeOrderNum,
+        description: `Order reserve deficit deduction for ${productName}`
+      }).catch(() => {});
+    }
 
     // Create Task Record
     const task = {
@@ -633,6 +639,30 @@ router.post('/submit', authMiddleware, async (req, res) => {
       }, 0);
       prevCommBalance = round(priorSum);
     }
+    let finalWorkingBalance = round(userBalance);
+    if (!task.is_deficit) {
+      if (userBalance < taskPrice) {
+        return res.status(400).json({
+          success: false,
+          message: 'Insufficient working balance to complete this order.'
+        });
+      }
+      finalWorkingBalance = round(userBalance - taskPrice);
+      // Record Ledger Entry: ORDER_RESERVE for normal task upon submission
+      await db.createLedgerTransaction({
+        userId: user.id,
+        taskId: task.id,
+        adminId: null,
+        type: 'ORDER_RESERVE',
+        amount: -taskPrice,
+        balanceBefore: round(userBalance),
+        balanceAfter: finalWorkingBalance,
+        currency: 'USD',
+        reference: task.order_number || task.id,
+        description: `Order deduction upon submission for ${task.product_name}`
+      }).catch(() => {});
+    }
+
     const newCommBalance = round(prevCommBalance + taskPrice + commAmount);
     const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
     const newCompletedTasks = (parseInt(user.today_tasks_completed, 10) || 0) + 1;
@@ -645,15 +675,15 @@ router.post('/submit', authMiddleware, async (req, res) => {
       adminId: null,
       type: 'REWARD',
       amount: commAmount,
-      balanceBefore: round(userBalance),
-      balanceAfter: round(userBalance),
+      balanceBefore: finalWorkingBalance,
+      balanceAfter: finalWorkingBalance,
       currency: 'USD',
       reference: task.order_number || task.id,
       description: `Optimization reward for order: ${task.product_name}`
     });
 
     const updates = {
-      balance: userBalance,
+      balance: finalWorkingBalance,
       commission_balance: newCommBalance,
       frozen_balance: 0.00, // Deficit cleared on successful completion
       today_profit: newTodayProfit,
@@ -693,7 +723,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
       success: true,
       message: `Optimization successful! +$${commAmount.toFixed(2)} credited to your account.`,
       data: {
-        balance: userBalance,
+        balance: finalWorkingBalance,
         commission_balance: newCommBalance,
         frozen_balance: 0.00,
         today_profit: newTodayProfit,
@@ -707,6 +737,62 @@ router.post('/submit', authMiddleware, async (req, res) => {
       success: false,
       message: 'Error submitting optimization task. Please try again.'
     });
+  }
+});
+
+// POST /api/tasks/cancel - Cancel an unsubmitted normal task
+router.post('/cancel', authMiddleware, async (req, res) => {
+  try {
+    const user = await db.findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const { taskId } = req.body;
+    const tasks = await db.getTasks(user.id);
+    const task = taskId
+      ? tasks.find(t => String(t.id) === String(taskId) && t.status === 'pending')
+      : tasks.find(t => t.status === 'pending');
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'No pending order found to cancel.' });
+    }
+
+    if (task.is_deficit) {
+      return res.status(400).json({
+        success: false,
+        message: 'Deficit orders cannot be cancelled. Please clear the shortfall to proceed.'
+      });
+    }
+
+    // Delete the pending task so user can start fresh
+    await db.deleteTask(task.id).catch(async () => {
+      await db.updateTask(task.id, { status: 'cancelled' });
+    });
+
+    // Mark order as CANCELLED in orders table
+    if (task.order_number) {
+      await db.updateOrder(task.order_number, {
+        order_status: 'CANCELLED',
+        payment_status: 'CANCELLED'
+      }).catch(() => {});
+    }
+
+    // Ensure user balance is intact (it was not deducted for normal task)
+    const refreshedUser = await db.findUserById(user.id);
+
+    return res.json({
+      success: true,
+      message: 'Order cancelled. Your working balance is unaffected.',
+      data: {
+        balance: refreshedUser.balance,
+        today_profit: refreshedUser.today_profit,
+        commission_balance: refreshedUser.commission_balance
+      }
+    });
+  } catch (err) {
+    console.error('Task Cancel Error:', err);
+    res.status(500).json({ success: false, message: 'Error cancelling order: ' + err.message });
   }
 });
 

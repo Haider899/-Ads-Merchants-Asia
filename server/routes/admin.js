@@ -1503,10 +1503,10 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
 
     res.json({
       success: true,
-      message: `Order #${orderNumber} created successfully! ${pushAsTask ? `Pushed to user task queue. User balance updated to $${newBalance.toFixed(2)}.` : ''}`,
+      message: `Order #${orderNumber} created successfully! Assigned to merchant queue. User notified. Balance will deduct when merchant starts the order.`,
       order,
       calculation: calc,
-      new_balance: newBalance
+      available_balance: currentBalance
     });
   } catch (err) {
     console.error('Create Order Error:', err);
