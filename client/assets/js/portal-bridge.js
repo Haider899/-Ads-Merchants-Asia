@@ -371,6 +371,7 @@
     const setEl = document.getElementById('startSetText');
     const countEl = document.getElementById('startTaskCountText');
     const completed = parseInt(user.today_tasks_completed || 0, 10);
+    const maxT = parseInt(user.max_tasks || 5, 10);
     let setName = '1st Set:';
     let countText = `${completed} / 3`;
     if (completed < 3) {
@@ -381,7 +382,9 @@
       countText = `${completed - 3} / 2`;
     } else {
       setName = '3rd Set:';
-      countText = `${completed >= 6 ? 1 : (completed - 5)} / 1`;
+      const thirdSetTotal = Math.max(1, maxT - 5);
+      const thirdSetDone = Math.min(thirdSetTotal, Math.max(0, completed - 5));
+      countText = `${thirdSetDone} / ${thirdSetTotal}`;
     }
     if (setEl) setEl.textContent = setName;
     if (countEl) countEl.textContent = countText;
@@ -764,23 +767,29 @@
             showTaskModal(res.task);
           } else {
             const froz = res && (res.userFrozenBalance || res.deficit_amount);
-            if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+            if (res && (res.reachedLimit || froz || (res.message && (res.message.includes('frozen limit') || res.message.includes('deficit'))))) {
               const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
               const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               const balanceText = document.getElementById('start-total-balance-text');
               if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
               if (typeof Swal !== 'undefined') {
                 Swal.fire({
-                  title: "Account Limit Reached!",
-                  icon: "info",
-                  html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
+                  title: "Shortfall Deposit Required",
+                  icon: "warning",
+                  html: `Your balance is currently in deficit (-USD $${formattedDeficit}).<br><br>Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> or <a href="depositData" style="color: #2563eb; font-weight: bold; text-decoration: underline;">deposit funds</a> to clear your shortfall.`,
                   focusConfirm: false,
-                  confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
-                }).then(() => {
-                  window.location.href = "startData";
+                  confirmButtonText: `Deposit Now`,
+                  showCancelButton: true,
+                  cancelButtonText: `Later`
+                }).then((result) => {
+                  if (result.isConfirmed) {
+                    window.location.href = "depositData";
+                  } else {
+                    window.location.href = "startData";
+                  }
                 });
               } else {
-                alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
+                alert(`Shortfall Deposit Required! Please clear your balance deficit of -${formattedDeficit} USDT.`);
               }
               return;
             }
@@ -902,6 +911,7 @@
     }
 
     const completed = parseInt(data.today_tasks_completed || 0, 10);
+    const maxT = parseInt(data.max_tasks || 5, 10);
     let setName = '1st Set:';
     let countText = `${completed} / 3`;
     if (completed < 3) {
@@ -912,7 +922,9 @@
       countText = `${completed - 3} / 2`;
     } else {
       setName = '3rd Set:';
-      countText = `${completed >= 6 ? 1 : (completed - 5)} / 1`;
+      const thirdSetTotal = Math.max(1, maxT - 5);
+      const thirdSetDone = Math.min(thirdSetTotal, Math.max(0, completed - 5));
+      countText = `${thirdSetDone} / ${thirdSetTotal}`;
     }
 
     const setTextEl = document.getElementById('startSetText');

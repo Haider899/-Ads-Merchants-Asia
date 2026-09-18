@@ -2825,18 +2825,21 @@
     document.getElementById('orderModalCommissionRate').value = 20;
     document.getElementById('orderModalPushTask').checked = true;
 
+    // ALWAYS refresh users list from database so Working Balance & Today's tasks are 100% live
+    await loadUsers();
+
     // Populate Users dropdown
     const userSelect = document.getElementById('orderModalUserId');
     if (userSelect) {
-      if (!state.users || state.users.length === 0) {
-        await loadUsers();
-      }
       userSelect.innerHTML = '<option value="">Select target merchant...</option>' + 
         (state.users || []).map(u => `
           <option value="${u.id}" ${preselectedUserId && String(u.id) === String(preselectedUserId) ? 'selected' : ''}>
             ${escapeHtml(u.fullname || u.username)} (${u.email}) - Bal: $${parseFloat(u.balance || 0).toFixed(2)} - ${u.vip_level || 'Bronze'} VIP
           </option>
         `).join('');
+      if (preselectedUserId) {
+        userSelect.value = String(preselectedUserId);
+      }
     }
 
     // Populate Products dropdown
@@ -2853,18 +2856,36 @@
         `).join('');
     }
 
-    onOrderUserChange();
+    await onOrderUserChange();
     recalcOrderModal();
     AdminUI.openModal('createOrderModal');
   };
 
-  window.onOrderUserChange = function() {
+  window.onOrderUserChange = async function() {
     const userSelect = document.getElementById('orderModalUserId');
     const statsCard = document.getElementById('orderUserStatsCard');
     if (!userSelect || !statsCard) return;
 
     const selectedId = userSelect.value;
-    const user = (state.users || []).find(u => String(u.id) === String(selectedId));
+    if (!selectedId) {
+      statsCard.style.display = 'none';
+      recalcOrderModal();
+      return;
+    }
+
+    let user = (state.users || []).find(u => String(u.id) === String(selectedId));
+
+    // Fetch real-time live DB user details to ensure 100% accuracy
+    try {
+      const res = await AdminAPI.get(`/api/admin/users/${selectedId}`);
+      if (res && res.success && res.user) {
+        user = res.user;
+        const idx = (state.users || []).findIndex(u => String(u.id) === String(selectedId));
+        if (idx !== -1) {
+          state.users[idx] = { ...state.users[idx], ...user };
+        }
+      }
+    } catch (_) {}
 
     if (user) {
       statsCard.style.display = 'block';

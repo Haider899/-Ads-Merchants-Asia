@@ -292,17 +292,17 @@ async function submitOrderFromRecord(taskId, btn) {
             }
         } else {
             const froz = data && (data.userFrozenBalance || data.deficit_amount);
-            if (data && (data.reachedLimit || froz || (data.message && data.message.includes('frozen limit')))) {
+            if (data && (data.reachedLimit || froz || (data.message && (data.message.includes('frozen limit') || data.message.includes('deficit'))))) {
                 const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        title: "Account Limit Reached!",
+                        title: "Shortfall Deposit Required",
                         icon: "warning",
-                        html: `Your account balance is currently in deficit (-USD $${deficitVal}).<br><br>Please clear the shortfall to complete this order.`,
+                        html: `<div style="font-size: 14.5px; line-height: 1.5; color: #334155;">This order exceeds your working balance.<br>Required Shortfall: <strong style="color: #ef4444; font-size: 16px;">USD $${deficitVal}</strong>.<br><br>Please clear the shortfall to complete this order.</div>`,
                         showCancelButton: true,
                         confirmButtonColor: '#2563eb',
                         cancelButtonColor: '#64748b',
-                        confirmButtonText: 'Deposit Now',
+                        confirmButtonText: 'Deposit Shortfall',
                         cancelButtonText: 'Contact Support'
                     }).then((result) => {
                         if (result.isConfirmed) {
@@ -312,7 +312,7 @@ async function submitOrderFromRecord(taskId, btn) {
                         }
                     });
                 } else {
-                    alert(`Account Limit Reached! Your balance is in deficit (-USD $${deficitVal}). Please clear the shortfall.`);
+                    alert(`Shortfall Deposit Required! Your balance has a shortfall of USD $${deficitVal}. Please clear the shortfall.`);
                 }
             } else {
                 if (typeof Swal !== 'undefined') {

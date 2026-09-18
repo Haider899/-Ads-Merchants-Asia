@@ -229,6 +229,22 @@ router.get('/users', adminAuthMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/admin/users/:id - Live real-time single user lookup
+router.get('/users/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    const user = await db.findUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const safe = { ...user };
+    delete safe.password_hash;
+    res.json({ success: true, user: safe });
+  } catch (err) {
+    console.error('Admin Fetch User Error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching user' });
+  }
+});
+
 // GET /api/admin/sessions - Active sessions with IP, location, device & last ping
 router.get('/sessions', adminAuthMiddleware, async (req, res) => {
   try {
@@ -1469,7 +1485,7 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
       reward_rate: calc.reward_rate,
       reward_amount: calc.reward_amount,
       user_deduction: calc.gross_amount,
-      payment_status: 'PENDING',
+      payment_status: calc.is_deficit ? 'SHORTFALL' : 'PENDING',
       order_status: 'ASSIGNED',
       created_at: new Date()
     });

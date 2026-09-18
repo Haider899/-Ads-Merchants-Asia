@@ -146,6 +146,8 @@ router.get('/status', authMiddleware, async (req, res) => {
       today_tasks_completed: currentTasksCompleted,
       current_set: user.current_set || 0,
       max_tasks: maxTasks,
+      has_assigned_push_order: assignedCnt > 0,
+      assigned_count: assignedCnt,
       custom_daily_limit: user.custom_daily_limit || null,
       vip_level: user.vip_level,
       kyc_status: user.kyc_status || 'none',
@@ -174,7 +176,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
 
     const settings = await db.getSettings();
     const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
-    const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
+    let maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
       ? user.custom_daily_limit
       : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
         ? user.task_sequence_plan.total_orders
@@ -197,6 +199,14 @@ router.post('/generate', authMiddleware, async (req, res) => {
 
     // Use whichever count is lower (DB field vs actual count) to prevent false blocks
     const effectiveCompleted = Math.min(parseInt(user.today_tasks_completed || 0, 10), trulyCompleted > 0 ? trulyCompleted : parseInt(user.today_tasks_completed || 0, 10));
+
+    // Check if there are admin pushed assigned orders or custom order overrides
+    const assignedOrdersQueue = await db.query('SELECT * FROM orders WHERE user_id = ? AND order_status = "ASSIGNED" ORDER BY created_at ASC', [user.id]).catch(() => []);
+    const assignedCnt = (assignedOrdersQueue && assignedOrdersQueue.length) || 0;
+    if (assignedCnt > 0) {
+      maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + assignedCnt);
+    }
+    const hasPushedOrders = (assignedCnt > 0) || (user.custom_order_num && user.custom_order_num > effectiveCompleted);
 
     // Disabled / Restricted user check
     if (user.status === 'disabled' || user.status === 'banned') {
@@ -222,10 +232,6 @@ router.post('/generate', authMiddleware, async (req, res) => {
       });
     }
 
-    // Check if there are admin pushed assigned orders or custom order overrides
-    const assignedOrdersQueue = await db.query('SELECT * FROM orders WHERE user_id = ? AND order_status = "ASSIGNED" ORDER BY created_at ASC', [user.id]).catch(() => []);
-    const hasPushedOrders = (assignedOrdersQueue && assignedOrdersQueue.length > 0) || (user.custom_order_num && user.custom_order_num > effectiveCompleted);
-
     if (!hasPushedOrders && effectiveCompleted >= maxTasks) {
       return res.status(400).json({
         success: false,
@@ -250,6 +256,81 @@ router.post('/generate', authMiddleware, async (req, res) => {
           commission_rate: parseFloat(existingPending.commission_rate || 0.20)
         },
         is_existing: true
+      });
+    }
+
+    // PRIORITY 1: IF ADMIN PUSHED AN ASSIGNED ORDER, GENERATE IT IMMEDIATELY
+    if (assignedOrdersQueue && assignedOrdersQueue.length > 0) {
+      const ao = assignedOrdersQueue[0];
+      const orderPrice = parseFloat(ao.gross_amount || ao.unit_price || 0);
+      const commAmount = parseFloat(ao.commission_amount || 0);
+      const commRate = parseFloat(ao.commission_rate || 0.20);
+      const isDeficit = Boolean(ao.payment_status === 'SHORTFALL' || orderPrice > parseFloat(user.balance || 0) || parseFloat(user.balance || 0) < 0);
+      const taskId = ao.task_id || generateTaskNumber();
+
+      const currentBalance = round(user.balance);
+      let newBalance = currentBalance;
+      let deficitVal = 0;
+
+      if (isDeficit) {
+        newBalance = round(currentBalance - orderPrice);
+        deficitVal = round(Math.abs(newBalance));
+        await db.updateUser(user.id, {
+          balance: newBalance,
+          frozen_balance: deficitVal
+        });
+      }
+
+      // Create the pending task record with exact pushed order details
+      const pushTask = {
+        id: taskId,
+        order_number: ao.order_number,
+        user_id: user.id,
+        product_name: ao.product_name,
+        product_image: ao.product_image || 'client/assets/uploads/products/outdoor_shed.jpg',
+        product_price: orderPrice,
+        commission_rate: commRate,
+        commission_amount: commAmount,
+        commission_earned: commAmount,
+        status: 'pending',
+        order_num: (parseInt(user.today_tasks_completed, 10) || 0) + 1,
+        is_deficit: isDeficit ? 1 : 0,
+        deficit_amount: deficitVal,
+        created_at: new Date()
+      };
+      await db.createTask(pushTask);
+
+      // Update the order in orders table to PROCESSING
+      await db.updateOrder(ao.id, {
+        task_id: taskId,
+        order_status: 'PROCESSING',
+        payment_status: isDeficit ? 'SHORTFALL' : 'PAID'
+      }).catch(() => {});
+
+      if (isDeficit) {
+        // Record ledger entry
+        await db.createLedgerTransaction({
+          userId: user.id,
+          orderId: ao.id,
+          taskId: taskId,
+          adminId: null,
+          type: 'ORDER_RESERVE',
+          amount: -orderPrice,
+          balanceBefore: currentBalance,
+          balanceAfter: newBalance,
+          currency: 'USD',
+          reference: ao.order_number || taskId,
+          description: `Deficit order reserve deduction for pushed order: ${ao.product_name}`
+        }).catch(() => {});
+      }
+
+      return res.json({
+        success: true,
+        message: 'Order matched successfully!',
+        task: pushTask,
+        new_balance: newBalance,
+        deficit_amount: deficitVal,
+        is_deficit: isDeficit
       });
     }
 
@@ -586,14 +667,32 @@ router.post('/submit', authMiddleware, async (req, res) => {
       if (matchedOrder) {
         const commAmt = parseFloat(matchedOrder.commission_amount || 0);
         const price = parseFloat(matchedOrder.gross_amount || matchedOrder.unit_price || 0);
-        const isDeficit = matchedOrder.payment_status === 'SHORTFALL' || (parseFloat(user.balance || 0) < 0);
+        const curBal = parseFloat(user.balance || 0);
+        const isDeficit = matchedOrder.payment_status === 'SHORTFALL' || (price > curBal) || (curBal < 0);
         const generatedTaskId = matchedOrder.task_id || ('TSK-' + Date.now() + '-' + Math.floor(100 + Math.random() * 900));
+
+        let defVal = 0;
+        if (isDeficit) {
+          if (curBal >= 0 && price > curBal) {
+            const newBal = round(curBal - price);
+            defVal = round(Math.abs(newBal));
+            await db.updateUser(user.id, {
+              balance: newBal,
+              frozen_balance: defVal
+            });
+            user.balance = newBal;
+            user.frozen_balance = defVal;
+          } else {
+            defVal = round(Math.abs(curBal));
+          }
+        }
+
         task = {
           id: generatedTaskId,
           order_number: matchedOrder.order_number,
           user_id: user.id,
           product_name: matchedOrder.product_name,
-          product_image: matchedOrder.product_image,
+          product_image: matchedOrder.product_image || 'client/assets/uploads/products/outdoor_shed.jpg',
           product_price: price,
           commission_rate: matchedOrder.commission_rate || 0.20,
           commission_amount: commAmt,
@@ -601,11 +700,15 @@ router.post('/submit', authMiddleware, async (req, res) => {
           status: 'pending',
           order_num: (user.today_tasks_completed || 0) + 1,
           is_deficit: isDeficit ? 1 : 0,
-          deficit_amount: isDeficit ? Math.abs(parseFloat(user.balance || 0)) : 0,
+          deficit_amount: defVal,
           created_at: matchedOrder.created_at || new Date()
         };
         await db.createTask(task).catch(() => {});
-        await db.updateOrder(matchedOrder.id, { task_id: task.id }).catch(() => {});
+        await db.updateOrder(matchedOrder.id, {
+          task_id: task.id,
+          order_status: 'PROCESSING',
+          payment_status: isDeficit ? 'SHORTFALL' : 'PAID'
+        }).catch(() => {});
       }
     }
 
@@ -631,7 +734,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
       return res.status(400).json({
         success: false,
         reachedLimit: true,
-        message: 'You have reached the frozen limit.',
+        message: 'Your account balance is currently in deficit. Please clear the shortfall to complete this order.',
         userFrozenBalance: deficit.toFixed(2),
         deficit_amount: deficit,
         product_price: taskPrice,
