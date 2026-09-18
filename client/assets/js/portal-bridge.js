@@ -156,7 +156,17 @@
       const authRes = await API.get('/api/auth/me');
       if (authRes && authRes.success && authRes.user) {
         currentUser = authRes.user;
+        window.__currentUser = currentUser;
         populateUserData(currentUser);
+
+        // Preload fresh task status to guard withdrawal clicks
+        try {
+          const tStat = await API.get('/api/tasks/status');
+          if (tStat && tStat.success && tStat.data) {
+            window.__userTaskStatus = tStat.data;
+          }
+        } catch (_) {}
+
         checkUserNotifications();
         setInterval(checkUserNotifications, 3500); // Check every 3.5s for real-time alerts
       } else if (isProtected && !pathname.includes('login') && !pathname.includes('register') && pathname !== '/' && pathname !== '/index.html') {
@@ -1188,6 +1198,117 @@
     window.loadDepositHistory = loadDepositHistory;
   }
 
+  // Pending Task Withdrawal Modal Pop-up
+  window.showPendingTaskWithdrawalModal = function(options = {}) {
+    const existing = document.getElementById('pending-task-withdraw-modal');
+    if (existing) existing.remove();
+
+    const title = options.title || 'Task Completion Required';
+    const message = options.message || 'You have to complete your pending task and assigned orders before you can request a withdrawal.';
+    const orderNum = options.pending_order_number || options.order_number || null;
+    const prodName = options.product_name || null;
+    const completed = options.completed_tasks !== undefined ? options.completed_tasks : null;
+    const max = options.max_tasks !== undefined ? options.max_tasks : null;
+
+    let detailsBox = '';
+    if ((completed !== null && max !== null) || orderNum) {
+      detailsBox = `
+        <div style="background: #f8fafc; border-radius: 14px; padding: 14px 16px; margin: 16px 0; border: 1.5px dashed #cbd5e1; text-align: left;">
+          ${completed !== null && max !== null ? `
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569; font-weight: 600;">
+              <span>Daily Tasks Progress:</span>
+              <span style="color: #0f172a; font-weight: 800;">${completed} / ${max} Completed</span>
+            </div>
+            <div style="background: #e2e8f0; height: 8px; border-radius: 4px; margin: 8px 0 10px 0; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #f59e0b, #ea580c); width: ${Math.min(100, Math.round((completed / (max || 1)) * 100))}%; height: 100%;"></div>
+            </div>
+          ` : ''}
+          ${orderNum ? `
+            <div style="font-size: 12.5px; color: #9a3412; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+              <i class="fa fa-spinner fa-spin" style="color: #ea580c;"></i>
+              <span>Active Pending Order: <strong style="font-family: monospace; color: #0f172a;">${orderNum}</strong></span>
+            </div>
+            ${prodName ? `<div style="font-size: 11.5px; color: #64748b; margin-top: 3px; padding-left: 18px;">${prodName}</div>` : ''}
+          ` : ''}
+        </div>
+      `;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'pending-task-withdraw-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      z-index: 99999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    `;
+
+    modal.innerHTML = `
+      <div style="background: #ffffff; border-radius: 24px; max-width: 420px; width: 100%; padding: 28px 22px; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.8); position: relative; animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+        <button style="position: absolute; top: 14px; right: 16px; background: #f1f5f9; border: none; font-size: 18px; width: 32px; height: 32px; border-radius: 50%; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;" onclick="document.getElementById('pending-task-withdraw-modal').remove()">&times;</button>
+        <div style="width: 68px; height: 68px; border-radius: 50%; background: #fef2f2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 30px; margin: 0 auto 16px auto; box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.12);">
+          <i class="fa fa-exclamation-circle"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0;">${title}</h3>
+        <p style="font-size: 13.5px; color: #475569; line-height: 1.5; margin: 0 0 8px 0;">${message}</p>
+        ${detailsBox}
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button style="flex: 1; padding: 13px 14px; border-radius: 14px; font-weight: 700; font-size: 13.5px; background: #f1f5f9; color: #475569; border: none; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('pending-task-withdraw-modal').remove()">
+            Close
+          </button>
+          <button style="flex: 2; padding: 13px 14px; border-radius: 14px; font-weight: 700; font-size: 13.5px; background: linear-gradient(135deg, #ea580c, #dc2626); color: #ffffff; border: none; cursor: pointer; box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35); transition: all 0.2s;" onclick="window.location.href='/home'">
+            <i class="fa fa-arrow-right mr-1"></i> Go to Tasks
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  };
+
+  // Intercept global withdraw clicks across dashboard/profile if tasks are incomplete
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href*="withdraw"], a[href="withdraw.html"]');
+    if (!link) return;
+
+    if (window.__userTaskStatus) {
+      const ts = window.__userTaskStatus;
+      const isNeg = parseFloat(ts.balance || 0) < 0;
+      const hasPending = !!ts.pending_task;
+      const completed = parseInt(ts.today_tasks_completed || 0, 10);
+      const max = parseInt(ts.max_tasks || 5, 10);
+
+      if (isNeg || hasPending || completed < max) {
+        e.preventDefault();
+        let reason = 'You have to complete your pending task before requesting a withdrawal.';
+        if (hasPending) {
+          reason = 'You have an active pending order in progress. You have to complete your pending task and assigned orders before you can make a withdrawal.';
+        } else if (isNeg) {
+          reason = 'Your working balance is currently negative due to a deficit order. Please clear the deficit and complete your order before requesting a withdrawal.';
+        } else if (completed < max) {
+          reason = `You have to complete all daily tasks (${completed}/${max} completed) before requesting a withdrawal.`;
+        }
+
+        window.showPendingTaskWithdrawalModal({
+          title: 'You Have to Complete Your Pending Task',
+          message: reason,
+          pending_order_number: ts.pending_task ? ts.pending_task.order_number : null,
+          product_name: ts.pending_task ? ts.pending_task.product_name : null,
+          completed_tasks: completed,
+          max_tasks: max
+        });
+      }
+    }
+  });
+
   // WITHDRAW PAGE HANDLER
   function initWithdrawPage(user) {
     const historyBtn = document.getElementById('history-btn');
@@ -1265,9 +1386,83 @@
     const withdrawForms = document.querySelectorAll('form.withdrawal-form, #withdrawForm');
     if (!withdrawForms || !withdrawForms.length) return;
 
+    // Fetch and cache user's current task status
+    let userTaskStatus = null;
+    (async () => {
+      try {
+        const stRes = await API.get('/api/tasks/status');
+        if (stRes && stRes.success && stRes.data) {
+          userTaskStatus = stRes.data;
+          window.__userTaskStatus = stRes.data;
+
+          const isNeg = parseFloat(stRes.data.balance || 0) < 0;
+          const hasPending = !!stRes.data.pending_task;
+          const completed = parseInt(stRes.data.today_tasks_completed || 0, 10);
+          const max = parseInt(stRes.data.max_tasks || 5, 10);
+
+          if (isNeg || hasPending || completed < max) {
+            const container = document.querySelector('.withdraw-form-container') || document.querySelector('#crypto-section')?.parentElement;
+            if (container && !document.getElementById('withdrawPendingTaskBanner')) {
+              const banner = document.createElement('div');
+              banner.id = 'withdrawPendingTaskBanner';
+              banner.style.cssText = 'background: #fff7ed; border: 1.5px solid #f97316; border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 4px 14px rgba(249, 115, 22, 0.1);';
+              banner.innerHTML = `
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #ffedd5; color: #ea580c; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+                  <i class="fa fa-lock"></i>
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-weight: 800; color: #9a3412; font-size: 14px;">Task Completion Required</div>
+                  <div style="color: #c2410c; font-size: 12.5px; margin-top: 3px; line-height: 1.4;">
+                    You have pending tasks in progress (${completed}/${max} completed). All assigned tasks must be completed before you can withdraw.
+                  </div>
+                  <div style="margin-top: 10px;">
+                    <a href="/home" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: linear-gradient(135deg, #ea580c, #dc2626); color: #ffffff; border-radius: 8px; font-weight: 700; font-size: 12px; text-decoration: none; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25);">
+                      <i class="fa fa-tasks"></i> Complete Tasks Now
+                    </a>
+                  </div>
+                </div>
+              `;
+              container.insertBefore(banner, container.firstChild);
+            }
+          }
+        }
+      } catch (_) {}
+    })();
+
     withdrawForms.forEach(withdrawForm => {
       withdrawForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Check if user has incomplete tasks or negative balance
+        const ts = userTaskStatus || window.__userTaskStatus;
+        if (ts) {
+          const isNeg = parseFloat(ts.balance || 0) < 0;
+          const hasPending = !!ts.pending_task;
+          const completed = parseInt(ts.today_tasks_completed || 0, 10);
+          const max = parseInt(ts.max_tasks || 5, 10);
+
+          if (isNeg || hasPending || completed < max) {
+            let reason = 'You have to complete your pending task before requesting a withdrawal.';
+            if (hasPending) {
+              reason = 'You have an active pending order in progress. You have to complete your pending task and assigned orders before you can make a withdrawal.';
+            } else if (isNeg) {
+              reason = 'Your working balance is currently negative due to a deficit order. Please clear the deficit and complete your order before requesting a withdrawal.';
+            } else if (completed < max) {
+              reason = `You have to complete all daily tasks (${completed}/${max} completed) before requesting a withdrawal.`;
+            }
+
+            window.showPendingTaskWithdrawalModal({
+              title: 'You Have to Complete Your Pending Task',
+              message: reason,
+              pending_order_number: ts.pending_task ? ts.pending_task.order_number : null,
+              product_name: ts.pending_task ? ts.pending_task.product_name : null,
+              completed_tasks: completed,
+              max_tasks: max
+            });
+            return;
+          }
+        }
+
         const amountInput = withdrawForm.querySelector('input[name="withdraw_amount"], input[name="amount"], #withdraw-amount');
         const addressInput = withdrawForm.querySelector('input[name="wallet_address"], input[name="address"], #wallet-address');
         const networkSelect = withdrawForm.querySelector('select[name="usdt_network"], #usdt-network');
@@ -1337,7 +1532,18 @@
               });
             }
           } else {
-            showBridgeToast('Withdrawal Failed', (res && res.message) || 'Error submitting withdrawal', 'error');
+            if (res && res.has_pending_tasks) {
+              window.showPendingTaskWithdrawalModal({
+                title: 'You Have to Complete Your Pending Task',
+                message: res.message,
+                pending_order_number: res.pending_order_number,
+                product_name: res.product_name,
+                completed_tasks: res.completed_tasks,
+                max_tasks: res.max_tasks
+              });
+            } else {
+              showBridgeToast('Withdrawal Failed', (res && res.message) || 'Error submitting withdrawal', 'error');
+            }
           }
         } catch (err) {
           showBridgeToast('Error', 'Connection error while processing withdrawal', 'error');

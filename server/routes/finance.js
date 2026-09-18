@@ -89,6 +89,45 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
+    // 1. Mandatory requirement: All assigned tasks and daily orders must be completed before withdrawal
+    const isNegative = parseFloat(user.balance || 0) < 0;
+    const userTasks = await db.getTasks(user.id);
+    const pendingTask = (userTasks || []).find(t => t.status === 'pending');
+
+    const userOrders = await db.getOrders({ user_id: user.id });
+    const pendingOrder = (userOrders || []).find(o => 
+      ['PENDING', 'PROCESSING', 'SHORTFALL'].includes((o.order_status || '').toUpperCase())
+    );
+
+    const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
+      ? user.custom_daily_limit
+      : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
+        ? user.task_sequence_plan.total_orders
+        : 5);
+
+    const completedTasks = parseInt(user.today_tasks_completed || 0, 10);
+
+    if (isNegative || pendingTask || pendingOrder || completedTasks < maxTasks) {
+      let reason = 'You have to complete your pending task before requesting a withdrawal.';
+      if (pendingTask || pendingOrder) {
+        reason = 'You have to complete your pending task. All assigned orders must be completed before you can make a withdrawal.';
+      } else if (isNegative) {
+        reason = 'Your working balance is currently negative. Please clear the deficit and complete your order before requesting a withdrawal.';
+      } else if (completedTasks < maxTasks) {
+        reason = `You have to complete your pending tasks (${completedTasks}/${maxTasks} completed) before requesting a withdrawal.`;
+      }
+
+      return res.status(400).json({
+        success: false,
+        has_pending_tasks: true,
+        pending_order_number: pendingTask ? pendingTask.order_number : (pendingOrder ? pendingOrder.order_number : null),
+        product_name: pendingTask ? pendingTask.product_name : null,
+        completed_tasks: completedTasks,
+        max_tasks: maxTasks,
+        message: reason
+      });
+    }
+
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount < (settings.min_withdraw || 30)) {
       return res.status(400).json({
