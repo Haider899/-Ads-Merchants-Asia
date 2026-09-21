@@ -885,7 +885,7 @@
     });
     const taskFrozenContainer = document.getElementById('start-frozen-container');
     if (taskFrozenContainer) {
-      taskFrozenContainer.style.display = 'none'; // Keep clean matching original screenshot 07.10.31 & 07.10.33
+      taskFrozenContainer.style.display = frozBal > 0 ? 'block' : 'none';
     }
     document.querySelectorAll('.task-profit, #todayProfitVal, .user-today-profit, #todayProfit, #start-todays-profit-text, #profile-total-profit').forEach(el => {
       el.textContent = `USD ${formatUSD(displayProfit)}`;
