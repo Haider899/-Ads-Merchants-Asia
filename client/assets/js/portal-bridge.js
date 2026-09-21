@@ -957,6 +957,20 @@
       document.body.appendChild(modal);
     }
 
+    // Compute frozen balance for display
+    const taskFrozen = parseFloat((window.__currentUser && window.__currentUser.frozen_balance) || 0);
+    const frozenRowHtml = taskFrozen > 0
+      ? `<div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+           <span style="font-size: 12px; color: #9a3412; font-weight: 600;">🔒 Frozen Balance</span>
+           <span style="font-size: 14px; font-weight: 700; color: #c2410c;">USD ${taskFrozen.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+         </div>`
+      : '';
+    const deficitBannerHtml = task.is_deficit
+      ? `<div style="background: #fff0f0; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; color: #b91c1c; font-weight: 600; text-align: center;">
+           ⚠️ Shortfall Order — Deposit required to submit
+         </div>`
+      : '';
+
     modal.innerHTML = `
       <div style="background: #fff; border-radius: 16px; max-width: 440px; width: 100%; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 16px;">
@@ -968,7 +982,7 @@
           <div style="font-weight: 600; font-size: 15px; color: #222; margin-bottom: 6px; line-height: 1.3;">${task.product_name}</div>
           <div style="color: #666; font-size: 13px;">Merchant Value: <strong style="color: #111;">$${task.product_price.toFixed(2)}</strong></div>
         </div>
-        <div style="background: #f8f9fa; border-radius: 10px; padding: 14px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center;">
+        <div style="background: #f8f9fa; border-radius: 10px; padding: 14px; margin-bottom: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center;">
           <div>
             <div style="font-size: 12px; color: #777;">Commission Rate</div>
             <div style="font-size: 16px; font-weight: 700; color: #007bff;">${(task.commission_rate * 100).toFixed(2)}%</div>
@@ -978,11 +992,11 @@
             <div style="font-size: 16px; font-weight: 700; color: #28a745;">+$${task.commission_amount.toFixed(2)}</div>
           </div>
         </div>
+        ${frozenRowHtml}
+        ${deficitBannerHtml}
         <div style="display: flex; gap: 10px;">
-          ${!task.is_deficit ? `
-            <button id="cancelTaskBtn" style="flex: 1; padding: 12px; border: 1px solid #ddd; background: #fff; border-radius: 8px; font-weight: 600; cursor: pointer; color: #555;">Cancel</button>
-          ` : ''}
-          <button id="submitTaskBtn" style="flex: ${!task.is_deficit ? '2' : '1'}; padding: 12px; border: none; background: #28a745; color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <button id="cancelTaskBtn" style="flex: 1; padding: 12px; border: 1px solid #ddd; background: #fff; border-radius: 8px; font-weight: 600; cursor: pointer; color: #555; transition: background 0.15s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">✕ Cancel</button>
+          <button id="submitTaskBtn" style="flex: 2; padding: 12px; border: none; background: #28a745; color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
             <span>Submit Optimization</span>
           </button>
         </div>
@@ -994,6 +1008,14 @@
     const cancelBtn = document.getElementById('cancelTaskBtn');
     if (cancelBtn) {
       cancelBtn.onclick = async () => {
+        // For deficit orders: just close modal — balance is not yet deducted, user must deposit first
+        if (task.is_deficit) {
+          modal.style.display = 'none';
+          window.__activePendingTask = null;
+          showBridgeToast('Order Closed', 'Deficit order closed. Please deposit to clear your shortfall.', 'info');
+          if (typeof window.fetchTaskStatus === 'function') window.fetchTaskStatus();
+          return;
+        }
         cancelBtn.disabled = true;
         cancelBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelling...';
         try {

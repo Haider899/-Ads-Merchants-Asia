@@ -980,15 +980,7 @@
     }
   };
 
-  window.openChatWithUser = function(userId) {
-    const chatTabBtn = document.querySelector('.admin-tab-btn[data-tab="tabChat"]') || document.getElementById('tabBtnChat');
-    if (chatTabBtn) {
-      chatTabBtn.click();
-    }
-    if (typeof selectChatUser === 'function') {
-      selectChatUser(userId);
-    }
-  };
+  // openChatWithUser - first definition removed; canonical version is below at line ~1521
 
   window.openEditUserModal = function(userId) {
     const user = state.users.find(u => String(u.id) === String(userId));
@@ -1517,14 +1509,21 @@
     }
   };
 
-  // Quick Chat opener
-  window.openChatWithUser = function(userId, userName) {
+  // Quick Chat opener — deep-links admin directly to a specific user's chat thread
+  window.openChatWithUser = async function(userId, userName) {
+    // 1. Switch to the Chat tab
     switchAdminTab('tabChat');
-    setTimeout(() => {
-      if (typeof selectUserChat === 'function') {
-        selectUserChat(userId, userName);
-      }
-    }, 200);
+    // 2. Load/refresh conversations so the user entry is available in the sidebar
+    if (typeof loadChatConversations === 'function') {
+      await loadChatConversations();
+    }
+    // 3. Pre-fill the "Start New Chat" dropdown as a fallback selector
+    const sel = document.getElementById('chatStartUserSelect');
+    if (sel && userId) sel.value = String(userId);
+    // 4. Open the specific user's chat thread directly
+    if (typeof selectChatUser === 'function') {
+      await selectChatUser(String(userId));
+    }
   };
 
   // Self-Balancing / Reinvest profit into working balance
