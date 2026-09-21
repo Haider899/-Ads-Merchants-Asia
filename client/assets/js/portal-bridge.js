@@ -957,19 +957,6 @@
       document.body.appendChild(modal);
     }
 
-    // Compute frozen balance for display
-    const taskFrozen = parseFloat((window.__currentUser && window.__currentUser.frozen_balance) || 0);
-    const frozenRowHtml = taskFrozen > 0
-      ? `<div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
-           <span style="font-size: 12px; color: #9a3412; font-weight: 600;">🔒 Frozen Balance</span>
-           <span style="font-size: 14px; font-weight: 700; color: #c2410c;">USD ${taskFrozen.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-         </div>`
-      : '';
-    const deficitBannerHtml = task.is_deficit
-      ? `<div style="background: #fff0f0; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; color: #b91c1c; font-weight: 600; text-align: center;">
-           ⚠️ Shortfall Order — Deposit required to submit
-         </div>`
-      : '';
 
     modal.innerHTML = `
       <div style="background: #fff; border-radius: 16px; max-width: 440px; width: 100%; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
@@ -992,8 +979,7 @@
             <div style="font-size: 16px; font-weight: 700; color: #28a745;">+$${task.commission_amount.toFixed(2)}</div>
           </div>
         </div>
-        ${frozenRowHtml}
-        ${deficitBannerHtml}
+
         <div style="display: flex; gap: 10px;">
           <button id="cancelTaskBtn" style="flex: 1; padding: 12px; border: 1px solid #ddd; background: #fff; border-radius: 8px; font-weight: 600; cursor: pointer; color: #555; transition: background 0.15s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">✕ Cancel</button>
           <button id="submitTaskBtn" style="flex: 2; padding: 12px; border: none; background: #28a745; color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
