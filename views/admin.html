@@ -1413,6 +1413,23 @@
                             Override this user's daily task cap. Leave <strong>empty</strong> to use standard daily limit (default 5 tasks). Resets automatically every day at midnight.
                         </small>
                     </div>
+                    <!-- Withdrawal Minimum Override -->
+                    <div style="margin-bottom: 18px; padding: 14px; background: #fff7ed; border-radius: 12px; border: 1px solid #fed7aa;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i class="fa fa-money-bill-wave" style="color: #ea580c; font-size: 14px;"></i>
+                            <span style="font-size: 12px; font-weight: 800; color: #9a3412; text-transform: uppercase; letter-spacing: 0.5px;">Minimum Withdrawal Override</span>
+                            <span id="editCurrentMinWithdraw" style="font-size: 11px; background: #ea580c; color: white; border-radius: 20px; padding: 2px 8px; font-weight: 700; display: none;"></span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" min="0.01" step="0.01" id="editUserMinWithdraw" class="form-control" placeholder="30.00 (leave empty for system default)" style="flex: 1; border-color: #fdba74;" />
+                            <button type="button" onclick="clearMinWithdraw()" style="padding: 8px 12px; background: #fff; border: 1px solid #fdba74; border-radius: 8px; font-size: 12px; font-weight: 700; color: #9a3412; cursor: pointer; white-space: nowrap;">
+                                <i class="fa fa-times"></i> Clear
+                            </button>
+                        </div>
+                        <small style="color: #9a3412; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.5;">
+                            Default for every user is <strong>$30.00</strong>. Set a different positive amount for this user, or clear it to use the system setting.
+                        </small>
+                    </div>
                     <button type="submit" class="btn-action btn-edit" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
                         <i class="fa fa-save"></i> Save Changes
                     </button>

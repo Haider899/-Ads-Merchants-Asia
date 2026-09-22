@@ -18,6 +18,7 @@ async function runMigration() {
     { name: 'custom_product_name', type: 'VARCHAR(255) DEFAULT NULL' },
     { name: 'custom_product_price', type: 'DECIMAL(15,2) DEFAULT NULL' },
     { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
+    { name: 'custom_min_withdraw', type: 'DECIMAL(15,2) DEFAULT NULL' },
     { name: 'last_reset_date', type: 'DATE DEFAULT NULL' },
     { name: 'country_code', type: 'VARCHAR(10) DEFAULT NULL' },
     { name: 'country_name', type: 'VARCHAR(100) DEFAULT NULL' },

@@ -328,7 +328,7 @@ router.post('/users/delete', adminAuthMiddleware, checkRole('sub_admin'), async 
 // POST /api/admin/users/update
 router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
-    const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit, kyc_status } = req.body;
+    const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit, custom_min_withdraw, kyc_status } = req.body;
     const user = await db.findUserById(userId);
 
     if (!user) {
@@ -348,6 +348,16 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
       } else {
         const cdl = parseInt(custom_daily_limit, 10);
         updates.custom_daily_limit = (!isNaN(cdl) && cdl > 0) ? cdl : null;
+      }
+    }
+
+    // Empty clears the per-user override and restores the system default.
+    if (custom_min_withdraw !== undefined) {
+      if (custom_min_withdraw === '' || custom_min_withdraw === null) {
+        updates.custom_min_withdraw = null;
+      } else {
+        const cmw = parseFloat(custom_min_withdraw);
+        updates.custom_min_withdraw = (!isNaN(cmw) && cmw > 0) ? parseFloat(cmw.toFixed(2)) : null;
       }
     }
 

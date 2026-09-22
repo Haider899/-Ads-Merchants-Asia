@@ -431,7 +431,7 @@
         btn.style.borderColor = '#ef4444';
         btn.style.color = '#dc2626';
         icon.className = 'fa fa-phone-volume fa-shake';
-        label.textContent = 'Chat Ringing...';
+        label.textContent = 'Alerts Ringing...';
         btn.classList.add('pulse-ringing');
       } else {
         btn.style.background = 'rgba(16, 185, 129, 0.1)';
@@ -530,7 +530,7 @@
       }
     },
 
-    // Recurring chat ring: Non-stop repeating alarm loop every 2 seconds until answered
+    // Recurring admin alert ring: repeats until all pending alerts are cleared.
     startRecurringChatRing() {
       if (this.isChatRinging) return;
       this.isChatRinging = true;
@@ -547,7 +547,7 @@
       }, 2000); // continuous alarm loop every 2 seconds
     },
 
-    // Stops recurring chat ring immediately when admin responds, silences, or mutes
+    // Stops recurring admin alert ring immediately when no pending alert remains or sound is muted.
     stopRecurringChatRing() {
       if (!this.isChatRinging && !this.chatRingTimer) return;
       this.isChatRinging = false;
@@ -715,6 +715,13 @@
       const curDeposits = parseInt(res.metrics.pendingDeposits, 10) || 0;
       const curWithdrawals = parseInt(res.metrics.pendingWithdrawals, 10) || 0;
       const curKycs = parseInt(res.metrics.pendingKycs, 10) || 0;
+      const totalAdminAlerts = parseInt(res.metrics.totalAlerts, 10) || 0;
+
+      if (totalAdminAlerts > 0) {
+        AdminAudio.startRecurringChatRing();
+      } else {
+        AdminAudio.stopRecurringChatRing();
+      }
 
       if (!prevAlertCounts.initialized) {
         prevAlertCounts.deposits = curDeposits;
@@ -1010,6 +1017,17 @@
         currentLimitBadge.style.display = 'none';
       }
     }
+    const minWithdrawEl = document.getElementById('editUserMinWithdraw');
+    const currentMinWithdrawBadge = document.getElementById('editCurrentMinWithdraw');
+    if (minWithdrawEl) minWithdrawEl.value = user.custom_min_withdraw || '';
+    if (currentMinWithdrawBadge) {
+      if (user.custom_min_withdraw) {
+        currentMinWithdrawBadge.textContent = `Active: $${parseFloat(user.custom_min_withdraw).toFixed(2)}`;
+        currentMinWithdrawBadge.style.display = 'inline-block';
+      } else {
+        currentMinWithdrawBadge.style.display = 'none';
+      }
+    }
     AdminUI.openModal('editUserModal');
   };
 
@@ -1017,6 +1035,13 @@
     const el = document.getElementById('editUserDailyLimit');
     if (el) el.value = '';
     const badge = document.getElementById('editCurrentDailyLimit');
+    if (badge) badge.style.display = 'none';
+  };
+
+  window.clearMinWithdraw = function() {
+    const el = document.getElementById('editUserMinWithdraw');
+    if (el) el.value = '';
+    const badge = document.getElementById('editCurrentMinWithdraw');
     if (badge) badge.style.display = 'none';
   };
 
@@ -2103,14 +2128,6 @@
           }
         }
 
-        // Live Chat Recurring Ring Alert:
-        // When any user sends a message, alarm rings continuously until admin responds or silences!
-        if (totalUnread > 0) {
-          AdminAudio.startRecurringChatRing();
-        } else {
-          AdminAudio.stopRecurringChatRing();
-        }
-
         // Update Silence button state for active chat
         const silenceBtn = document.getElementById('adminChatSilenceBtn');
         if (silenceBtn) {
@@ -3151,12 +3168,14 @@
           const reset_tasks = document.getElementById('editUserResetTasks').checked;
           const customDailyEl = document.getElementById('editUserDailyLimit');
           const custom_daily_limit = customDailyEl ? customDailyEl.value.trim() : '';
+          const customMinWithdrawEl = document.getElementById('editUserMinWithdraw');
+          const custom_min_withdraw = customMinWithdrawEl ? customMinWithdrawEl.value.trim() : '';
 
           const kycStatusEl = document.getElementById('editUserKycStatus');
           const kyc_status = kycStatusEl ? kycStatusEl.value : undefined;
 
           const res = await AdminAPI.post('/api/admin/users/update', {
-            userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit, kyc_status
+            userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit, custom_min_withdraw, kyc_status
           });
 
           if (res && res.success) {

@@ -136,11 +136,17 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       });
     }
 
+    const systemMinWithdraw = parseFloat(settings.min_withdraw);
+    const defaultMinWithdraw = Number.isFinite(systemMinWithdraw) && systemMinWithdraw > 0 ? systemMinWithdraw : 30;
+    const userMinWithdraw = parseFloat(user.custom_min_withdraw);
+    const minWithdraw = Number.isFinite(userMinWithdraw) && userMinWithdraw > 0
+      ? userMinWithdraw
+      : defaultMinWithdraw;
     const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount < (settings.min_withdraw || 30)) {
+    if (isNaN(numAmount) || numAmount < minWithdraw) {
       return res.status(400).json({
         success: false,
-        message: `Minimum withdrawal amount is $${settings.min_withdraw || 30}.00`
+        message: `Minimum withdrawal amount is $${minWithdraw.toFixed(2)}`
       });
     }
 
