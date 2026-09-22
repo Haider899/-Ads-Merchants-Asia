@@ -353,7 +353,9 @@
             if (AudioCtx) this.ctx = new AudioCtx();
           }
           if (this.ctx && this.ctx.state === 'suspended') {
-            this.ctx.resume();
+            this.ctx.resume().then(() => {
+              if (this.isChatRinging) this.playChatRingPulse();
+            }).catch(() => {});
           }
         } catch (e) {
           console.warn('AudioContext auto-unlock failed:', e);
@@ -383,7 +385,7 @@
           if (AudioCtx) this.ctx = new AudioCtx();
         }
         if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume();
+          this.ctx.resume().catch(() => {});
         }
         return this.ctx;
       } catch (e) {
@@ -485,6 +487,12 @@
       if (!this.enabled || !this.isChatRinging) return;
       const ctx = this.ensureContext();
       if (!ctx) return;
+      if (ctx.state !== 'running') {
+        ctx.resume().then(() => {
+          if (this.enabled && this.isChatRinging) this.playChatRingPulse();
+        }).catch(() => {});
+        return;
+      }
 
       try {
         const now = ctx.currentTime;
