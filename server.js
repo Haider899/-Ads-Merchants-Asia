@@ -152,9 +152,17 @@ mainApp.get(['/aboutData', '/about', '/about.html', '/aboutus'], servePage('abou
 mainApp.get(['/levelsData', '/levels', '/levels.html'], servePage('levels.html'));
 mainApp.get(['/editprofileData*', '/editprofile*', '/editprofile.html'], servePage('editprofile.html'));
 
-// Redirect old admin paths on main app to the subdomain
+// Redirect old admin paths on main app to the subdomain or direct serve if accessed via IP
 mainApp.get(['/admin', '/admin.html'], (req, res) => {
-  res.redirect('http://admin.ads-merchants-asia.com');
+  const host = (req.hostname || req.headers.host || '').toLowerCase();
+  if (host.includes('amazonasiamerchants.com')) {
+    return res.redirect('https://admin.amazonasiamerchants.com');
+  }
+  if (host.includes('ads-merchants-asia.com')) {
+    return res.redirect('https://admin.ads-merchants-asia.com');
+  }
+  // When accessing directly via IP (e.g. 200.97.165.154) or localhost: serve admin page directly
+  res.sendFile(path.join(__dirname, 'views', 'admin.html'));
 });
 
 // Signout route
@@ -173,16 +181,26 @@ mainApp.use((req, res) => {
 });
 
 // --- VHOST MOUNTING ---
-// Mount the admin app on the admin subdomain
+// Admin Subdomains
+app.use(vhost('admin.amazonasiamerchants.com', adminApp));
 app.use(vhost('admin.ads-merchants-asia.com', adminApp));
 app.use(vhost('admin.localhost', adminApp)); // For local testing
+if (process.env.ADMIN_DOMAIN) {
+  app.use(vhost(process.env.ADMIN_DOMAIN, adminApp));
+}
 
-// Mount the main app on the root domain and www
+// Main Domains
+app.use(vhost('amazonasiamerchants.com', mainApp));
+app.use(vhost('www.amazonasiamerchants.com', mainApp));
 app.use(vhost('ads-merchants-asia.com', mainApp));
 app.use(vhost('www.ads-merchants-asia.com', mainApp));
 app.use(vhost('localhost', mainApp)); // For local testing
+if (process.env.DOMAIN_NAME) {
+  app.use(vhost(process.env.DOMAIN_NAME, mainApp));
+  app.use(vhost(`www.${process.env.DOMAIN_NAME}`, mainApp));
+}
 
-// Catch-all if vhost doesn't match (e.g. accessing via IP directly)
+// Catch-all if vhost doesn't match (e.g. accessing via IP directly 200.97.165.154)
 app.use(mainApp);
 
 const db = require('./server/db');
