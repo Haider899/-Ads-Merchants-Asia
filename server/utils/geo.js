@@ -107,51 +107,52 @@ function getCountryName(countryCode) {
 
 function extractClientIp(req) {
   if (!req) return '127.0.0.1';
-  const forwarded = req.headers['x-forwarded-for'];
-  if (forwarded) {
-    const ips = forwarded.split(',').map(s => s.trim());
-    if (ips.length > 0 && ips[0]) return ips[0];
+  if (req.headers) {
+    if (req.headers['cf-connecting-ip']) return req.headers['cf-connecting-ip'].trim();
+    if (req.headers['true-client-ip']) return req.headers['true-client-ip'].trim();
+    if (req.headers['x-client-ip']) return req.headers['x-client-ip'].trim();
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
+      if (ips.length > 0) return ips[0];
+    }
+    if (req.headers['x-real-ip']) return req.headers['x-real-ip'].trim();
   }
-  return req.headers['x-real-ip'] || (req.socket && req.socket.remoteAddress) || '127.0.0.1';
+  return (req.socket && req.socket.remoteAddress) || req.ip || '127.0.0.1';
 }
 
-function lookupIp(ip, timezone) {
+function lookupIp(ip, timezone, cfCountry) {
   const cleanIp = (ip || '127.0.0.1').replace(/^::ffff:/, '').trim();
   const isLocal = !cleanIp || cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.') || cleanIp.startsWith('172.16.');
 
-  let geo = null;
-  if (!isLocal && geoip && typeof geoip.lookup === 'function') {
-    try {
-      geo = geoip.lookup(cleanIp);
-    } catch (_) {}
-  }
-
-  // 1. If public IP lookup succeeded, use that country
-  if (geo && geo.country) {
-    const code = geo.country.toUpperCase();
+  // 1. Direct Edge Country from CDN/Cloudflare header
+  if (cfCountry && typeof cfCountry === 'string' && cfCountry.length === 2 && cfCountry !== 'XX' && cfCountry !== 'T1') {
+    const code = cfCountry.toUpperCase();
     return {
       ip: cleanIp,
       countryCode: code,
       countryName: getCountryName(code),
-      city: geo.city || '',
+      city: '',
       flagEmoji: getFlagEmoji(code)
     };
   }
 
-  // 2. Fallback to client browser timezone if local or unresolved
+  // 2. Resolve country from user browser timezone
+  let tzCountry = null;
   if (timezone && typeof timezone === 'string') {
     const tzTrimmed = timezone.trim();
     let matchedCode = TIMEZONE_TO_COUNTRY[tzTrimmed];
     if (!matchedCode) {
       if (tzTrimmed.includes('Karachi') || tzTrimmed.includes('Islamabad') || tzTrimmed.includes('Lahore')) matchedCode = 'PK';
       else if (tzTrimmed.includes('Kolkata') || tzTrimmed.includes('Calcutta')) matchedCode = 'IN';
-      else if (tzTrimmed.includes('Dubai')) matchedCode = 'AE';
+      else if (tzTrimmed.includes('Dhaka')) matchedCode = 'BD';
+      else if (tzTrimmed.includes('Dubai') || tzTrimmed.includes('Muscat')) matchedCode = 'AE';
       else if (tzTrimmed.includes('London')) matchedCode = 'GB';
-      else if (tzTrimmed.includes('New_York') || tzTrimmed.includes('Los_Angeles') || tzTrimmed.includes('Chicago')) matchedCode = 'US';
+      else if (tzTrimmed.includes('Kuala_Lumpur')) matchedCode = 'MY';
+      else if (tzTrimmed.includes('Singapore')) matchedCode = 'SG';
     }
-
     if (matchedCode) {
-      return {
+      tzCountry = {
         ip: cleanIp,
         countryCode: matchedCode,
         countryName: getCountryName(matchedCode),
@@ -161,23 +162,42 @@ function lookupIp(ip, timezone) {
     }
   }
 
-  // 3. Fallback for unresolvable IPs
-  if (isLocal) {
+  // 3. Lookup IP in MaxMind GeoIP database
+  let geo = null;
+  if (!isLocal && geoip && typeof geoip.lookup === 'function') {
+    try {
+      geo = geoip.lookup(cleanIp);
+    } catch (_) {}
+  }
+
+  if (geo && geo.country) {
+    const code = geo.country.toUpperCase();
+    // If IP resolves to US but user's browser timezone is Pakistani/Asian,
+    // the US IP is a hosting server proxy or VPN exit node -> prioritize actual user timezone
+    if ((code === 'US' || code === 'GB') && tzCountry && (tzCountry.countryCode === 'PK' || tzCountry.countryCode === 'IN' || tzCountry.countryCode === 'BD' || tzCountry.countryCode === 'MY')) {
+      return tzCountry;
+    }
     return {
       ip: cleanIp,
-      countryCode: 'PK',
-      countryName: 'Pakistan',
-      city: 'Local Session',
-      flagEmoji: '🇵🇰'
+      countryCode: code,
+      countryName: getCountryName(code),
+      city: geo.city || '',
+      flagEmoji: getFlagEmoji(code)
     };
   }
 
+  // 4. Fallback to client browser timezone
+  if (tzCountry) {
+    return tzCountry;
+  }
+
+  // 5. Fallback for local development or unresolvable
   return {
     ip: cleanIp,
-    countryCode: 'UN',
-    countryName: 'Global Location',
-    city: '',
-    flagEmoji: '🌐'
+    countryCode: 'PK',
+    countryName: 'Pakistan',
+    city: 'Local Session',
+    flagEmoji: '🇵🇰'
   };
 }
 

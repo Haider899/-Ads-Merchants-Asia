@@ -12,7 +12,8 @@ function trackUserSession(user, req) {
   if (!user || !user.id) return;
   const clientIp = geo.extractClientIp ? geo.extractClientIp(req) : (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : (req.socket.remoteAddress || req.ip));
   const tz = req.headers['x-client-timezone'] || (req.body && req.body.timezone) || user.timezone;
-  const location = geo.lookupIp ? geo.lookupIp(clientIp, tz) : { ip: clientIp, countryCode: 'PK', countryName: 'Pakistan', city: 'Islamabad', flagEmoji: '🇵🇰' };
+  const cfCountry = req.headers['cf-ipcountry'];
+  const location = geo.lookupIp ? geo.lookupIp(clientIp, tz, cfCountry) : { ip: clientIp, countryCode: 'PK', countryName: 'Pakistan', city: 'Islamabad', flagEmoji: '🇵🇰' };
 
   activeSessions.set(String(user.id), {
     userId: String(user.id),
