@@ -99,6 +99,44 @@ async function runMigration() {
     console.error('Error updating vip_rates setting:', err.message);
   }
 
+  // 4. Ensure deposits and withdrawals tables
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS deposits (
+      id VARCHAR(50) PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      user_email VARCHAR(255),
+      amount DECIMAL(15,2),
+      method VARCHAR(50),
+      txid VARCHAR(255),
+      proof_image LONGTEXT,
+      status VARCHAR(50) DEFAULT 'pending',
+      admin_notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX (user_id),
+      INDEX (created_at)
+    )`);
+    await pool.query(`ALTER TABLE deposits MODIFY proof_image LONGTEXT`).catch(() => {});
+    console.log('Ensured deposits table with LONGTEXT proof_image.');
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS withdrawals (
+      id VARCHAR(50) PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      user_email VARCHAR(255),
+      amount DECIMAL(15,2),
+      bank_name VARCHAR(255),
+      account_name VARCHAR(255),
+      account_number VARCHAR(100),
+      status VARCHAR(50) DEFAULT 'pending',
+      admin_notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX (user_id),
+      INDEX (created_at)
+    )`);
+    console.log('Ensured withdrawals table.');
+  } catch (err) {
+    console.error('Error ensuring deposits/withdrawals tables:', err.message);
+  }
+
   await pool.end();
   console.log('Migration completed successfully!');
 }

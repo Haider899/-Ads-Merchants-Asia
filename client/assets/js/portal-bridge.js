@@ -1127,7 +1127,7 @@
         const file = e.target.files[0];
         if (!file) return;
         if (placeholder) placeholder.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Optimizing receipt...';
-        const compressed = await compressImageFile(file, 1400, 0.85);
+        const compressed = await compressImageFile(file, 1000, 0.75);
         if (previewImg && compressed) {
           previewImg.src = compressed;
         }
@@ -1159,27 +1159,45 @@
           submitBtn.textContent = 'Submitting Deposit...';
         }
 
-        const res = await API.post('/api/finance/deposit', {
-          amount,
-          method: 'TRC20',
-          txid: '0x' + Math.random().toString(16).substring(2, 14) + Date.now().toString(16),
-          proof_image: proofImage
-        });
+        try {
+          const res = await API.post('/api/finance/deposit', {
+            amount,
+            method: 'TRC20',
+            txid: '0x' + Math.random().toString(16).substring(2, 14) + Date.now().toString(16),
+            proof_image: proofImage
+          });
 
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Submit';
-        }
-
-        if (res && res.success) {
-          showBridgeToast('Deposit Submitted', res.message, 'success');
-          if (amountInput) amountInput.value = '';
-          if (receiptInput) receiptInput.value = '';
-          if (placeholder) placeholder.style.display = 'block';
-          if (container) container.style.display = 'none';
-          if (typeof loadDepositHistory === 'function') loadDepositHistory();
-        } else {
-          showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
+          if (res && res.success) {
+            showBridgeToast('Deposit Submitted', res.message, 'success');
+            if (amountInput) amountInput.value = '';
+            if (receiptInput) receiptInput.value = '';
+            if (previewImg) previewImg.src = '';
+            if (placeholder) {
+              placeholder.style.display = 'block';
+              placeholder.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px; display: block;">
+                  <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+                  <path d="M12 12v9"></path>
+                  <path d="m16 16-4-4-4 4"></path>
+                </svg>
+                <div style="font-weight: 700; font-size: 14px; color: #1e293b; margin-bottom: 3px;">Upload Payment Receipt / Transfer Screenshot *</div>
+                <div style="font-size: 11.5px; color: #64748b; margin-bottom: 10px;">Supports JPG, PNG, WEBP (Max 10MB)</div>
+                <span style="display: inline-block; background-color: #007bff; color: #ffffff; font-weight: 600; font-size: 12px; padding: 6px 20px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,123,255,0.25);">Browse Image</span>
+              `;
+            }
+            if (container) container.style.display = 'none';
+            if (typeof loadDepositHistory === 'function') loadDepositHistory();
+          } else {
+            showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
+          }
+        } catch (err) {
+          console.error('[Deposit Submit Error]', err);
+          showBridgeToast('Deposit Error', 'Failed to submit deposit. Please try again.', 'error');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+          }
         }
       });
     }
@@ -2589,36 +2607,87 @@
 
     let chatOpen = false;
     let pollInterval = null;
-    let cachedMessagesCount = -1;
+
+    async function fetchAndRenderChatMessages() {
+      try {
+        const res = await API.get('/api/user/chat');
+        const container = document.getElementById('nativeChatMsgContainer');
+        if (!container) return;
+
+        if (!res || !res.success || !Array.isArray(res.messages) || res.messages.length === 0) {
+          if (!container.children.length) {
+            container.innerHTML = `
+              <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 24px 16px;">
+                <div style="font-size: 34px; margin-bottom: 8px;">💬</div>
+                <div style="font-weight: 700; color: #0f172a; font-size: 15px; margin-bottom: 4px;">Live Official Support</div>
+                <div style="font-size: 13px; line-height: 1.5; color: #475569;">Admin is online. Type your inquiry below for instant direct assistance.</div>
+                <div style="font-size: 11px; color: #00875a; background: #e8f5e9; padding: 5px 12px; border-radius: 20px; display: inline-block; font-weight: 600; margin-top: 12px;">
+                  ● Support Agent Active
+                </div>
+              </div>
+            `;
+          }
+          return;
+        }
+
+        // We have messages! Remove initial welcome placeholder banner if present
+        const welcomeBanner = container.querySelector('div[style*="text-align: center"]');
+        if (welcomeBanner) welcomeBanner.remove();
+
+        let addedNew = false;
+        res.messages.forEach(m => {
+          const msgId = `chat-msg-${m.id}`;
+          if (!document.getElementById(msgId)) {
+            addedNew = true;
+            const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const bubble = document.createElement('div');
+            bubble.id = msgId;
+
+            if (m.sender === 'admin') {
+              bubble.className = 'native-chat-bubble native-bubble-admin';
+              bubble.innerHTML = `
+                <img src="/client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" onerror="this.style.display='none'" />
+                <div style="flex: 1;">
+                  <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; opacity: 0.9;">Amazon Support</div>
+                  <div>${escapeHtml(m.text || m.message_text || '')}</div>
+                  <div class="native-bubble-time" style="text-align: left; color: #e2e8f0;">${time}</div>
+                </div>
+              `;
+            } else {
+              bubble.className = 'native-chat-bubble native-bubble-user';
+              bubble.innerHTML = `
+                <div>${escapeHtml(m.text || m.message_text || '')}</div>
+                <div class="native-bubble-time" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                  <span>${time}</span>
+                  <span style="font-size: 11px; color: #00875a; font-weight: bold;">✓</span>
+                </div>
+              `;
+            }
+            container.appendChild(bubble);
+          }
+        });
+
+        if (addedNew) {
+          container.scrollTop = container.scrollHeight;
+        }
+      } catch (_) {}
+    }
 
     function toggleChat(open) {
       chatOpen = open !== undefined ? open : !chatOpen;
       window._nativeChatOpen = chatOpen;
       chatWin.style.display = chatOpen ? 'flex' : 'none';
       if (chatOpen) {
-        window._chatSessionStart = Date.now();
         floatBtn.style.display = 'none';
         if (promptBox) promptBox.style.display = 'none';
         const chatBadge = document.getElementById('nativeChatBadge');
         if (chatBadge) chatBadge.style.display = 'none';
         API.post('/api/user/chat/read', {});
 
-        // Clean active session container (No old bloated history or past greetings)
-        const container = document.getElementById('nativeChatMsgContainer');
-        if (container) {
-          container.innerHTML = `
-            <div style="text-align: center; color: #64748b; font-size: 13px; margin: auto 0; padding: 24px 16px;">
-              <div style="font-size: 34px; margin-bottom: 8px;">💬</div>
-              <div style="font-weight: 700; color: #0f172a; font-size: 15px; margin-bottom: 4px;">Live Official Support</div>
-              <div style="font-size: 13px; line-height: 1.5; color: #475569;">Admin is online. Type your inquiry below for instant direct assistance.</div>
-              <div style="font-size: 11px; color: #00875a; background: #e8f5e9; padding: 5px 12px; border-radius: 20px; display: inline-block; font-weight: 600; margin-top: 12px;">
-                ● Support Agent Active
-              </div>
-            </div>
-          `;
-        }
+        // Fetch & render messages immediately
+        fetchAndRenderChatMessages();
 
-        if (!pollInterval) pollInterval = setInterval(pollAdminReplies, 4000);
+        if (!pollInterval) pollInterval = setInterval(fetchAndRenderChatMessages, 3000);
         setTimeout(() => {
           const input = document.getElementById('nativeChatTextInput');
           if (input) input.focus();
@@ -2630,11 +2699,9 @@
           clearInterval(pollInterval);
           pollInterval = null;
         }
-        // Clean messages container upon closing
-        const container = document.getElementById('nativeChatMsgContainer');
-        if (container) container.innerHTML = '';
       }
     }
+    window._toggleNativeChat = toggleChat;
 
     floatBtn.addEventListener('click', () => toggleChat(true));
     document.getElementById('nativeChatCloseBtn').addEventListener('click', () => toggleChat(false));
@@ -2668,49 +2735,6 @@
       });
     });
 
-    // Poll for new admin replies during active open chat session ONLY
-    async function pollAdminReplies() {
-      try {
-        const res = await API.get('/api/user/chat');
-        if (!res || !res.success || !Array.isArray(res.messages)) return;
-        const container = document.getElementById('nativeChatMsgContainer');
-        if (!container) return;
-
-        // Session cutoff: Only show replies sent during current session (do not pull old historical greetings)
-        const sessionStart = window._chatSessionStart || Date.now();
-        const adminMessages = res.messages.filter(m => {
-          if (m.sender !== 'admin') return false;
-          if (!m.created_at) return false;
-          const msgTime = new Date(m.created_at).getTime();
-          return msgTime >= (sessionStart - 2000);
-        });
-
-        adminMessages.forEach(m => {
-          const msgId = `chat-msg-${m.id}`;
-          if (!document.getElementById(msgId)) {
-            // Remove initial greeting banner if message is appended
-            const welcomeBanner = container.querySelector('div[style*="text-align: center"]');
-            if (welcomeBanner) welcomeBanner.remove();
-
-            const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            const bubble = document.createElement('div');
-            bubble.id = msgId;
-            bubble.className = 'native-chat-bubble native-bubble-admin';
-            bubble.innerHTML = `
-              <img src="/client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" onerror="this.style.display='none'" />
-              <div style="flex: 1;">
-                <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; opacity: 0.9;">Ads Support</div>
-                <div>${escapeHtml(m.text || m.message_text || '')}</div>
-                <div class="native-bubble-time" style="text-align: left; color: #e2e8f0;">${time}</div>
-              </div>
-            `;
-            container.appendChild(bubble);
-            container.scrollTop = container.scrollHeight;
-          }
-        });
-      } catch (_) {}
-    }
-
     async function sendMessage() {
       const input = document.getElementById('nativeChatTextInput');
       const text = input.value.trim();
@@ -2725,7 +2749,7 @@
 
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      // Instant UI render with formatted time and checkmark (NO lingering "Sending..." label)
+      // Instant UI render with formatted time and checkmark
       const tempBubble = document.createElement('div');
       tempBubble.className = 'native-chat-bubble native-bubble-user';
       tempBubble.innerHTML = `
@@ -2738,7 +2762,7 @@
       container.appendChild(tempBubble);
       container.scrollTop = container.scrollHeight;
 
-      // Send in background asynchronously without blocking UI or fetching full history
+      // Send in background asynchronously without blocking UI
       try {
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         API.post('/api/user/chat', { text, timezone }).then(res => {
@@ -3055,13 +3079,14 @@
 
         const timeStr = n.created_at ? new Date(n.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '';
 
+        const isSupport = (n.title || '').includes('Support');
         return `
-          <div class="user-notif-card type-${type} ${isUnread ? 'unread' : ''}">
+          <div class="user-notif-card type-${type} ${isUnread ? 'unread' : ''}" ${isSupport ? 'style="cursor: pointer;" onclick="if(window._toggleNativeChat){window._toggleNativeChat(true);document.getElementById(\'userNotifDrawer\').style.display=\'none\';}"' : ''}>
             <div class="user-notif-icon ${iconClass}">${iconSymbol}</div>
             <div class="user-notif-content">
               <div class="user-notif-card-title">${escapeHtml(n.title || 'Notification')}</div>
               <div class="user-notif-card-msg">${escapeHtml(n.message || '')}</div>
-              <div class="user-notif-card-time">${timeStr}</div>
+              <div class="user-notif-card-time">${timeStr}${isSupport ? ' · <span style="color:#0284c7;font-weight:600;">Open Chat &rarr;</span>' : ''}</div>
             </div>
           </div>
         `;

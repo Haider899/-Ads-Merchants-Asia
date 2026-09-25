@@ -37,45 +37,56 @@ router.get('/wallets', async (req, res) => {
 
 // POST /api/finance/deposit - Submit deposit request
 router.post('/deposit', authMiddleware, async (req, res) => {
-  const { amount, method, txid, proof_image, notes } = req.body;
-  const user = await db.findUserById(req.user.id);
-  const settings = await db.getSettings();
+  try {
+    const { amount, method, txid, proof_image, notes } = req.body;
+    const user = await db.findUserById(req.user.id);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User session expired. Please log in again.' });
+    }
+    const settings = await db.getSettings();
 
-  const numAmount = parseFloat(amount);
-  if (isNaN(numAmount) || numAmount < (settings.min_deposit || 20)) {
-    return res.status(400).json({
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount < (settings.min_deposit || 20)) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum deposit amount is $${settings.min_deposit || 20}.00`
+      });
+    }
+
+    if (!txid || txid.trim().length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid Blockchain Transaction ID (TxHash) or Reference Number.'
+      });
+    }
+
+    const deposit = {
+      id: 'dep_' + Date.now(),
+      user_id: user.id,
+      user_email: user.email || '',
+      amount: numAmount,
+      method: method || 'TRC20',
+      txid: txid.trim(),
+      proof_image: proof_image || '',
+      status: 'pending',
+      admin_notes: notes || '',
+      created_at: new Date().toISOString()
+    };
+
+    await db.createDeposit(deposit);
+
+    res.json({
+      success: true,
+      message: `Deposit request of $${numAmount.toFixed(2)} submitted successfully! Your account will be credited once verified on the blockchain.`,
+      deposit
+    });
+  } catch (err) {
+    console.error('[Deposit Error]', err);
+    res.status(500).json({
       success: false,
-      message: `Minimum deposit amount is $${settings.min_deposit || 20}.00`
+      message: 'Failed to process deposit: ' + err.message
     });
   }
-
-  if (!txid || txid.trim().length < 6) {
-    return res.status(400).json({
-      success: false,
-      message: 'Please provide a valid Blockchain Transaction ID (TxHash) or Reference Number.'
-    });
-  }
-
-  const deposit = {
-    id: 'dep_' + Date.now(),
-    user_id: user.id,
-    user_email: user.email,
-    amount: numAmount,
-    method: method || 'TRC20',
-    txid: txid.trim(),
-    proof_image: proof_image || '',
-    status: 'pending',
-    admin_notes: notes || '',
-    created_at: new Date().toISOString()
-  };
-
-  await db.createDeposit(deposit);
-
-  res.json({
-    success: true,
-    message: `Deposit request of $${numAmount.toFixed(2)} submitted successfully! Your account will be credited once verified on the blockchain.`,
-    deposit
-  });
 });
 
 // POST /api/finance/withdraw - Submit withdrawal request

@@ -94,8 +94,49 @@ async function ensureUserTaskSettingColumns() {
 const db = {
   query: query,
   ensureUserTaskSettingColumns,
+  ensureFinancialTables: async () => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS deposits (
+        id VARCHAR(50) PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        user_email VARCHAR(255),
+        amount DECIMAL(15,2),
+        method VARCHAR(50),
+        txid VARCHAR(255),
+        proof_image LONGTEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        admin_notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id),
+        INDEX (created_at)
+      )`);
+      await query(`ALTER TABLE deposits MODIFY proof_image LONGTEXT`).catch(() => {});
+    } catch (e) {
+      console.log('[DB] ensureFinancialTables deposits notice:', e.message);
+    }
+
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS withdrawals (
+        id VARCHAR(50) PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        user_email VARCHAR(255),
+        amount DECIMAL(15,2),
+        bank_name VARCHAR(255),
+        account_name VARCHAR(255),
+        account_number VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'pending',
+        admin_notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id),
+        INDEX (created_at)
+      )`);
+    } catch (e) {
+      console.log('[DB] ensureFinancialTables withdrawals notice:', e.message);
+    }
+  },
   ensureProductionSchema: async () => {
     await ensureUserTaskSettingColumns();
+    await db.ensureFinancialTables();
     await db.ensureAdminsTable();
   },
   getSettings: async () => {
@@ -348,8 +389,9 @@ const db = {
   },
 
   createDeposit: async (depositData) => {
+    await db.ensureFinancialTables();
     await query(`INSERT INTO deposits (id, user_id, user_email, amount, method, txid, proof_image, status, admin_notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [depositData.id, depositData.user_id, depositData.user_email, depositData.amount, depositData.method, depositData.txid, depositData.proof_image, depositData.status || 'pending', depositData.admin_notes || '', formatMySQLDate(depositData.created_at)]);
+      [depositData.id, depositData.user_id, depositData.user_email || '', depositData.amount, depositData.method || 'TRC20', depositData.txid || '', depositData.proof_image || '', depositData.status || 'pending', depositData.admin_notes || '', formatMySQLDate(depositData.created_at || new Date())]);
     return depositData;
   },
 
