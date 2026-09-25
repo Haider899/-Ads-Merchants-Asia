@@ -155,6 +155,9 @@ mainApp.get(['/editprofileData*', '/editprofile*', '/editprofile.html'], servePa
 // Redirect old admin paths on main app to the subdomain or direct serve if accessed via IP
 mainApp.get(['/admin', '/admin.html'], (req, res) => {
   const host = (req.hostname || req.headers.host || '').toLowerCase();
+  if (host.includes('asiamerchants.com')) {
+    return res.redirect('https://admin.asiamerchants.com');
+  }
   if (host.includes('amazonasiamerchants.com')) {
     return res.redirect('https://admin.amazonasiamerchants.com');
   }
@@ -182,6 +185,7 @@ mainApp.use((req, res) => {
 
 // --- VHOST MOUNTING ---
 // Admin Subdomains
+app.use(vhost('admin.asiamerchants.com', adminApp));
 app.use(vhost('admin.amazonasiamerchants.com', adminApp));
 app.use(vhost('admin.ads-merchants-asia.com', adminApp));
 app.use(vhost('admin.localhost', adminApp)); // For local testing
@@ -190,6 +194,8 @@ if (process.env.ADMIN_DOMAIN) {
 }
 
 // Main Domains
+app.use(vhost('asiamerchants.com', mainApp));
+app.use(vhost('www.asiamerchants.com', mainApp));
 app.use(vhost('amazonasiamerchants.com', mainApp));
 app.use(vhost('www.amazonasiamerchants.com', mainApp));
 app.use(vhost('ads-merchants-asia.com', mainApp));
