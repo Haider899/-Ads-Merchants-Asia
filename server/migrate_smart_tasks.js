@@ -13,13 +13,19 @@ async function runMigration() {
 
   // 1. Add columns to users table
   const userColumns = [
+    { name: 'status', type: "VARCHAR(50) DEFAULT 'active'" },
+    { name: 'kyc_status', type: "VARCHAR(50) DEFAULT 'none'" },
+    { name: 'kyc_notes', type: 'TEXT DEFAULT NULL' },
     { name: 'custom_order_num', type: 'INT DEFAULT NULL' },
     { name: 'custom_deficit_amount', type: 'DECIMAL(15,2) DEFAULT NULL' },
     { name: 'custom_product_name', type: 'VARCHAR(255) DEFAULT NULL' },
     { name: 'custom_product_price', type: 'DECIMAL(15,2) DEFAULT NULL' },
     { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
     { name: 'custom_min_withdraw', type: 'DECIMAL(15,2) DEFAULT NULL' },
+    { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
     { name: 'last_reset_date', type: 'DATE DEFAULT NULL' },
+    { name: 'tasks_reset_at', type: 'DATETIME DEFAULT NULL' },
+    { name: 'commission_balance', type: 'DECIMAL(15,2) DEFAULT 0.00' },
     { name: 'country_code', type: 'VARCHAR(10) DEFAULT NULL' },
     { name: 'country_name', type: 'VARCHAR(100) DEFAULT NULL' },
     { name: 'last_ip', type: 'VARCHAR(60) DEFAULT NULL' }

@@ -52,12 +52,22 @@ async function ensureUserTaskSettingColumns() {
     }
 
     const columns = [
+      { name: 'status', type: "VARCHAR(50) DEFAULT 'active'" },
+      { name: 'kyc_status', type: "VARCHAR(50) DEFAULT 'none'" },
+      { name: 'kyc_notes', type: 'TEXT DEFAULT NULL' },
+      { name: 'country_code', type: 'VARCHAR(10) DEFAULT NULL' },
+      { name: 'country_name', type: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'last_ip', type: 'VARCHAR(60) DEFAULT NULL' },
+      { name: 'custom_order_num', type: 'INT DEFAULT NULL' },
+      { name: 'custom_deficit_amount', type: 'DECIMAL(15,2) DEFAULT NULL' },
+      { name: 'custom_product_name', type: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'custom_product_price', type: 'DECIMAL(15,2) DEFAULT NULL' },
       { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
       { name: 'custom_min_withdraw', type: 'DECIMAL(15,2) DEFAULT NULL' },
       { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
       { name: 'last_reset_date', type: 'DATE DEFAULT NULL' },
       { name: 'tasks_reset_at', type: 'DATETIME DEFAULT NULL' },
-      { name: 'commission_balance', type: 'DECIMAL(12,2) DEFAULT 0.00' }
+      { name: 'commission_balance', type: 'DECIMAL(15,2) DEFAULT 0.00' }
     ];
 
     for (const col of columns) {
@@ -84,6 +94,10 @@ async function ensureUserTaskSettingColumns() {
 const db = {
   query: query,
   ensureUserTaskSettingColumns,
+  ensureProductionSchema: async () => {
+    await ensureUserTaskSettingColumns();
+    await db.ensureAdminsTable();
+  },
   getSettings: async () => {
     const rows = await query('SELECT * FROM settings');
     const settings = {};
@@ -216,16 +230,53 @@ const db = {
   },
 
   createUser: async (userData) => {
+    await ensureUserTaskSettingColumns();
     const id = userData.id || (await db.getNextUserId());
-    await query(`INSERT INTO users 
-      (id, fullname, username, email, phone, gender, password_hash, vip_level, balance, frozen_balance, today_profit, today_tasks_completed, total_tasks_completed, current_set, invite_code, status, created_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-      [
-        id, userData.fullname || '', userData.username || '', userData.email || '', userData.phone || '', userData.gender || 'Male', userData.password_hash || '', 
-        userData.vip_level || 'Bronze', userData.balance || 0, userData.frozen_balance || 0, userData.today_profit || 0, 
-        userData.today_tasks_completed || 0, userData.total_tasks_completed || 0, userData.current_set || 0, userData.invite_code || '', 
-        userData.status || 'active', formatMySQLDate(userData.created_at || new Date())
-      ]);
+
+    let existingCols = new Set();
+    try {
+      const [colRows] = await pool.query('SHOW COLUMNS FROM users');
+      if (Array.isArray(colRows)) {
+        existingCols = new Set(colRows.map(c => c.Field.toLowerCase()));
+      }
+    } catch (_) {}
+
+    const fields = [
+      'id', 'fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 
+      'vip_level', 'balance', 'frozen_balance', 'today_profit', 
+      'today_tasks_completed', 'total_tasks_completed', 'current_set', 'invite_code'
+    ];
+    const vals = [
+      id, userData.fullname || '', userData.username || '', userData.email || '', 
+      userData.phone || '', userData.gender || 'Male', userData.password_hash || '', 
+      userData.vip_level || 'Bronze', userData.balance || 0, userData.frozen_balance || 0, 
+      userData.today_profit || 0, userData.today_tasks_completed || 0, 
+      userData.total_tasks_completed || 0, userData.current_set || 0, userData.invite_code || ''
+    ];
+
+    if (!existingCols.size || existingCols.has('status')) {
+      fields.push('status');
+      vals.push(userData.status || 'active');
+    }
+    if (existingCols.has('country_code') && userData.country_code) {
+      fields.push('country_code');
+      vals.push(userData.country_code);
+    }
+    if (existingCols.has('country_name') && userData.country_name) {
+      fields.push('country_name');
+      vals.push(userData.country_name);
+    }
+    if (existingCols.has('last_ip') && userData.last_ip) {
+      fields.push('last_ip');
+      vals.push(userData.last_ip);
+    }
+    if (!existingCols.size || existingCols.has('created_at')) {
+      fields.push('created_at');
+      vals.push(formatMySQLDate(userData.created_at || new Date()));
+    }
+
+    const placeholders = fields.map(() => '?').join(', ');
+    await query(`INSERT INTO users (${fields.join(', ')}) VALUES (${placeholders})`, vals);
     return { ...userData, id };
   },
 
