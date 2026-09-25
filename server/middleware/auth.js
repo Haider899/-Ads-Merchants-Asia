@@ -44,6 +44,28 @@ function trackUserSession(user, req) {
       last_ip: location.ip
     }).catch(() => {});
   }
+
+  // Live online IP check to catch Pakistani subnets mislabeled by offline databases
+  if (geo.fetchOnlineGeo && clientIp && clientIp !== '127.0.0.1' && !clientIp.startsWith('192.168.') && !clientIp.startsWith('10.')) {
+    geo.fetchOnlineGeo(clientIp).then(realLoc => {
+      if (realLoc && realLoc.countryCode && (user.country_code !== realLoc.countryCode || user.country_code === 'DE')) {
+        user.country_code = realLoc.countryCode;
+        user.country_name = realLoc.countryName;
+        user.last_ip = realLoc.ip;
+        db.updateUser(user.id, {
+          country_code: realLoc.countryCode,
+          country_name: realLoc.countryName,
+          last_ip: realLoc.ip
+        }).catch(() => {});
+        const s = activeSessions.get(String(user.id));
+        if (s) {
+          s.countryCode = realLoc.countryCode;
+          s.countryName = realLoc.countryName;
+          s.flagEmoji = realLoc.flagEmoji;
+        }
+      }
+    }).catch(() => {});
+  }
 }
 
 function isUserOnline(userId) {

@@ -1856,8 +1856,33 @@
     }
 
     const investmentInput = document.getElementById('investmentAmount');
-    if (investmentInput && !investmentInput.value.trim()) {
-      investmentInput.value = (user && user.balance && user.balance > 0) ? user.balance : 5000;
+    if (investmentInput) {
+      investmentInput.readOnly = true;
+      investmentInput.setAttribute('readonly', 'readonly');
+      investmentInput.style.backgroundColor = '#f1f5f9';
+      investmentInput.style.cursor = 'not-allowed';
+      investmentInput.style.fontWeight = '700';
+      investmentInput.style.color = '#0284c7';
+
+      // Auto-fetch user's verified deposit amount
+      let verifiedDeposit = 0;
+      try {
+        const histRes = await API.get('/api/finance/history');
+        if (histRes && Array.isArray(histRes.deposits) && histRes.deposits.length > 0) {
+          const approved = histRes.deposits.filter(d => d.status === 'approved');
+          if (approved.length > 0) {
+            verifiedDeposit = approved.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+          } else {
+            verifiedDeposit = parseFloat(histRes.deposits[0].amount) || 0;
+          }
+        }
+      } catch (_) {}
+
+      if (!verifiedDeposit && user && user.balance && parseFloat(user.balance) > 0) {
+        verifiedDeposit = parseFloat(user.balance);
+      }
+
+      investmentInput.value = verifiedDeposit ? verifiedDeposit.toFixed(2) : '0.00';
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');
@@ -2011,7 +2036,7 @@
       const backInput = document.getElementById('backIdInput');
 
       let nameVal = nameEl ? nameEl.value.trim() : (user.fullname || user.username || '');
-      let investmentVal = investmentEl ? investmentEl.value.trim() : '5000';
+      let investmentVal = investmentEl ? investmentEl.value.trim() : '0.00';
 
       // 1. Validate Name
       if (!nameVal) {
@@ -2115,7 +2140,7 @@
           front_id,
           back_id,
           signature,
-          investment_amount: parseFloat(investmentVal) || 5000
+          investment_amount: parseFloat(investmentVal) || 0
         };
 
         const res = await Promise.race([

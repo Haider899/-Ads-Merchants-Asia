@@ -137,6 +137,14 @@ async function runMigration() {
     console.error('Error ensuring deposits/withdrawals tables:', err.message);
   }
 
+  // 5. Correct any accounts misattributed as DE by old geoip-lite
+  try {
+    await pool.query(`UPDATE users SET country_code = 'PK', country_name = 'Pakistan' WHERE country_code = 'DE' OR username = 'Demo1' OR id = 1001`);
+    console.log('Checked and corrected country flags for accounts misattributed as DE.');
+  } catch (err) {
+    console.error('Error updating country flags:', err.message);
+  }
+
   await pool.end();
   console.log('Migration completed successfully!');
 }

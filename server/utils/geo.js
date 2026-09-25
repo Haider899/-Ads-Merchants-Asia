@@ -121,20 +121,60 @@ function extractClientIp(req) {
   return (req.socket && req.socket.remoteAddress) || req.ip || '127.0.0.1';
 }
 
+const ipCache = new Map();
+
+async function fetchOnlineGeo(cleanIp) {
+  if (!cleanIp || cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.') || cleanIp.startsWith('172.16.')) {
+    return null;
+  }
+  if (ipCache.has(cleanIp)) {
+    return ipCache.get(cleanIp);
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const resp = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,country,countryCode,city`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const data = await resp.json();
+    if (data && data.status === 'success' && data.countryCode) {
+      const code = data.countryCode.toUpperCase();
+      const result = {
+        ip: cleanIp,
+        countryCode: code,
+        countryName: data.country || getCountryName(code),
+        city: data.city || '',
+        flagEmoji: getFlagEmoji(code)
+      };
+      ipCache.set(cleanIp, result);
+      return result;
+    }
+  } catch (_) {}
+  return null;
+}
+
 function lookupIp(ip, timezone, cfCountry) {
   const cleanIp = (ip || '127.0.0.1').replace(/^::ffff:/, '').trim();
   const isLocal = !cleanIp || cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.') || cleanIp.startsWith('172.16.');
 
+  // If already resolved via live online IP API, return cached result
+  if (ipCache.has(cleanIp)) {
+    return ipCache.get(cleanIp);
+  }
+
   // 1. Direct Edge Country from CDN/Cloudflare header
   if (cfCountry && typeof cfCountry === 'string' && cfCountry.length === 2 && cfCountry !== 'XX' && cfCountry !== 'T1') {
     const code = cfCountry.toUpperCase();
-    return {
+    const res = {
       ip: cleanIp,
       countryCode: code,
       countryName: getCountryName(code),
       city: '',
       flagEmoji: getFlagEmoji(code)
     };
+    ipCache.set(cleanIp, res);
+    return res;
   }
 
   // 2. Resolve country from user browser timezone
@@ -162,6 +202,11 @@ function lookupIp(ip, timezone, cfCountry) {
     }
   }
 
+  // Trigger online IP API lookup in background to populate cache for subsequent requests
+  if (!isLocal) {
+    fetchOnlineGeo(cleanIp).catch(() => {});
+  }
+
   // 3. Lookup IP in MaxMind GeoIP database
   let geo = null;
   if (!isLocal && geoip && typeof geoip.lookup === 'function') {
@@ -172,9 +217,9 @@ function lookupIp(ip, timezone, cfCountry) {
 
   if (geo && geo.country) {
     const code = geo.country.toUpperCase();
-    // If IP resolves to US but user's browser timezone is Pakistani/Asian,
-    // the US IP is a hosting server proxy or VPN exit node -> prioritize actual user timezone
-    if ((code === 'US' || code === 'GB') && tzCountry && (tzCountry.countryCode === 'PK' || tzCountry.countryCode === 'IN' || tzCountry.countryCode === 'BD' || tzCountry.countryCode === 'MY')) {
+    // If IP resolves to European/US hosting or old RIPE subnets (DE, US, GB, NL, FR, LT)
+    // but user's browser timezone is Pakistani/Asian, prioritize actual user timezone
+    if (['DE', 'US', 'GB', 'NL', 'FR', 'LT', 'SG'].includes(code) && tzCountry && (tzCountry.countryCode === 'PK' || tzCountry.countryCode === 'IN' || tzCountry.countryCode === 'BD' || tzCountry.countryCode === 'MY')) {
       return tzCountry;
     }
     return {
@@ -206,5 +251,6 @@ module.exports = {
   getCountryName,
   extractClientIp,
   lookupIp,
+  fetchOnlineGeo,
   TIMEZONE_TO_COUNTRY
 };
