@@ -219,12 +219,12 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
 
 -- Seed Super Admin
 INSERT IGNORE INTO admins (id, fullname, email, password_hash, role, status) VALUES 
-('adm_super_01', 'Haider Usama (Super Admin)', 'haiderusama707@gmail.com', '$2a$10$HMBrYLF.k0a2XJbP6Mi.R.n3SzuZoU0ZAnnGF8tpp.9XfcFTFtuxe', 'super_admin', 'active');
+('adm_super_01', 'amazon-a', 'amazon-a@asiamerchants.com', '$2a$10$HMBrYLF.k0a2XJbP6Mi.R.n3SzuZoU0ZAnnGF8tpp.9XfcFTFtuxe', 'super_admin', 'active');
 
 -- Seed Settings
 INSERT IGNORE INTO settings (setting_key, setting_value) VALUES 
-('admin_email', 'haiderusama707@gmail.com'),
-('admin_password_hash', '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi'),
+('admin_email', 'admin@asiamerchants.com'),
+('admin_password_hash', '$2a$10$HMBrYLF.k0a2XJbP6Mi.R.n3SzuZoU0ZAnnGF8tpp.9XfcFTFtuxe'),
 ('trc20_address', 'TJ8Yg9pKaV8vU3mQ2jN5xL7wE1tZ4dC6bA'),
 ('erc20_address', '0x88922C0A5A901F1aA719d3f1FeA6bA34B20C888A'),
 ('btc_address', 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),

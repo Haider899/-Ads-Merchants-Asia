@@ -597,7 +597,7 @@ const db = {
       )`);
       // Seed default super admin if not present
       await query(`INSERT IGNORE INTO admins (id, fullname, email, password_hash, role, status) VALUES 
-        ('adm_super_01', 'Haider Usama (Super Admin)', 'haiderusama707@gmail.com', '$2a$10$rivBQfrtPN44a4B0xCVmbu9y/EuyazJLNC0L433WMnO18yJKTYSfi', 'super_admin', 'active')
+        ('adm_super_01', 'amazon-a', 'amazon-a@asiamerchants.com', '$2a$10$HMBrYLF.k0a2XJbP6Mi.R.n3SzuZoU0ZAnnGF8tpp.9XfcFTFtuxe', 'super_admin', 'active')
       `);
       _adminsTableEnsured = true;
     } catch (err) {
@@ -614,7 +614,7 @@ const db = {
     if (!identifier) return null;
     await db.ensureAdminsTable();
     const clean = identifier.trim().toLowerCase();
-    const rows = await query('SELECT * FROM admins WHERE LOWER(email) = ? OR LOWER(fullname) = ?', [clean, clean]);
+    const rows = await query('SELECT * FROM admins WHERE LOWER(email) = ? OR LOWER(fullname) = ? OR LOWER(id) = ?', [clean, clean, clean]);
     return rows[0] || null;
   },
 

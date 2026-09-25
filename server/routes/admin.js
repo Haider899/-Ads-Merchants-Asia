@@ -73,12 +73,12 @@ router.post('/login', async (req, res) => {
     }
 
     // 3. Fallback direct match for super admin requested credentials
-    if (!admin && (cleanId === 'haiderusama707@gmail.com' || cleanId === 'haider' || cleanId === 'admin')) {
+    if (!admin && (cleanId === 'amazon-a' || cleanId === 'amazon-a@asiamerchants.com' || cleanId === 'admin')) {
       const defaultSuperHash = '$2a$10$HMBrYLF.k0a2XJbP6Mi.R.n3SzuZoU0ZAnnGF8tpp.9XfcFTFtuxe'; // AmazonA#2026
       admin = {
         id: 'adm_super_01',
-        fullname: 'Haider Usama (Super Admin)',
-        email: 'haiderusama707@gmail.com',
+        fullname: 'amazon-a',
+        email: 'amazon-a@asiamerchants.com',
         password_hash: defaultSuperHash,
         role: 'super_admin',
         status: 'active'
