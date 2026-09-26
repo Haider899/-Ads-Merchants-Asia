@@ -2184,6 +2184,8 @@
 
   window.selectChatUser = async function(userId) {
     state.activeChatUserId = userId;
+    const chatLayout = document.getElementById('adminChatLayout');
+    if (chatLayout) chatLayout.classList.add('has-active-chat');
     let userConv = (state.chatConversations || []).find(c => String(c.user_id) === String(userId));
     if (!userConv) {
       const u = (state.users || []).find(usr => String(usr.id) === String(userId));
@@ -2224,6 +2226,11 @@
 
     await loadActiveUserMessages();
     await loadChatConversations();
+  };
+
+  window.showAdminChatList = function() {
+    const chatLayout = document.getElementById('adminChatLayout');
+    if (chatLayout) chatLayout.classList.remove('has-active-chat');
   };
 
   async function loadActiveUserMessages() {
@@ -3076,6 +3083,16 @@
   document.addEventListener('DOMContentLoaded', () => {
 
     // Tab Navigation
+    const mobileTabSelect = document.getElementById('adminMobileTabSelect');
+    if (mobileTabSelect) {
+      const initialTab = document.querySelector('.admin-tab-btn.active');
+      if (initialTab) mobileTabSelect.value = initialTab.getAttribute('data-tab');
+      mobileTabSelect.addEventListener('change', () => {
+        const tabButton = document.querySelector(`.admin-tab-btn[data-tab="${mobileTabSelect.value}"]`);
+        if (tabButton) tabButton.click();
+      });
+    }
+
     document.querySelectorAll('.admin-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tabId = btn.getAttribute('data-tab');
@@ -3085,6 +3102,7 @@
         btn.classList.add('active');
         const target = document.getElementById(tabId);
         if (target) target.style.display = 'block';
+        if (mobileTabSelect) mobileTabSelect.value = tabId;
         if (tabId === 'tabSessions') loadSessions();
         if (tabId === 'tabUsers') loadUsers();
         if (tabId === 'tabOrders') { loadOrders(); loadTasks(); }
@@ -3094,6 +3112,29 @@
         if (tabId === 'tabWithdrawals') loadWithdrawals();
         if (tabId === 'tabKyc') loadKycSubmissions();
         if (tabId === 'tabStaff') loadStaff();
+      });
+    });
+
+    // Turn wide management tables into labeled, readable cards on phones.
+    function applyMobileTableLabels(table) {
+      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+      table.querySelectorAll('tbody tr').forEach(row => {
+        Array.from(row.cells).forEach((cell, index) => {
+          if (!cell.hasAttribute('colspan') && !cell.hasAttribute('data-label')) {
+            cell.setAttribute('data-label', headers[index] || 'Details');
+          }
+          if (/actions?/i.test(headers[index] || '')) cell.classList.add('admin-mobile-actions');
+        });
+      });
+    }
+
+    document.querySelectorAll('.admin-table').forEach(table => {
+      const tbody = table.tBodies[0];
+      if (!tbody) return;
+      applyMobileTableLabels(table);
+      new MutationObserver(() => applyMobileTableLabels(table)).observe(tbody, {
+        childList: true,
+        subtree: true
       });
     });
 
