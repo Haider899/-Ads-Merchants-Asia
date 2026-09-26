@@ -912,7 +912,15 @@ router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'fin
       const newBalance = parseFloat((currentBalance + depositAmount).toFixed(2));
       const userUpdates = { balance: newBalance };
       if (newBalance >= 0) {
-        userUpdates.frozen_balance = 0.00;
+        // Only clear frozen_balance if there are no pending deficit tasks remaining
+        const pendingDeficit = await db.query(
+          'SELECT COUNT(*) as cnt FROM tasks WHERE user_id = ? AND status = "pending" AND is_deficit = 1',
+          [user.id]
+        ).catch(() => [{ cnt: 0 }]);
+        const hasPendingDeficit = pendingDeficit && pendingDeficit[0] && parseInt(pendingDeficit[0].cnt, 10) > 0;
+        if (!hasPendingDeficit) {
+          userUpdates.frozen_balance = 0.00;
+        }
       }
       await db.updateUser(user.id, userUpdates);
       await db.updateDeposit(depositId, {

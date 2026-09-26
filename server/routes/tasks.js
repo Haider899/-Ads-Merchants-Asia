@@ -47,16 +47,59 @@ async function autoResetIfNewDay(user) {
     return user;
   }
 
-  // Only reset if date actually changed AND user is not in negative balance (active deficit order)
-  if (lastReset !== today && parseFloat(user.balance || 0) >= 0) {
-    await db.updateUser(user.id, {
-      today_tasks_completed: 0,
-      today_profit: 0.00,
-      current_set: 0,
-      last_reset_date: today
-    }).catch(() => {});
-    // Return refreshed user
-    return await db.findUserById(user.id);
+  if (lastReset !== today) {
+    // DEFICIT GUARD: Check balance AND pending deficit tasks/orders
+    // Even if balance is positive (e.g. after a deposit), if there are
+    // unfinished deficit tasks or SHORTFALL orders, do NOT reset.
+    const userBalance = parseFloat(user.balance || 0);
+    let hasActiveDeficit = userBalance < 0;
+
+    if (!hasActiveDeficit) {
+      // Check for pending tasks that are deficit orders
+      const pendingDeficitTasks = await db.query(
+        'SELECT COUNT(*) as cnt FROM tasks WHERE user_id = ? AND status = "pending" AND is_deficit = 1',
+        [user.id]
+      ).catch(() => [{ cnt: 0 }]);
+      if (pendingDeficitTasks && pendingDeficitTasks[0] && parseInt(pendingDeficitTasks[0].cnt, 10) > 0) {
+        hasActiveDeficit = true;
+      }
+    }
+
+    if (!hasActiveDeficit) {
+      // Check for any SHORTFALL orders still in PROCESSING state
+      const shortfallOrders = await db.query(
+        'SELECT COUNT(*) as cnt FROM orders WHERE user_id = ? AND payment_status = "SHORTFALL" AND order_status = "PROCESSING"',
+        [user.id]
+      ).catch(() => [{ cnt: 0 }]);
+      if (shortfallOrders && shortfallOrders[0] && parseInt(shortfallOrders[0].cnt, 10) > 0) {
+        hasActiveDeficit = true;
+      }
+    }
+
+    if (!hasActiveDeficit) {
+      // Also check for ANY pending task (deficit or normal) — don't reset mid-cycle
+      const anyPendingTasks = await db.query(
+        'SELECT COUNT(*) as cnt FROM tasks WHERE user_id = ? AND status = "pending"',
+        [user.id]
+      ).catch(() => [{ cnt: 0 }]);
+      if (anyPendingTasks && anyPendingTasks[0] && parseInt(anyPendingTasks[0].cnt, 10) > 0) {
+        hasActiveDeficit = true;
+      }
+    }
+
+    if (!hasActiveDeficit) {
+      // Safe to reset daily stats
+      await db.updateUser(user.id, {
+        today_tasks_completed: 0,
+        today_profit: 0.00,
+        current_set: 0,
+        commission_balance: 0.00,
+        last_reset_date: today
+      }).catch(() => {});
+      return await db.findUserById(user.id);
+    }
+    // Deficit active: do NOT reset, but update last_reset_date so we don't re-check every request
+    // Actually do NOT update last_reset_date — we want to keep checking until deficit is cleared
   }
   return user;
 }
@@ -256,6 +299,49 @@ router.post('/generate', authMiddleware, async (req, res) => {
           commission_rate: parseFloat(existingPending.commission_rate || 0.20)
         },
         is_existing: true
+      });
+    }
+
+    // ALSO check orders table for SHORTFALL orders that may not have a task record
+    // (e.g. if task was deleted by admin reset but the deficit order remains)
+    const pendingShortfallOrders = await db.query(
+      'SELECT * FROM orders WHERE user_id = ? AND payment_status = "SHORTFALL" AND order_status IN ("PROCESSING", "ASSIGNED") ORDER BY created_at ASC LIMIT 1',
+      [user.id]
+    ).catch(() => []);
+    if (pendingShortfallOrders && pendingShortfallOrders.length > 0) {
+      const sfo = pendingShortfallOrders[0];
+      const sfoPrice = parseFloat(sfo.gross_amount || sfo.unit_price || 0);
+      const sfoComm = parseFloat(sfo.commission_amount || 0);
+      // Re-create the pending task record from the order so user sees it
+      const sfoTaskId = sfo.task_id || generateTaskNumber();
+      const sfoTask = {
+        id: sfoTaskId,
+        order_number: sfo.order_number,
+        user_id: user.id,
+        product_name: sfo.product_name,
+        product_image: sfo.product_image || 'client/assets/uploads/products/outdoor_shed.jpg',
+        product_price: sfoPrice,
+        commission_rate: parseFloat(sfo.commission_rate || 0.20),
+        commission_amount: sfoComm,
+        commission_earned: sfoComm,
+        status: 'pending',
+        order_num: (parseInt(user.today_tasks_completed, 10) || 0) + 1,
+        is_deficit: 1,
+        deficit_amount: Math.abs(parseFloat(user.balance || 0)),
+        created_at: sfo.created_at || new Date()
+      };
+      await db.createTask(sfoTask).catch(() => {});
+      await db.updateOrder(sfo.id, { task_id: sfoTaskId, order_status: 'PROCESSING' }).catch(() => {});
+      return res.json({
+        success: true,
+        task: {
+          ...sfoTask,
+          product_price: sfoPrice,
+          commission_amount: sfoComm,
+          commission_rate: parseFloat(sfo.commission_rate || 0.20)
+        },
+        is_existing: true,
+        message: 'You have a pending deficit order that must be completed first.'
       });
     }
 

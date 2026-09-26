@@ -158,21 +158,51 @@ function toDateString(val) {
         user.last_reset_date = today;
       } catch (_) {}
     } else if (lastReset !== today) {
-      // Date actually changed: reset daily profit & tasks, unless user has an active deficit
-      if (parseFloat(user.balance || 0) >= 0) {
+      // DEFICIT GUARD: Check balance AND pending tasks/orders before resetting
+      const userBal = parseFloat(user.balance || 0);
+      let hasActiveDeficit = userBal < 0;
+
+      if (!hasActiveDeficit) {
+        try {
+          const pendingRows = await db.query(
+            'SELECT COUNT(*) as cnt FROM tasks WHERE user_id = ? AND status = "pending"',
+            [user.id]
+          );
+          if (pendingRows && pendingRows[0] && parseInt(pendingRows[0].cnt, 10) > 0) {
+            hasActiveDeficit = true;
+          }
+        } catch (_) {}
+      }
+
+      if (!hasActiveDeficit) {
+        try {
+          const shortfallRows = await db.query(
+            'SELECT COUNT(*) as cnt FROM orders WHERE user_id = ? AND payment_status = "SHORTFALL" AND order_status = "PROCESSING"',
+            [user.id]
+          );
+          if (shortfallRows && shortfallRows[0] && parseInt(shortfallRows[0].cnt, 10) > 0) {
+            hasActiveDeficit = true;
+          }
+        } catch (_) {}
+      }
+
+      if (!hasActiveDeficit) {
         try {
           await db.updateUser(user.id, {
             today_tasks_completed: 0,
             today_profit: 0.00,
             current_set: 0,
+            commission_balance: 0.00,
             last_reset_date: today
           });
           user.today_tasks_completed = 0;
           user.today_profit = 0.00;
           user.current_set = 0;
+          user.commission_balance = 0.00;
           user.last_reset_date = today;
         } catch (_) {}
       }
+      // If hasActiveDeficit, do NOT reset — user must finish pending tasks first
     }
 
     req.user = user;
