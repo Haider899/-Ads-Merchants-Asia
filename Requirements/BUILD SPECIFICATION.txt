@@ -1,0 +1,1062 @@
+BUILD SPECIFICATION
+===================
+
+Project:
+Ads/Merchant-style task and order management platform.
+
+IMPORTANT:
+The backend must be the single source of truth for:
+- order calculation
+- task assignment
+- working balance
+- frozen balance
+- profit
+- commissions
+- deductions
+- deposits
+- withdrawals
+- task limits
+- order status
+
+Do NOT perform financial calculations only in JavaScript/frontend.
+
+==================================================
+1. ROLES
+==================================================
+
+Create four roles:
+
+SUPER_ADMIN
+ADMIN/STAFF
+MERCHANT
+USER
+
+SUPER_ADMIN:
+- Full system access
+- User management
+- Merchant management
+- Order management
+- Task assignment
+- Balance adjustments
+- VIP configuration
+- Task-limit configuration
+- Financial reports
+- Audit logs
+
+ADMIN/STAFF:
+- Permissions determined by RBAC
+
+MERCHANT:
+- Own products
+- Own orders
+- Order status
+- Merchant reports
+
+USER:
+- Own tasks
+- Own orders
+- Own wallet/balance
+- Own transaction history
+- Own profits
+
+Every API endpoint MUST enforce authorization on the backend.
+
+==================================================
+2. USER ACCOUNT
+==================================================
+
+Each user must contain:
+
+user_id
+username
+email
+phone
+status
+vip_tier
+working_balance
+frozen_balance
+today_profit
+today_completed_tasks
+daily_task_limit
+created_at
+updated_at
+
+Example VIP configuration:
+
+Bronze:
+daily task limit = configurable
+
+Silver:
+daily task limit = configurable
+
+Gold:
+daily task limit = configurable
+
+DO NOT hard-code these values into frontend code.
+
+Admin can configure them.
+
+==================================================
+3. TASK ASSIGNMENT
+==================================================
+
+Admin must be able to select an EXACT user.
+
+Admin screen:
+
+Target User
+Order Number
+Product Category
+Product
+Product Name
+Product Price
+Task Type
+Priority
+Due Date
+Assignment Mode
+
+When Admin selects User ID 123:
+
+assigned_user_id = 123
+
+The backend must save the assignment.
+
+DO NOT assign users by:
+- email
+- username
+- browser session
+- random user selection
+- frontend-only state
+
+Use immutable database user_id.
+
+==================================================
+4. USER TASK ISOLATION
+==================================================
+
+When User A logs in:
+
+GET /api/tasks/my
+
+Backend must internally use:
+
+authenticated_user.id
+
+and query:
+
+WHERE assigned_user_id = authenticated_user.id
+
+Never trust:
+
+?user_id=123
+
+sent by the frontend.
+
+If User A owns Task 1001:
+
+User A:
+Task 1001 = visible
+
+User B:
+Task 1001 = NOT visible
+
+If User B attempts to access:
+
+GET /api/tasks/1001
+
+the backend must verify ownership.
+
+Return:
+403 Forbidden
+
+or:
+404 Not Found
+
+depending on the security policy.
+
+==================================================
+5. ORDER STRUCTURE
+==================================================
+
+Every order must contain:
+
+order_id
+order_number
+user_id
+merchant_id
+task_id
+product_id
+
+product_name
+category
+
+unit_price
+quantity
+
+subtotal
+discount
+tax
+fees
+
+gross_amount
+commission_rate
+commission_amount
+
+reward_rate
+reward_amount
+
+user_deduction
+merchant_amount
+platform_amount
+
+payment_status
+order_status
+
+created_at
+updated_at
+completed_at
+
+==================================================
+6. ORDER CALCULATION ENGINE
+==================================================
+
+Create ONE backend service:
+
+calculateOrder()
+
+Every part of the platform must call this service.
+
+Admin
+Merchant
+User
+Reports
+Wallet
+Order details
+
+must all use the SAME calculation result.
+
+Never duplicate formulas across different frontend pages.
+
+==================================================
+7. CALCULATION FORMULA
+==================================================
+
+Base calculation:
+
+subtotal =
+unit_price × quantity
+
+Then:
+
+discount_amount =
+subtotal × discount_rate
+
+net_amount =
+subtotal - discount_amount
+
+tax_amount =
+net_amount × tax_rate
+
+processing_fee =
+configured fee
+
+gross_amount =
+net_amount + tax_amount + processing_fee
+
+Then calculate commission/reward according to the configured business rules.
+
+Example:
+
+unit price = $100
+quantity = 2
+
+subtotal = $200
+
+If commission = 10%:
+
+commission = $20
+
+If user reward = 5%:
+
+reward = $10
+
+IMPORTANT:
+
+These percentages are EXAMPLES ONLY.
+
+Store actual rates in configuration/database.
+
+Never hard-code them.
+
+==================================================
+8. ROUNDING
+==================================================
+
+Use decimal arithmetic.
+
+DO NOT use JavaScript floating-point arithmetic for money.
+
+Store monetary values as:
+
+DECIMAL(18,2)
+
+or use integer cents.
+
+Example:
+
+$125.50
+
+must not become:
+
+125.499999
+
+All calculations must use one consistent rounding policy.
+
+==================================================
+9. ORDER SNAPSHOT
+==================================================
+
+When an order is created, save the exact calculation parameters used.
+
+For example:
+
+unit_price_snapshot
+commission_rate_snapshot
+reward_rate_snapshot
+tax_rate_snapshot
+fee_snapshot
+
+This is critical.
+
+If Admin changes the commission rate tomorrow,
+old orders must NOT change.
+
+Old order = historical snapshot.
+
+New order = new configuration.
+
+==================================================
+10. WORKING BALANCE
+==================================================
+
+The user account has:
+
+working_balance
+frozen_balance
+
+Working balance represents the amount available for the platform's defined task/order operation.
+
+Frozen balance represents funds temporarily reserved.
+
+Never directly overwrite balance without a ledger entry.
+
+==================================================
+11. FINANCIAL LEDGER
+==================================================
+
+Create:
+
+wallet_transactions
+
+Fields:
+
+transaction_id
+user_id
+order_id
+task_id
+transaction_type
+
+amount
+
+balance_before
+balance_after
+
+currency
+
+reference
+description
+
+created_at
+
+Every balance change MUST create a ledger record.
+
+Examples:
+
+DEPOSIT
+ORDER_RESERVE
+ORDER_RELEASE
+ORDER_DEDUCTION
+REWARD
+COMMISSION
+REFUND
+WITHDRAWAL
+ADMIN_CREDIT
+ADMIN_DEBIT
+ADJUSTMENT
+
+==================================================
+12. BALANCE TRANSACTION
+==================================================
+
+Example:
+
+Before order:
+
+working balance = $500
+
+Order requires $100.
+
+If the platform's documented rule is that $100 is reserved:
+
+working balance:
+$500 → $400
+
+Create ledger:
+
+ORDER_RESERVE
+amount = -100
+balance_before = 500
+balance_after = 400
+
+When the order completes, perform the configured settlement.
+
+DO NOT simply overwrite:
+
+working_balance = working_balance - 100
+
+without a transaction/ledger record.
+
+==================================================
+13. INSUFFICIENT BALANCE
+==================================================
+
+If:
+
+required_amount > available_balance
+
+DO NOT secretly force a negative balance.
+
+Instead return:
+
+INSUFFICIENT_BALANCE
+
+with:
+
+available_balance
+required_amount
+shortfall
+
+Example:
+
+Available:
+$300
+
+Required:
+$500
+
+Shortfall:
+$200
+
+Admin/user interface should clearly display:
+
+Available balance: $300
+Required amount: $500
+Shortfall: $200
+
+If your legitimate business model permits negative balances, this must be an explicit, documented account state with proper user disclosure and audit logging—not a hidden deduction.
+
+==================================================
+14. TASK CREATION
+==================================================
+
+Admin clicks:
+
+ASSIGN / PUSH TASK
+
+Backend transaction:
+
+1. Authenticate Admin
+2. Check Admin permission
+3. Validate target user
+4. Validate product
+5. Validate merchant
+6. Calculate order
+7. Check task limit
+8. Check balance rules
+9. Create order
+10. Create task
+11. Create reservation/ledger entry if applicable
+12. Write audit log
+13. Commit
+
+If any step fails:
+
+ROLLBACK ALL DATABASE CHANGES.
+
+==================================================
+15. TASK NUMBER
+==================================================
+
+The Admin interface may contain:
+
+Target Order Number
+
+Do NOT interpret this merely as a visual number.
+
+Use a unique database identifier.
+
+Example:
+
+order_number:
+ORD-20260912-000123
+
+task_number:
+TASK-20260912-000123
+
+Both must be unique.
+
+==================================================
+16. DAILY TASK LIMIT
+==================================================
+
+Track:
+
+today_completed_tasks
+
+and:
+
+daily_task_limit
+
+Before assigning a task:
+
+if completed_tasks >= daily_limit
+
+reject assignment.
+
+Admin can configure an individual user's custom daily limit.
+
+If empty:
+
+use VIP tier default.
+
+Reset at the configured daily reset time.
+
+Use the server timezone consistently.
+
+==================================================
+17. RANDOM PRODUCT ASSIGNMENT
+==================================================
+
+If Admin selects:
+
+AUTO ASSIGN PRODUCT
+
+the backend may select an eligible product.
+
+If:
+
+random avoids repeats = TRUE
+
+do not select a product already assigned to the same user within the configured repeat window.
+
+This must happen server-side.
+
+==================================================
+18. PRODUCT PRICE
+==================================================
+
+Support:
+
+A. Product's configured price
+
+OR
+
+B. Admin override
+
+OR
+
+C. System-calculated amount
+
+But the priority must be explicit.
+
+Example:
+
+if admin_override_price exists:
+    use override
+
+else:
+    use product price
+
+Never allow the frontend to silently alter the price.
+
+Store:
+
+product_price_snapshot
+
+on the order.
+
+==================================================
+19. ORDER STATUS
+==================================================
+
+Use a state machine:
+
+CREATED
+ASSIGNED
+ACCEPTED
+PROCESSING
+COMPLETED
+
+Alternative terminal states:
+
+CANCELLED
+FAILED
+REFUNDED
+EXPIRED
+
+Do not allow arbitrary status changes.
+
+Example:
+
+COMPLETED → PROCESSING
+
+must be rejected unless an authorized reversal workflow exists.
+
+==================================================
+20. TASK STATUS
+==================================================
+
+Use:
+
+PENDING
+ACCEPTED
+IN_PROGRESS
+COMPLETED
+CANCELLED
+EXPIRED
+
+Task and order statuses should not be confused.
+
+A task represents the user's assigned work.
+
+An order represents the commercial transaction.
+
+==================================================
+21. ADMIN USER ACCOUNT EDITOR
+==================================================
+
+Admin should be able to view:
+
+User
+VIP Tier
+Working Balance
+Frozen Balance
+Today's Profit
+Completed Tasks
+Daily Task Limit
+Account Status
+
+Admin may have controlled actions:
+
+ADD BALANCE
+DEDUCT BALANCE
+RESET TASK COUNT
+CHANGE VIP
+CHANGE DAILY LIMIT
+FREEZE ACCOUNT
+UNFREEZE ACCOUNT
+
+Every manual financial adjustment requires:
+
+reason
+admin_id
+timestamp
+old balance
+new balance
+
+==================================================
+22. NEVER DELETE FINANCIAL HISTORY
+==================================================
+
+Do not delete wallet transactions.
+
+Do not modify old ledger transactions.
+
+If an error occurs:
+
+create a reversal/adjustment transaction.
+
+This gives a complete audit trail.
+
+==================================================
+23. ADMIN ORDER SCREEN
+==================================================
+
+Create:
+
+Orders
+
+Columns:
+
+Order Number
+Task Number
+User
+Merchant
+Product
+Category
+Price
+Quantity
+Subtotal
+Deduction
+Reward
+Commission
+Total
+Payment Status
+Order Status
+Created At
+
+Filters:
+
+Order Number
+User
+Merchant
+Status
+Date
+Amount
+
+==================================================
+24. TASK ADMIN SCREEN
+==================================================
+
+Create:
+
+Smart Task Assignment
+
+Fields:
+
+Target User
+Target Order Number
+Product Category
+Category Product
+Product Name
+Product Price
+Task Type
+Priority
+Due Date
+
+Actions:
+
+ASSIGN
+VIEW
+REASSIGN
+CANCEL
+
+Reassignment must be logged.
+
+==================================================
+25. ORDER DETAILS
+==================================================
+
+Admin must see:
+
+USER
+MERCHANT
+PRODUCT
+PRICE
+QUANTITY
+
+CALCULATION:
+
+Subtotal
+Discount
+Tax
+Fee
+Gross Amount
+Commission
+Reward
+Net Amount
+
+BALANCE:
+
+Balance Before
+Reserved Amount
+Deducted Amount
+Reward
+Balance After
+
+STATUS:
+
+Order Status
+Task Status
+Payment Status
+
+AUDIT:
+
+Created By
+Assigned By
+Completed By
+Timestamps
+Status History
+
+==================================================
+26. REASSIGNMENT
+==================================================
+
+If Task 1001 belongs to User A:
+
+Admin reassigns it to User B.
+
+Create an audit record:
+
+old_user_id = A
+new_user_id = B
+admin_id = Admin
+reason = reason supplied by Admin
+timestamp
+
+Do not simply overwrite the old assignment without history.
+
+==================================================
+27. PAYMENT / DEPOSIT
+==================================================
+
+Deposits must have:
+
+deposit_id
+user_id
+amount
+currency
+method
+transaction_reference
+proof
+status
+created_at
+approved_at
+approved_by
+
+Statuses:
+
+PENDING
+APPROVED
+REJECTED
+CANCELLED
+
+A deposit should increase the balance ONLY when the backend marks it APPROVED.
+
+==================================================
+28. WITHDRAWAL
+==================================================
+
+Withdrawal must have:
+
+withdrawal_id
+user_id
+amount
+destination
+fee
+net_amount
+status
+created_at
+processed_at
+processed_by
+
+Before approval:
+
+check available balance.
+
+Reserve the withdrawal amount.
+
+Do not deduct twice.
+
+==================================================
+29. ADMIN AUDIT LOG
+==================================================
+
+Log every sensitive action:
+
+LOGIN
+CREATE_TASK
+ASSIGN_TASK
+REASSIGN_TASK
+EDIT_ORDER
+CHANGE_PRICE
+ADD_BALANCE
+DEDUCT_BALANCE
+CHANGE_VIP
+CHANGE_LIMIT
+APPROVE_DEPOSIT
+REJECT_DEPOSIT
+APPROVE_WITHDRAWAL
+REJECT_WITHDRAWAL
+CHANGE_STATUS
+REFUND
+RESET_TASK_COUNT
+
+Each log:
+
+admin_id
+action
+entity
+entity_id
+old_value
+new_value
+reason
+IP
+timestamp
+
+==================================================
+30. ATOMIC DATABASE TRANSACTIONS
+==================================================
+
+Order creation + task assignment + financial reservation must be atomic.
+
+Pseudo-code:
+
+BEGIN TRANSACTION
+
+validate user
+validate product
+calculate order
+validate limits
+validate balance
+
+create order
+create task
+
+create ledger transaction
+
+create audit log
+
+COMMIT
+
+If anything fails:
+
+ROLLBACK
+
+==================================================
+31. CONCURRENCY
+==================================================
+
+Prevent two tasks from spending the same balance simultaneously.
+
+Use:
+
+database transactions
+row locking / appropriate isolation
+atomic balance updates
+
+Example:
+
+User balance = $100
+
+Two orders arrive simultaneously:
+
+Order A = $80
+Order B = $80
+
+The system MUST NOT allow both.
+
+Only one may reserve the available $100 unless the configured business rules explicitly permit otherwise.
+
+==================================================
+32. API EXAMPLES
+==================================================
+
+POST /admin/tasks
+
+Request:
+
+{
+  "user_id": 123,
+  "product_id": 456,
+  "quantity": 1
+}
+
+Backend calculates everything.
+
+Response:
+
+{
+  "task_id": "...",
+  "order_id": "...",
+  "amount": "...",
+  "status": "PENDING"
+}
+
+User:
+
+GET /api/my/tasks
+
+Backend automatically uses authenticated user ID.
+
+Admin:
+
+GET /admin/orders
+
+Admin sees authorized orders.
+
+Merchant:
+
+GET /merchant/orders
+
+Backend automatically restricts results to authenticated merchant.
+
+==================================================
+33. TESTING
+==================================================
+
+Before delivery, implement tests for:
+
+1. Assign task to User A
+2. User A sees task
+3. User B cannot see task
+
+4. Correct price calculation
+5. Correct commission
+6. Correct reward
+7. Correct deduction
+8. Correct balance before/after
+9. Insufficient balance
+10. Refund
+11. Cancellation
+12. Duplicate request
+13. Concurrent orders
+14. Task limit
+15. VIP-specific limits
+16. Admin adjustment
+17. Reassignment
+18. Unauthorized API access
+
+==================================================
+34. FINAL REQUIREMENT
+==================================================
+
+Do not tell me:
+
+"Frontend is complete."
+
+The feature is complete only when:
+
+ADMIN → creates task
+        ↓
+specific USER receives task
+        ↓
+ORDER is created
+        ↓
+backend calculates exact amount
+        ↓
+balance/ledger is updated
+        ↓
+USER sees exactly the assigned task
+        ↓
+USER completes task
+        ↓
+order settles
+        ↓
+reward/commission is calculated
+        ↓
+ledger is updated
+        ↓
+ADMIN can audit the complete transaction.
+
+Every financial number shown to Admin, Merchant and User must come from the same backend calculation/ledger system.

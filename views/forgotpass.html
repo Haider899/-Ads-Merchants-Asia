@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Amazon Asia Merchants - Forgot Password</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta content="Amazon Asia Merchant" name="description" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- Google Fonts Poppins & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f3f8;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 15px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 460px;
+            margin: auto;
+        }
+
+        .auth-card {
+            background: #ffffff;
+            border-radius: 28px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+            padding: 0 34px 28px;
+            position: relative;
+            text-align: center;
+        }
+
+        /* Top Floating Logo Badge */
+        .logo-badge-wrapper {
+            display: flex;
+            justify-content: center;
+            position: relative;
+            top: -38px;
+            margin-bottom: -18px;
+        }
+
+        .logo-badge {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            padding: 10px 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-badge img {
+            height: 70px;
+            max-width: 170px;
+            object-fit: contain;
+        }
+
+        .auth-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111111;
+            margin-bottom: 6px;
+        }
+
+        .auth-subtitle {
+            font-size: 13px;
+            color: #333333;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            padding: 0 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: #333333;
+            margin-bottom: 6px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-control-pill {
+            width: 100%;
+            height: 48px;
+            border-radius: 50px;
+            border: 1px solid #dbe2ea;
+            background-color: #ffffff;
+            padding: 10px 46px 10px 20px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #333333;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-control-pill::placeholder {
+            color: #9aa5b5;
+        }
+
+        .form-control-pill:focus {
+            border-color: #f3771d;
+            box-shadow: 0 0 0 3px rgba(243, 119, 29, 0.15);
+            background-color: #ffffff;
+        }
+
+        .input-icon-right {
+            position: absolute;
+            right: 18px;
+            color: #555555;
+            font-size: 16px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-submit-pill {
+            width: 100%;
+            height: 48px;
+            border-radius: 50px;
+            background: linear-gradient(90deg, #f7941d 0%, #f15a24 100%);
+            border: none;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 5px 18px rgba(243, 119, 29, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-submit-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 7px 22px rgba(243, 119, 29, 0.45);
+        }
+
+        .switch-auth-row {
+            margin-top: 22px;
+            font-size: 13.5px;
+            color: #333333;
+        }
+
+        .switch-auth-link {
+            color: #f3771d;
+            font-weight: 600;
+            text-decoration: none;
+            margin-left: 4px;
+        }
+
+        .switch-auth-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            margin-top: 18px;
+            font-size: 12px;
+            color: #7081b9;
+        }
+
+        .footer-copyright .brand-name {
+            color: #f3771d;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .auth-card {
+                padding: 0 20px 24px;
+                border-radius: 20px;
+            }
+            .logo-badge {
+                padding: 8px 18px;
+            }
+            .logo-badge img {
+                height: 56px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            
+            <!-- Top Floating Logo Badge -->
+            <div class="logo-badge-wrapper">
+                <div class="logo-badge">
+                    <img src="assets/uploads/logo/1764857545_1743035462_logonew.webp" onerror="this.src='client/assets/img/logo.png'" alt="Amazon Asia Logo">
+                </div>
+            </div>
+
+            <!-- Header Titles -->
+            <h2 class="auth-title">Reset Password</h2>
+            <p class="auth-subtitle">
+                Enter your registered Email or Username to receive password reset instructions.
+            </p>
+
+            <!-- Forgot Password Form -->
+            <form id="forgotForm" method="POST" onsubmit="return false;">
+                
+                <div class="form-group">
+                    <label for="forgotIdentifier">Email or Username</label>
+                    <div class="input-wrapper">
+                        <input type="text" class="form-control-pill" name="username" id="forgotIdentifier" placeholder="Enter Email or Username" required>
+                        <span class="input-icon-right">
+                            <i class="fa-regular fa-envelope"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit-pill" id="forgotBtn">
+                    <span>Send Reset Link</span> <i class="fas fa-paper-plane"></i>
+                </button>
+
+            </form>
+
+            <!-- Switch to Login -->
+            <div class="switch-auth-row">
+                Remember your password? <a href="login.html" class="switch-auth-link">Login here</a>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer-copyright">
+                &copy; <script>document.write(new Date().getFullYear())</script> <span class="brand-name">Amazon Asia Merchants</span> . All rights reserved.
+            </div>
+
+        </div>
+    </div>
+
+    <script src="client/assets/js/portal-bridge.js?v=3.6.0"></script>
+</body>
+</html>

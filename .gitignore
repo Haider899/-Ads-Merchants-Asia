@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment & Logs
+.env
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+server/data/
+db.json
+
+# Scraped raw dumps
+scraped_pages/
+scraped_dashboard.html
+download_all.py
+scratch_inspect.py
+build_local_portal.py
+inject_bridge.py
+fix_nav_links.py
+clean_usernames.py
+scratch_*.html
+
+# Python cache & scratch
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Scratch & Review Media
+scratch/
+Todays review/

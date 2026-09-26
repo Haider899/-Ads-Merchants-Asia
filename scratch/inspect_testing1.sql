@@ -1,0 +1,2 @@
+SELECT id, username, balance, frozen_balance, today_profit, today_tasks_completed, current_set, custom_order_num, custom_deficit_amount, custom_product_name, custom_product_price FROM users WHERE username = 'Testing1';
+SELECT id, user_id, product_name, product_price, commission_earned, status, order_num, is_deficit, deficit_amount, created_at FROM tasks WHERE user_id = (SELECT id FROM users WHERE username = 'Testing1') ORDER BY id ASC;
