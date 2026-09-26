@@ -48,7 +48,7 @@ jobs:
         password: ${{ secrets.VPS_PASSWORD }}
         port: 22
         script: |
-          cd /var/www/ads-merchants-asia
+          cd /var/www/amazon-asia
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Haider899/amazon-asia-merchants.git
           git fetch origin main
           git reset --hard origin/main
