@@ -18,4 +18,19 @@ function isOrphanedNormalProcessingOrder(order, activeTaskIds = new Set()) {
     !activeTaskIds.has(String(order.task_id));
 }
 
-module.exports = { isLinkedToCancelledTask, isOrphanedNormalProcessingOrder };
+function keepLatestPendingRecord(records = []) {
+  let keptPending = false;
+  return records.filter(record => {
+    const status = String((record && record.status) || '').toLowerCase().trim();
+    if (status !== 'pending') return true;
+    if (keptPending) return false;
+    keptPending = true;
+    return true;
+  });
+}
+
+module.exports = {
+  isLinkedToCancelledTask,
+  isOrphanedNormalProcessingOrder,
+  keepLatestPendingRecord
+};

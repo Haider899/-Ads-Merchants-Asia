@@ -15,7 +15,8 @@ const {
 } = require('../utils/orderCalculator');
 const {
   isLinkedToCancelledTask,
-  isOrphanedNormalProcessingOrder
+  isOrphanedNormalProcessingOrder,
+  keepLatestPendingRecord
 } = require('../utils/orderTaskLink');
 
 function toDateString(val) {
@@ -1019,22 +1020,32 @@ router.post('/cancel', authMiddleware, async (req, res) => {
       });
     }
 
-    // Keep a cancellation tombstone so a linked order cannot be re-added as
-    // a standalone pending record if the order update is delayed or fails.
-    await db.updateTask(task.id, { status: 'cancelled' });
+    // Old clients could create several normal pending rows because their
+    // Cancel button never called this endpoint. Cancelling the visible order
+    // closes the whole stale normal-pending backlog for this user.
+    const pendingNormalTasks = tasks.filter(t =>
+      String(t.status || '').toLowerCase() === 'pending' &&
+      Number(t.is_deficit || 0) === 0 &&
+      parseFloat(t.deficit_amount || 0) <= 0
+    );
+    for (const pendingTask of pendingNormalTasks) {
+      await db.updateTask(pendingTask.id, { status: 'cancelled' });
+    }
 
-    // Update the actual linked order row (by primary ID) when one exists.
+    // Keep cancellation tombstones and update each linked order by primary ID.
     try {
       const userOrders = await db.getOrders({ user_id: user.id });
-      const linkedOrder = userOrders.find(order =>
-        (order.task_id && String(order.task_id) === String(task.id)) ||
-        (task.order_number && String(order.order_number) === String(task.order_number))
-      );
-      if (linkedOrder) {
-        await db.updateOrder(linkedOrder.id, {
-          order_status: 'CANCELLED',
-          payment_status: 'CANCELLED'
-        });
+      for (const pendingTask of pendingNormalTasks) {
+        const linkedOrder = userOrders.find(order =>
+          (order.task_id && String(order.task_id) === String(pendingTask.id)) ||
+          (pendingTask.order_number && String(order.order_number) === String(pendingTask.order_number))
+        );
+        if (linkedOrder) {
+          await db.updateOrder(linkedOrder.id, {
+            order_status: 'CANCELLED',
+            payment_status: 'CANCELLED'
+          });
+        }
       }
     } catch (orderSyncErr) {
       // The cancelled task itself is the authoritative tombstone. Records
@@ -1189,6 +1200,12 @@ router.get('/records', authMiddleware, async (req, res) => {
 
     // Sort newest first
     formattedTasks.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    // There can only be one active task per user. Older deployments could
+    // leave multiple pending attempts behind, so show only the newest one.
+    const recordsWithSinglePending = keepLatestPendingRecord(formattedTasks);
+    formattedTasks.length = 0;
+    formattedTasks.push(...recordsWithSinglePending);
 
     const pendingTasks = formattedTasks.filter(t => t.status === 'pending');
     const todayCompletedTasks = formattedTasks.filter(t => t.status === 'completed' && t.is_completed_today);
