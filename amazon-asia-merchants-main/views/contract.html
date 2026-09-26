@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#007bff">
+
+    <title>Amazon Asia Merchant</title>
+
+    <link rel="shortcut icon" href="assets/uploads/logo/1742595477_icon.png">
+
+    <link rel="stylesheet" href="client/assets/css/index.css">
+
+    <link rel="stylesheet" href="client/assets/css/home.css">
+
+    <link rel="stylesheet" href="client/assets/css/levels.css">
+
+                
+
+        
+
+       
+
+    <link href="assets/theme_elements/plugins/daterangepicker/daterangepicker.css" rel="stylesheet" type="text/css" />
+
+        
+
+    <!-- FontAwesome 6.5.1 CDN -->
+
+<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> -->
+
+
+
+
+
+    <style>
+
+        .error, .alert-danger {
+
+            color: #D8000C;
+
+            background-color: #FFBABA;
+
+            padding: 10px;
+
+            border: 1px solid #D8000C;
+
+            margin-bottom: 15px;
+
+            border-radius: 5px;
+
+        }
+
+
+
+        .success, .alert-success {
+
+            color: #4F8A10;
+
+            background-color: #DFF2BF;
+
+            padding: 10px;
+
+            border: 1px solid #4F8A10;
+
+            margin-bottom: 15px;
+
+            border-radius: 5px;
+
+        }
+
+    </style>
+
+    <style>
+
+        body {
+
+            padding: 0;
+
+        }
+
+
+
+        @media screen and (min-width: 1200px) {
+
+            body {
+
+                padding: 0 450px;
+
+            }
+
+
+
+            .inner-header {
+
+                padding-left: 450px;
+
+                padding-right: 450px;
+
+            }
+
+
+
+            .footer-container {
+
+                padding-left: 450px;
+
+                padding-right: 450px;
+
+            }
+
+        }
+
+    </style>
+
+    <style>
+
+        .heading-x{
+
+            display: flex;
+
+            flex-direction: row;
+
+            gap: 10px;
+
+            align-items: center;
+
+            justify-content: space-evenly;
+
+        }
+
+        .user-username{
+
+            font-size: 20px;
+
+            font-weight: bold;
+
+        }
+
+
+
+.contact-containers{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:15px;
+
+    padding-top:80px;
+
+    padding-left:15px;
+
+    padding-right:15px;
+
+}
+
+.contact-item{
+
+    display:flex;
+
+    flex-direction:row;
+
+    gap:20px;
+
+    align-items:center;
+
+    padding:15px;
+
+    border-radius:10px;
+
+    background-color:white;
+
+}
+
+.contact-item a{
+
+    text-decoration:none;
+
+    color:black;
+
+}
+
+.contact-title{
+
+    font-size:14px;
+
+}
+
+
+
+    .record-container{
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 30px;
+
+        padding: 80px 15px 120px 15px;
+
+    }
+
+    .record-nav{
+
+        display: flex;
+
+        flex-direction: row;
+
+        justify-content: space-evenly;
+
+        cursor: pointer;
+
+    }
+
+    .record-nav-item{
+
+        color: grey;
+
+        width: 100%;
+
+        text-align: center;
+
+        padding: 10px 0px;
+
+        border-radius: 10px;
+
+    }
+
+    .record-nav-item-active{
+
+        background-color: rgba(255, 255, 255, 0.7);
+
+        color: black;
+
+    }
+
+    .record-item-tab{
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 30px;
+
+    }
+
+    .record-item-tab-field{
+
+        background-color: white;
+
+        padding: 10px;
+
+        border-radius: 10px;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 10px;
+
+    }
+
+    .record-item-tab-field-up{
+
+        display: flex;
+
+        flex-direction: row;
+
+        gap: 20px;
+
+        align-items: center;
+
+    }
+
+
+
+    .record-item-description{
+
+        font-size: 16px;
+
+        font-weight: bold;
+
+    }
+
+    .record-item-tab-field-down{
+
+        display: flex;
+
+        flex-direction: row;
+
+        align-items: center;
+
+        padding: 10px 0px;
+
+        justify-content: space-between;
+
+        border-top: 1px solid #c3c3c3;
+
+        
+
+    }
+
+    .tiny-text{
+
+        font-size: 12px;
+
+    }
+
+    .small-text{
+
+        font-size: 14px;
+
+        font-weight: bold;
+
+    }
+
+   
+
+    </style>
+
+</head>
+
+<input type="hidden" name="base_url" id="base_url" value=""/>
+
+
+
+<body>
+
+    <div class="main-container page-body">
+
+        <div class="header-container" style="text-align:center;padding: 0px 15px;">
+
+        <a href="" class="logo">
+
+                        <img src="assets/uploads/logo/1764857545_1743035462_logonew.webp" alt="logo" width="170">
+
+                    </a>
+
+        <div class="">
+
+                                
+
+                <div class="heading heading-x">
+
+                    <div class="user-username"><span class="usernamee">Welcome</span> <span class="user-name-text"></span></div>
+
+                    
+
+
+
+                    <a class="logout-button" href="login.html">
+
+                        <div class="profile-list-items-left">
+
+                            <div class="profile-list-text">Logout</div>
+
+                        </div>
+
+                        <div class="profile-list-items-right">
+
+                            <img src="client/assets/img/right-chevron.svg" class="profile-list-icons" alt="">
+
+                        </div>
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="top-middle"> 
+
+            <div class="notification-panel">
+
+                <div class="notification-panel-item">
+
+                    <img class="notification-bell" src="client/assets/img/bell.png" alt="">
+
+                    <div class="notification-panel-content-text"><marquee behavior="" direction="">We value your feedback! Please take a moment to complete our customer satisfaction survey and let us know how we can improve your experience.</marquee></div>
+
+                </div>
+
+            </div>
+
+            </div>
+
+
+
+
+
+        </div>
+
+        
+
+
+
+        <div class="container-home-middle">
+
+            
+
+            <link href="assets/custom_elements/css/contract.css" rel="stylesheet">
+
+<div class="container-fluid">
+
+<div class="row">
+
+	<div class="col-lg-12">	
+
+		<div class="card">
+
+		<div class="card-body">
+
+    <!-- <div class="app-bg"></div> -->
+
+		<div class="main-content">
+
+                				                  
+
+			<div class="content-container">
+
+				<div class="heading-container">
+
+					<div class="heading-headline heading-text">
+
+						<span class="heading-company-title">Work Contract</span>
+
+					</div>
+
+					<div class="heading-description-container heading-text">
+
+						<span class="heading-description">This agreement (the "Contract") is made between Amazon Asia ("Party A" or "The Platform") and the Member ("Party B" or "You"), who agrees to participate in completing orders as part of the Amazon Asia Bronze Member Program. By signing this Contract, Party B acknowledges that they understand and agree to the terms and conditions outlined herein.</span>
+
+					</div>
+
+					<div class="clearB"></div>
+
+				</div>
+
+			</div>
+
+      
+
+		</div>
+
+    
+
+		<div class="form-content main-content">
+
+
+
+      <form id="invite_submit_form" method="post" action="User/contractProcess" enctype="multipart/form-data">
+
+
+
+			<div class="form-group">
+
+				<label for="name">Signatory: Party B (hereinafter referred to as Party B)
+
+					<span class="required">*</span>
+
+				</label>
+
+				<div class="signature-container">
+
+					<div>
+
+						<canvas width="300" height="100" class="signature-canvas" id="signature_a" style="touch-action: none;"></canvas>
+
+                        <input type="hidden" name="signature_a" id="signatureAInput">
+
+						<div id="signatureAButtons">
+
+                            <button type="button" onclick="saveSignature('A')">Done</button>
+
+                            <button type="button" onclick="clearSignature('A')">Clear</button>
+
+						</div>
+
+                        <div id="signatureAResign" style="display:none;">
+
+                            <button type="button" onclick="clearSignature('A')">Re-sign</button>
+
+                        </div>
+
+                        <p id="signature_a_error" class="error-message" style="color:red;"></p>
+
+					</div>
+
+				</div>
+
+			</div>
+
+			<div class="form-group">
+
+				<label for="name">Signatory: Party A (Jared Filippone, CFA Head of Investor Relations)
+
+					<span class="required">*</span>
+
+				</label>
+
+				<div class="signature-container">
+
+          <img src="assets/uploads/contracts/defaultsignature.jpeg" alt="N/A" class="defaultsign" >
+
+					<!-- <div>
+
+						    <canvas width="300" height="100" class="signature-canvas" id="signature_b" style="touch-action: none;"></canvas>
+
+                <input type="hidden" name="signature_b" id="signatureBInput">
+
+                <div id="signatureBButtons">
+
+                    <button type="button" onclick="saveSignature('B')">Done</button>
+
+                    <button type="button" onclick="clearSignature('B')">Clear</button>
+
+                </div>
+
+                <div id="signatureBResign" style="display:none;">
+
+                    <button type="button" onclick="clearSignature('B')">Re-sign</button>
+
+                </div>
+
+                <p id="signature_b_error" class="error-message" style="color:red;"></p>
+
+					</div> -->
+
+				</div>
+
+			</div>
+
+			<div class="form-content-description">
+
+				<p class="fontSize16PX">1. About Amazon Asia</p>
+
+				<p class="fontSize16PX">Amazon Asia is an innovative platform designed to connect agents and members to facilitate the purchase and sale of products. Many of our agents have numerous buyers in regions where Amazon services are unavailable.</p>
+
+				<p class="fontSize16PX">To efficiently address their needs, our platform employs a unique model:</p>
+
+                <ul>
+
+                    <li>Instead of buying large quantities of products directly—which incurs high import costs, delays, and tax complications—we enable members to place orders through their individual accounts on Amazon Asia.</li>
+
+                    <li>By acting as separate merchants, members help minimize costs and speed up the delivery process.</li>
+
+                    <li>It acts like AutoDs by assigning and fulfilling orders.</li>
+
+                </ul>
+
+				<p class="fontSize16PX">This system not only benefits the agents and their buyers but also creates earning opportunities for our members. It is essential that members fully understand their role and responsibilities within this system to ensure smooth operations.</p>
+
+				<p class="fontSize16PX">2. Member Tasks and Responsibilities</p>
+
+                <p class="fontSize16PX">2.1 Tasks Overview</p>
+
+				<p class="fontSize16PX">As a Bronze Member, Party B is required to complete Two sets of task, each set comprising 2-3 orders. These tasks are assigned by the system, which evaluates overall task completion ratios by other members and determines the most suitable merchants requiring orders based on Party B’s balance.</p>
+
+                <ul>
+
+                    <li>Balance Matching: While the system attempts to assign tasks that match Party B’s balance, this may not always be possible. In such cases, tasks with greater requirements may be assigned to Party B if lower-balance tasks have already been allocated to other members.</li>
+
+                    <li>Additional Deposit Requirement: If a task with greater requirements is assigned, Party B must deposit the additional required amount to complete the orders. This is mandatory, and completing these orders often results in higher profits compared to lower-balance tasks.</li>
+
+                    <li>Delayed Deposit Consequences: If Party B delays depositing the additional required amount to complete the assigned orders within the given time, the merchants initially assigned to them may be replaced. In such cases, Party B will be assigned new merchants with greater requirements, potentially increasing the product purchase amounts. Delays in such situations will also negatively impact Party B’s credit score on the platform.</li>
+
+                </ul>
+
+				<p class="fontSize16PX">2.2 Completion Requirement</p>
+
+                <ul>
+
+                    <li>All assigned orders within the task set must be completed in full.</li>
+
+                    <li>Failure to complete all assigned tasks will result in the forfeiture of Party B’s deposit for those orders.</li>
+
+                </ul>
+
+				<p class="fontSize16PX">2.3 Cancellation Policy</p>
+
+				<p class="fontSize16PX">If Party B wishes to cancel the tasks before completion, the following conditions apply:</p>
+
+                <ul>
+
+                    <li>Party B must pay 30% of their balance and any pending amount related to incomplete orders.</li>
+
+                    <li>Cancellation without proper completion is strongly discouraged, as it disrupts the workflow and may impact Party B’s standing on the platform.</li>
+
+                </ul>
+
+				<p class="fontSize16PX">2.4 Adherence to Guidance</p>
+
+                <ul>
+
+                    <li>Party B is required to follow instructions provided by Party A’s system.</li>
+
+                    <li>Any issues arising from Party B’s failure to follow guidance or complete tasks will be their sole responsibility.</li>
+
+                </ul>
+
+
+
+				<p class="fontSize16PX">3. Platform Rules and Credit Score</p>
+
+                <ul>
+
+                    <li>Credit Score Importance: Party B’s credit score on the platform is a key metric that reflects their reliability and performance.</li>
+
+                    <li>Impact of Non-Compliance: Failure to complete tasks, follow guidance, meet deadlines, or delay deposits for assigned orders will negatively impact Party B’s credit score, potentially limiting their future opportunities on the platform.</li>
+
+                </ul>
+
+
+
+				<p class="fontSize16PX">4. Deposit Policy</p>
+
+                <ul>
+
+                    <li>Party B’s deposit for assigned tasks will only be returned upon successful completion of all orders in the task set.</li>
+
+                    <li>If the tasks are not completed, the deposit will not be refunded, as outlined in Section 2.2.</li>
+
+                </ul>
+
+
+
+				<p class="fontSize16PX">5. Profit Guarantee</p>
+
+				<p class="fontSize16PX">Party A guarantees a profit of 15% - 30% on Party B’s deposit amount, provided Party B follows all guidance and completes the assigned tasks as per the terms of this Contract. If Party B fulfills all obligations and the profit does not meet the guaranteed range, Party B has the right to request compensation from Party A.</p>
+
+
+
+				<p class="fontSize16PX">6. Legal Provisions</p>
+
+				<p class="fontSize16PX">This agreement is governed by and shall be construed in accordance with the laws of the United States of America. As Amazon Asia is a US-registered platform, this Contract and its terms are subject to oversight by the relevant US authorities responsible for business and consumer protection laws.</p>
+
+                <ul>
+
+                    <li>Any disputes arising from this Contract shall be resolved under the jurisdiction of US law.</li>
+
+                    <li>Both Party A and Party B acknowledge that breaches of this Contract will be addressed in accordance with the applicable laws and regulations of the United Kingdom.</li>
+
+                </ul>
+
+
+
+				<p class="fontSize16PX">7. Validation</p>
+
+				<p class="fontSize16PX">To validate this Contract, both parties are required to digitally sign the agreement.</p>
+
+				<p class="fontSize16PX">ID Proof (e.g., Company Registration, Authorized ID): </p>
+
+				<p class="fontSize16PX">8. Acknowledgment and Agreement</p>
+
+                <ul>
+
+                    <li>By signing this Contract, Party B confirms that they:</li>
+
+                    <li>Understand the purpose and structure of the Amazon Asia platform and their role within it.</li>
+
+                    <li>Agree to complete the tasks assigned to them as described.</li>
+
+                    <li>Accept the terms regarding deposit refunds, cancellation policies, and adherence to guidance.</li>
+
+                    <li>Acknowledge the importance of maintaining a high credit score on the platform.</li>
+
+                    <li>Failure to adhere to the terms of this Contract may result in penalties, including but not limited to, forfeiture of the deposit and suspension from the platform.</li>
+
+                </ul>
+
+
+
+                <p class="fontSize16PX">This Contract serves as a binding agreement between Party A and Party B. Both parties agree to uphold the terms and conditions herein to ensure a fair and productive partnership.</p>
+
+            </div>
+
+			<div>
+
+				<p class="fontSize16PX gray-center-text">Please complete this form to apply for membership.</p>
+
+				<div class="form-body">
+
+						<div class="form-group">
+
+							<label for="name">1. Name
+
+								<span class="required">*</span>
+
+							</label>
+
+							<input id="name" required="" type="text" value="" name="name">
+
+						</div>
+
+						<div class="form-group">
+
+							<label for="name">2. Upload Front Side of ID Card
+
+								<span class="required">*</span>
+
+							</label>
+
+							<p class="form-group-description">Image formats like .jpg, .png, .jpeg, .webp are supported.</p>
+
+							<div class="kyc-upload-box" id="frontUploadBox" onclick="document.getElementById('frontIdInput').click()" style="border: 2px dashed #007bff; border-radius: 12px; background: #f8fafc; padding: 22px 16px; text-align: center; cursor: pointer; transition: all 0.2s ease; margin-top: 6px;">
+								<div id="frontUploadPlaceholder">
+									<i class="fa fa-cloud-upload" style="font-size: 36px; color: #007bff; margin-bottom: 6px; display: block;"></i>
+									<div style="font-weight: 700; font-size: 15px; color: #1e293b;">Click here to upload Front Side of ID Card</div>
+									<div style="font-size: 12px; color: #64748b; margin-top: 4px;">Tap to choose photo or browse from device</div>
+									<button type="button" class="btn btn-sm btn-primary mt-2" style="border-radius: 6px; font-weight: 600; padding: 4px 14px;">Browse Image</button>
+								</div>
+								<div id="frontPreviewContainer" style="display: none;">
+									<img id="frontPreviewImg" src="" style="max-height: 180px; max-width: 100%; border-radius: 8px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+									<div class="mt-2"><span class="btn btn-sm btn-outline-primary" style="font-size: 12px; font-weight: 600;">Change Image</span></div>
+								</div>
+							</div>
+
+							<input accept="image/*" type="file" id="frontIdInput" name="front_id" style="display: none;">
+
+                            <p id="frontIdError" class="error-message" style="color: red; font-size: 12px; margin-top: 4px;"></p>
+
+						</div>
+
+						<div class="form-group">
+
+							<label for="name">3. Upload Back Side of ID Card
+
+								<span class="required">*</span>
+
+							</label>
+
+							<p class="form-group-description">Image formats like .jpg, .png, .jpeg, .webp are supported.</p>
+
+							<div class="kyc-upload-box" id="backUploadBox" onclick="document.getElementById('backIdInput').click()" style="border: 2px dashed #007bff; border-radius: 12px; background: #f8fafc; padding: 22px 16px; text-align: center; cursor: pointer; transition: all 0.2s ease; margin-top: 6px;">
+								<div id="backUploadPlaceholder">
+									<i class="fa fa-cloud-upload" style="font-size: 36px; color: #007bff; margin-bottom: 6px; display: block;"></i>
+									<div style="font-weight: 700; font-size: 15px; color: #1e293b;">Click here to upload Back Side of ID Card</div>
+									<div style="font-size: 12px; color: #64748b; margin-top: 4px;">Tap to choose photo or browse from device</div>
+									<button type="button" class="btn btn-sm btn-primary mt-2" style="border-radius: 6px; font-weight: 600; padding: 4px 14px;">Browse Image</button>
+								</div>
+								<div id="backPreviewContainer" style="display: none;">
+									<img id="backPreviewImg" src="" style="max-height: 180px; max-width: 100%; border-radius: 8px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+									<div class="mt-2"><span class="btn btn-sm btn-outline-primary" style="font-size: 12px; font-weight: 600;">Change Image</span></div>
+								</div>
+							</div>
+
+							<input accept="image/*" type="file" id="backIdInput" name="back_id" style="display: none;">
+
+                            <p id="backIdError" class="error-message" style="color: red; font-size: 12px; margin-top: 4px;"></p>
+
+						</div>
+
+						<div class="form-group">
+
+							<label for="investmentAmount">4. Investment Amount: (USD)
+
+								<span class="required">*</span>
+
+							</label>
+
+							<input id="investmentAmount" required="" type="text" value="0.00" name="investmentAmount" readonly style="background-color: #f1f5f9; cursor: not-allowed; font-weight: 700; color: #0284c7;">
+							<small style="color: #64748b; font-size: 11.5px; display: block; margin-top: 4px;"><i class="fa fa-lock mr-1"></i> Auto-locked to your verified deposit amount</small>
+
+						</div>
+
+						<div class="form-group">
+
+							<label for="userId">5. User ID
+
+								<span class="required">*</span>
+
+							</label>
+
+							<input id="userId" required="" type="text" value="1001" name="userId" readonly>
+
+						</div>
+
+						<div class="form-group">
+
+							<label for="name">6. Signature: Party B: (signature/stamp)
+
+								<span class="required">*</span>
+
+							</label>
+
+							<div class="signature-container">
+
+								<div>
+
+									<canvas width="300" height="100" class="signature-canvas" id="signature_c" style="touch-action: none;"></canvas>
+
+                      <input type="hidden" name="signature_c" id="signatureCInput">
+
+									<div id="signatureCButtons">
+
+                      <button type="button" onclick="saveSignature('C')">Done</button>
+
+                      <button type="button" onclick="clearSignature('C')">Clear</button>
+
+									</div>
+
+                  <div id="signatureCResign" style="display:none;">
+
+                      <button type="button" onclick="clearSignature('C')">Re-sign</button>
+
+                  </div>
+
+                  <p id="signature_c_error" class="error-message" style="color:red;"></p>
+
+								</div>
+
+							</div>
+
+						</div>
+
+						<div class="form-group">
+
+							<label for="name">7. Signature: Party A: (Jared Filippone, CFA Head of Investor Relations)
+
+								<span class="required">*</span>
+
+							</label>
+
+							<div class="signature-container">
+
+                <img src="assets/uploads/contracts/defaultsignature.jpeg" alt="N/A" class="defaultsign" >
+
+								<!-- <div>
+
+									    <canvas width="300" height="100" class="signature-canvas" id="signature_d"></canvas>
+
+                      <input type="hidden" name="signature_d" id="signatureDInput">
+
+                      <div id="signatureDButtons">
+
+                          <button type="button" onclick="saveSignature('D')">Done</button>
+
+                          <button type="button" onclick="clearSignature('D')">Clear</button>
+
+                      </div>
+
+  
+
+                      <div id="signatureDResign" style="display:none;">
+
+                          <button type="button" onclick="clearSignature('D')">Re-sign</button>
+
+                      </div>
+
+                      <p id="signature_d_error" class="error-message" style="color:red;"></p>
+
+								</div> -->
+
+							</div>
+
+						</div>
+
+            <div class="form-group">
+
+                <label for="date">8. Signature Date <i class="text-danger">*</i></label>
+
+                <input type="text" class="form-control datepicker" name="signature_date" >
+
+            </div>
+
+						<div style="display: flex; justify-content: center;">
+
+              <input type="hidden" name="level_id" value="">
+
+							<button class="form-submit-btn" id="invite_submit_form_btn" type="button" onclick="if(window.handleKycSubmit){window.handleKycSubmit(event);}">Submit</button>
+
+						</div>
+
+						<div style="display: flex; justify-content: center;"></div>
+
+					</form>
+
+			</div>
+
+      			</div>
+
+		</div>                                       
+
+	</div>
+
+</div>
+
+</div>
+
+
+
+<script src="assets/theme_elements/js/jquery.min.js"></script>
+
+<script src="assets/theme_elements/plugins/moment/moment.js"></script>
+
+<script src="assets/theme_elements/plugins/daterangepicker/daterangepicker.js"></script> 
+
+
+
+<script>
+
+  function triggerFileInput(type) {
+
+    document.getElementById(`${type}IdInput`).click();
+
+  }
+
+
+
+  function handleFileChange(event, type) {
+
+    const file = event.target.files[0];
+
+    const errorElement = document.getElementById(`${type}IdError`);
+
+    const placeholder = document.getElementById(`${type}UploadPlaceholder`);
+
+    const container = document.getElementById(`${type}PreviewContainer`);
+
+    const img = document.getElementById(`${type}PreviewImg`);
+
+    if (errorElement) errorElement.textContent = '';
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+
+      if (errorElement) errorElement.textContent = "Only image files (.jpg, .png, .jpeg, .webp) are allowed.";
+
+      return;
+
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+
+      const tempImg = new Image();
+
+      tempImg.onload = function () {
+
+        const maxDim = 1200;
+
+        let width = tempImg.width;
+
+        let height = tempImg.height;
+
+        if (width > maxDim || height > maxDim) {
+
+          if (width > height) {
+
+            height = Math.round((height * maxDim) / width);
+
+            width = maxDim;
+
+          } else {
+
+            width = Math.round((width * maxDim) / height);
+
+            height = maxDim;
+
+          }
+
+        }
+
+        const canvas = document.createElement('canvas');
+
+        canvas.width = width;
+
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(tempImg, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+
+        if (img) img.src = compressedDataUrl;
+        if (placeholder) placeholder.style.display = 'none';
+        if (container) container.style.display = 'block';
+        const box = document.getElementById(`${type}UploadBox`);
+        if (box) {
+          box.style.border = '2px dashed #28a745';
+          box.style.background = '#f0fff4';
+        }
+        if (errorElement) errorElement.textContent = '';
+      };
+
+      tempImg.onerror = function () {
+        if (img) img.src = e.target.result;
+        if (placeholder) placeholder.style.display = 'none';
+        if (container) container.style.display = 'block';
+        const box = document.getElementById(`${type}UploadBox`);
+        if (box) {
+          box.style.border = '2px dashed #28a745';
+          box.style.background = '#f0fff4';
+        }
+        if (errorElement) errorElement.textContent = '';
+      };
+
+      tempImg.src = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  // Attach change handlers
+  document.getElementById("frontIdInput").addEventListener("change", function (e) {
+    handleFileChange(e, "front");
+  });
+
+  document.getElementById("backIdInput").addEventListener("change", function (e) {
+    handleFileChange(e, "back");
+  });
+</script>
+
+<script>
+  const canvases = {
+    A: document.getElementById('signature_a'),
+    C: document.getElementById('signature_c'),
+  };
+
+  const contexts = {
+    A: canvases.A ? canvases.A.getContext('2d') : null,
+    C: canvases.C ? canvases.C.getContext('2d') : null,
+  };
+
+  let drawing = { A: false, C: false };
+
+  Object.keys(canvases).forEach(id => {
+    const canvas = canvases[id];
+    const ctx = contexts[id];
+    if (!canvas || !ctx) return;
+
+    let isDrawing = false;
+
+    // Desktop events
+    canvas.addEventListener('mousedown', e => {
+      isDrawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      if (!isDrawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isDrawing = false;
+    });
+
+    // Mobile events
+    canvas.addEventListener('touchstart', e => {
+      isDrawing = true;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    });
+
+    canvas.addEventListener('touchmove', e => {
+      if (!isDrawing) return;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      e.preventDefault(); // Prevent page scrolling
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => {
+      isDrawing = false;
+    });
+
+    canvas.addEventListener('touchcancel', () => {
+      isDrawing = false;
+    });
+  });
+
+
+
+
+
+//   function saveSignature(id) {
+
+//     const canvas = canvases[id];
+
+//     const dataUrl = canvas.toDataURL();
+
+//     document.getElementById(`signature${id}Input`).value = dataUrl;
+
+//     canvas.style.pointerEvents = 'none';
+
+//     alert('Signature saved.'); // optional
+
+//   }
+
+
+
+function saveSignature(id) {
+
+  const canvas = canvases[id];
+
+  const dataUrl = canvas.toDataURL();
+
+
+
+  // Store data URI in a hidden field
+
+  document.getElementById(`signature${id}Input`).value = dataUrl;
+
+
+
+  // Disable drawing
+
+  canvas.style.pointerEvents = 'none';
+
+  canvas.style.border = '';
+
+
+
+  // Hide clear/done, show re-sign
+
+  document.getElementById(`signature${id}Buttons`).style.display = 'none';
+
+  document.getElementById(`signature${id}Resign`).style.display = 'block';
+
+}
+
+
+
+
+
+//   function clearSignature(id) {
+
+//     const ctx = contexts[id];
+
+//     ctx.clearRect(0, 0, canvases[id].width, canvases[id].height);
+
+//     document.getElementById(`signature${id}Input`).value = '';
+
+//     canvases[id].style.pointerEvents = 'auto';
+
+//   }
+
+
+
+function clearSignature(id) {
+
+  const canvas = canvases[id];
+
+  const ctx = contexts[id];
+
+
+
+  // Clear the canvas
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+
+
+  // Reset the drawing path (important!)
+
+  ctx.beginPath();
+
+
+
+  // Reset hidden input value
+
+  const input = document.getElementById(`signature${id}Input`);
+
+  if (input) input.value = '';
+
+
+
+  // Re-enable drawing
+
+  canvas.style.pointerEvents = 'auto';
+
+
+
+  // Show clear/done buttons again
+
+  document.getElementById(`signature${id}Buttons`).style.display = 'block';
+
+  document.getElementById(`signature${id}Resign`).style.display = 'none';
+
+}
+
+
+
+  function resign(id) {
+
+    clearSignature(id);
+
+    canvases[id].style.pointerEvents = 'auto';
+
+
+
+    // Restore the original buttons
+
+    const buttonContainer = document.getElementById(`signature${id}Buttons`);
+
+    buttonContainer.innerHTML = `
+
+        <button type="button" onclick="clearSignature('${id}')">Clear</button>
+
+        <button type="button" onclick="saveSignature('${id}')">Done</button>`;
+
+    }
+
+</script>
+
+<script>
+
+		$( document ).ready(function() {
+
+		$('.datepicker').daterangepicker({
+
+        singleDatePicker: true,
+
+        showDropdowns: true,
+
+        minYear: 2010,
+
+        maxYear: parseInt(moment().format('YYYY'),10)
+
+		  });
+
+		});
+
+</script>
+
+<div class="footer-container">
+
+        <a class="footer-item " href="dashboard">
+
+            <img src="client/assets/img/home.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Home</div>
+
+        </a>
+
+        <a class="footer-item " href="recordData">
+
+            <img src="client/assets/img/record.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Record</div>
+
+        </a>
+
+        <a class="footer-item " href="startData">
+
+            <img src="client/assets/img/start.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Start</div>
+
+        </a>
+
+        <a class="footer-item " href="contactData">
+
+            <img src="client/assets/img/contact.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Contact</div>
+
+        </a>
+
+                <a class="footer-item " href="profileData">
+
+                    <img src="client/assets/img/default.png" class="header-user-icon-up" alt="">
+
+                    <div class="footer-item-title">Profile</div>
+
+        </a>
+
+</div>
+
+<script src="client/assets/js/main.js"></script>
+
+<script src="client/assets/js/home.js"></script>
+
+
+
+
+
+
+
+<script>
+
+    $(".alert").fadeTo(2000, 500).slideUp(500, function(){
+
+    $(".alert").slideUp(500);
+
+});
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="client/assets/js/portal-bridge.js?v=3.9.9"></script>
+</body>
+
+</html>

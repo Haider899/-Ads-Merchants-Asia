@@ -1,0 +1,203 @@
+.withdraw-container{
+    padding-top:60px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+.withdraw-nav{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    align-items: center;
+}
+.withdraw-nav-item{
+    font-weight: bold;
+    font-size: 16px;
+    padding: 10px 15px;
+    color: grey;
+    cursor: pointer;
+}
+.withdraw-nav-item-active{
+    border-bottom: 1px solid black;
+    color: black;
+}
+.withdraw-card-section{
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+.history-card-section{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.withdraw-card{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: 10px;
+    background-color: white;
+    padding: 15px;
+}
+.withdraw-card{
+    color: black;
+    background-image: url(../img/bg-2.png);
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+.history-card{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    border-radius: 10px;
+    background-color: white;
+    padding: 15px;
+    align-items: center;
+}
+.withdraw-card-title{
+    font-size: 14px;
+    font-weight: bold;
+}
+.withdraw-card-value{
+    font-size: 20px;
+    font-weight: bold;
+}
+.withdraw-btn{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border-radius: 10px;
+    font-weight: bold;
+    background-color: #74AAF0;
+    padding: 15px;
+    cursor: pointer;
+    width: 100%;
+    border: 0px;
+    outline: none;
+}
+.small-text{
+    font-size: 12px;
+}
+.large-text{
+    font-size: 16px;
+    font-weight: 500;
+}
+.tiny-text{
+    font-size: 12px;
+}
+.success-outline-pill{
+    font-size: 12px;
+    padding: 5px 15px;
+    border-radius: 15px;
+    border: 1px solid green;
+    color: green;
+}
+.pending-outline-pill{
+    font-size: 12px;
+    padding: 5px 15px;
+    border-radius: 15px;
+    border: 1px solid red;
+    color: red;
+}
+.no-more{
+    text-align: center;
+    padding: 20px 0px;
+    font-size: 14px;
+}
+.withdrawal-form{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: 10px;
+    background-color: white;
+    padding: 20px 15px 15px 15px;
+}
+.input-group{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px 0px;
+}
+.input-group-x{
+    padding: 10px 0px;
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+}
+.label{
+    font-size: 14px;
+}
+.input-form{
+    /* padding: 15px 10px; */
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    box-sizing: border-box;
+    font-size: 16px;
+    width: 100%;
+    outline: none;
+    background-color: #e3e3e3;
+}
+
+
+#success-message, #error-message {
+    padding: 10px;
+    margin-bottom: 10px;
+    color: white;
+    border-radius: 10px;
+    margin: 0px 15px;
+    text-align:center;
+    transition: opacity 5s ease-in-out; /* Add transition effect */
+    opacity: 1; /* Initially visible */
+    font-size: 14px;
+}
+
+#success-message {
+    background-color: #4CAF50;
+}
+
+#error-message {
+    background-color: #f44336;
+}
+
+/* Add class to hide messages */
+.hidden {
+    opacity: 0;
+}
+.success-outline-pill{
+font-size: 12px;
+padding: 5px 15px;
+border-radius: 15px;
+border: 1px solid green;
+color: green;
+}
+.pending-outline-pill{
+font-size: 12px;
+padding: 5px 15px;
+border-radius: 15px;
+border: 1px solid red;
+color: red;
+}
+
+body {
+    padding: 0;
+}
+
+@media screen and (min-width: 1200px) {
+    body {
+        padding: 0 450px;
+    }
+
+    .inner-header {
+        padding-left: 450px;
+        padding-right: 450px;
+    }
+
+    .footer-container {
+        padding-left: 450px;
+        padding-right: 450px;
+    }
+}

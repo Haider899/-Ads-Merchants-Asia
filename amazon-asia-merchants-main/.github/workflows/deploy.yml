@@ -1,0 +1,29 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_IP }}
+        username: ${{ secrets.VPS_USERNAME }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: 22
+        script: |
+          cd /var/www/ads-merchants-asia
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Haider899/-Ads-Merchants-Asia.git
+          git fetch origin main
+          git reset --hard origin/main
+          git remote set-url origin https://github.com/Haider899/-Ads-Merchants-Asia.git
+          npm install --production
+          pm2 restart all

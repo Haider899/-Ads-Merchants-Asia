@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Master Control Center - Amazon Asia Merchants</title>
+    <link rel="shortcut icon" href="assets/uploads/logo/1742595477_icon.png">
+    
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --primary-dark: #0056b3;
+            --accent: #ff9900;
+            --accent-hover: #e68a00;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0f172a;
+            --light-bg: #eaf2f8;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--light-bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* Full Screen Admin Login Overlay */
+        #adminLoginModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #eaf2f8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            padding: 20px;
+        }
+
+        .admin-auth-card {
+            background: #ffffff;
+            border-radius: 28px;
+            max-width: 440px;
+            width: 100%;
+            padding: 44px 34px 36px 34px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            position: relative;
+        }
+
+        .admin-logo-badge {
+            position: absolute;
+            top: -38px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffffff;
+            padding: 10px 22px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-logo-badge img {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .admin-pill-group {
+            position: relative;
+            margin-bottom: 18px;
+            text-align: left;
+        }
+
+        .admin-pill-group label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 6px;
+            display: block;
+            padding-left: 6px;
+        }
+
+        .admin-pill-input {
+            width: 100%;
+            border-radius: 50px !important;
+            padding: 14px 44px 14px 20px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            background-color: #f8fafc !important;
+            font-size: 14px !important;
+            color: #1e293b !important;
+            outline: none !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .admin-pill-input:focus {
+            border-color: #ff9900 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 0 4px rgba(255, 153, 0, 0.15) !important;
+        }
+
+        .admin-input-icon {
+            position: absolute;
+            right: 18px;
+            bottom: 15px;
+            color: #94a3b8;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .admin-submit-btn {
+            width: 100%;
+            border-radius: 50px;
+            padding: 14px;
+            font-weight: 800;
+            font-size: 15.5px;
+            background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%);
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 153, 0, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .admin-submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 153, 0, 0.45);
+        }
+
+        /* Header */
+        .admin-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+
+        .admin-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--dark);
+        }
+
+        .admin-brand img {
+            height: 38px;
+            border-radius: 6px;
+        }
+
+        .admin-brand span {
+            font-weight: 800;
+            font-size: 19px;
+            letter-spacing: -0.5px;
+            color: #0f172a;
+        }
+
+        .badge-admin {
+            background: rgba(0, 123, 255, 0.1);
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        /* Layout */
+        .admin-container {
+            max-width: 1400px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        /* Metric Cards */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 18px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .stat-val {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--dark);
+            letter-spacing: -0.5px;
+        }
+
+        /* Tabs Navigation */
+        .admin-tabs {
+            display: flex;
+            gap: 8px;
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .admin-tab-btn {
+            border: none;
+            background: transparent;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .admin-tab-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .admin-tab-btn.active {
+            background: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(255, 153, 0, 0.3);
+        }
+
+        /* Panel Cards */
+        .panel-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .panel-card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+        }
+
+        .panel-card-title {
+            font-size: 16.5px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #0f172a;
+        }
+
+        /* Tables */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0;
+            text-align: left;
+        }
+
+        .admin-table th {
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 14px 18px;
+            border-bottom: 1.5px solid var(--border);
+        }
+
+        .admin-table td {
+            padding: 14px 18px;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--border);
+            font-size: 13.5px;
+            background: #ffffff;
+        }
+
+        .admin-table tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        /* Status Badges */
+        .badge-status {
+            font-weight: 700;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .badge-pending { background: #fef3c7; color: #b45309; }
+        .badge-approved { background: #d1fae5; color: #065f46; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-reupload_required { background: #ffedd5; color: #9a3412; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-banned { background: #fee2e2; color: #991b1b; }
+        .badge-suspended { background: #fee2e2; color: #991b1b; }
+
+        .badge-primary { background: #e0f2fe; color: #0369a1; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-info { background: #e0f2fe; color: #0284c7; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-success { background: #dcfce7; color: #15803d; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-warning { background: #fef3c7; color: #b45309; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+        .badge-danger { background: #fee2e2; color: #b91c1c; font-weight: 700; border-radius: 6px; padding: 4px 8px; }
+
+        /* Action Buttons */
+        .btn-action {
+            padding: 7px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+            text-decoration: none;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .btn-action:active {
+            transform: translateY(0);
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-refresh {
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            color: #334155;
+            padding: 7px 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-refresh:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        .btn-primary-custom {
+            background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%);
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 153, 0, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(255, 153, 0, 0.4);
+        }
+
+        .btn-logout {
+            background: #ffffff;
+            border: 1.5px solid #fecaca;
+            color: #dc2626;
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-logout:hover {
+            background: #fee2e2;
+            border-color: #f87171;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: #1e293b;
+            background: #f8fafc;
+            outline: none;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            border-color: #ff9900;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.15);
+        }
+
+        .form-control[readonly] {
+            background: #e2e8f0;
+            cursor: not-allowed;
+            color: #64748b;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        /* Custom Modal System (Pure CSS & JS - 100% Guaranteed Display & Hide) */
+        .admin-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            padding: 20px;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .admin-modal-backdrop.active {
+            display: flex !important;
+        }
+
+        .admin-modal-dialog {
+            background: #ffffff;
+            border-radius: 20px;
+            max-width: 540px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+            position: relative;
+            animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .admin-modal-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .admin-modal-title {
+            font-size: 16.5px;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .admin-modal-close {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            line-height: 1;
+        }
+
+        .admin-modal-close:hover {
+            color: #0f172a;
+            background: #e2e8f0;
+        }
+
+        .admin-modal-body {
+            padding: 24px;
+        }
+
+        /* Toast Container */
+        #adminToastContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .admin-toast {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 14px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+            border-left: 5px solid;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            max-width: 420px;
+            pointer-events: auto;
+            animation: slideInRight 0.25s ease-out;
+            font-size: 13.5px;
+        }
+
+        .admin-toast-success { border-left-color: #10b981; }
+        .admin-toast-error { border-left-color: #ef4444; }
+        .admin-toast-warning { border-left-color: #f59e0b; }
+        .admin-toast-info { border-left-color: #3b82f6; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.92) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes pulseRinging {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 9px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .pulse-ringing {
+            animation: pulseRinging 1.5s infinite !important;
+        }
+
+        /* Mobile & Tablet Ultra-Responsive Rules */
+        @media (max-width: 768px) {
+            .admin-header {
+                padding: 10px 12px !important;
+                gap: 6px !important;
+                justify-content: space-between !important;
+                flex-wrap: nowrap !important;
+            }
+
+            .admin-brand {
+                gap: 8px !important;
+                min-width: 0 !important;
+                flex: 1 1 auto !important;
+                overflow: hidden !important;
+            }
+
+            .admin-brand img {
+                height: 28px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .admin-brand span {
+                font-size: 14.5px !important;
+                letter-spacing: -0.3px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                max-width: 140px !important;
+            }
+
+            #adminRoleBadge {
+                display: none !important;
+            }
+
+            .admin-header > div:last-child {
+                gap: 6px !important;
+                flex-shrink: 0 !important;
+            }
+
+            #adminAudioToggleBtn {
+                height: 34px !important;
+                padding: 0 10px !important;
+                font-size: 13px !important;
+                border-radius: 8px !important;
+            }
+
+            #adminAudioLabel {
+                display: none !important;
+            }
+
+            #adminNotificationBellBtn {
+                width: 34px !important;
+                height: 34px !important;
+                border-radius: 8px !important;
+            }
+
+            #adminUserGreeting {
+                display: none !important;
+            }
+
+            #adminLogoutBtn {
+                padding: 0 11px !important;
+                height: 34px !important;
+                font-size: 13px !important;
+                border-radius: 8px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+
+            #adminLogoutBtnText {
+                display: none !important;
+            }
+
+            #adminNotifDropdown {
+                width: min(320px, 92vw) !important;
+                right: -60px !important;
+                top: 44px !important;
+            }
+
+            .admin-container {
+                margin: 12px auto !important;
+                padding: 0 10px !important;
+            }
+
+            /* Responsive 2-Column Stat Grid */
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+                margin-bottom: 14px !important;
+            }
+
+            .stat-card {
+                padding: 12px !important;
+                border-radius: 12px !important;
+            }
+
+            .stat-card:last-child:nth-child(odd) {
+                grid-column: span 2 !important;
+            }
+
+            .stat-icon {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 14px !important;
+                margin-bottom: 6px !important;
+                border-radius: 8px !important;
+            }
+
+            .stat-label {
+                font-size: 11px !important;
+                line-height: 1.25 !important;
+                height: 28px !important;
+                overflow: hidden !important;
+                display: -webkit-box !important;
+                -webkit-line-clamp: 2 !important;
+                -webkit-box-orient: vertical !important;
+                margin-bottom: 4px !important;
+            }
+
+            .stat-val {
+                font-size: 17px !important;
+            }
+
+            /* Smooth Native Horizontal Touch Tabs */
+            .admin-tabs {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                scrollbar-width: none !important;
+                padding: 6px !important;
+                gap: 6px !important;
+                margin-bottom: 14px !important;
+                border-radius: 10px !important;
+            }
+
+            .admin-tabs::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            .admin-tab-btn {
+                flex-shrink: 0 !important;
+                padding: 8px 12px !important;
+                font-size: 12px !important;
+                gap: 6px !important;
+                border-radius: 6px !important;
+            }
+
+            /* Responsive Panel Cards & Headers */
+            .panel-card {
+                border-radius: 12px !important;
+                margin-bottom: 16px !important;
+            }
+
+            .panel-card-header {
+                padding: 12px 14px !important;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 10px !important;
+            }
+
+            .panel-card-header > div,
+            .panel-card-header > form,
+            .panel-card-header .btn-refresh {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: space-between !important;
+            }
+
+            .panel-card-title {
+                font-size: 14.5px !important;
+            }
+
+            /* Responsive Table Handling */
+            .table-responsive {
+                width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                border: 0 !important;
+            }
+
+            .admin-table th, .admin-table td {
+                padding: 10px 12px !important;
+                font-size: 12.5px !important;
+                white-space: nowrap !important;
+            }
+
+            /* Responsive Modals & Action Dialogs */
+            .admin-modal-backdrop {
+                padding: 10px !important;
+            }
+
+            .admin-modal-dialog {
+                width: 96% !important;
+                max-width: 96% !important;
+                margin: 10px auto !important;
+                max-height: 92vh !important;
+                border-radius: 16px !important;
+            }
+
+            .admin-modal-header {
+                padding: 14px 16px !important;
+            }
+
+            .admin-modal-title {
+                font-size: 15px !important;
+            }
+
+            .admin-modal-body {
+                padding: 16px !important;
+                max-height: calc(92vh - 100px) !important;
+                overflow-y: auto !important;
+            }
+
+            .admin-auth-card {
+                padding: 36px 18px 26px 18px !important;
+                border-radius: 20px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Toast Notifications Container -->
+    <div id="adminToastContainer"></div>
+
+    <!-- Built-in Global Action Dialog (Approve, Reject, Delete confirmation without external library dependencies) -->
+    <div id="adminActionDialogBackdrop" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 460px;">
+            <div class="admin-modal-body" style="text-align: center; padding: 32px 24px;">
+                <div id="dialogIconContainer" style="width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 26px;">
+                    <i id="dialogIcon" class="fa fa-question"></i>
+                </div>
+                <h4 id="dialogTitle" style="font-weight: 800; color: #0f172a; margin-bottom: 8px; font-size: 19px;">Confirm Action</h4>
+                <p id="dialogMessage" style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin-bottom: 20px;">Are you sure you want to proceed?</p>
+                <div id="dialogInputWrapper" style="display: none; margin-bottom: 20px; text-align: left;">
+                    <label id="dialogInputLabel" style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Rejection Note:</label>
+                    <input type="text" id="dialogInputField" class="form-control" placeholder="Enter details..." />
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" id="dialogCancelBtn" class="btn-action" style="background: #f1f5f9; color: #475569; padding: 10px 20px; font-size: 13.5px;">Cancel</button>
+                    <button type="button" id="dialogConfirmBtn" class="btn-action btn-approve" style="padding: 10px 24px; font-size: 13.5px;">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Overlay -->
+    <div id="adminLoginModal" style="display: none;">
+        <div class="admin-auth-card">
+            <!-- Floating Logo Badge -->
+            <div class="admin-logo-badge">
+                <img src="client/assets/img/amazon.png" alt="Amazon Asia" onerror="this.src='assets/uploads/logo/1742595477_icon.png'" />
+            </div>
+
+            <!-- Welcome Header Note -->
+            <div style="margin-top: 14px; margin-bottom: 22px;">
+                <h3 style="font-weight: 800; color: #0f172a; margin-bottom: 6px; font-size: 22px; letter-spacing: -0.5px;">Admin Control Center</h3>
+                <p style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin-bottom: 0;">
+                    Welcome Administrator! Please sign in with your master credentials to access merchant controls and management tools.
+                </p>
+            </div>
+
+            <!-- Admin Authentication Form -->
+            <form id="adminLoginForm">
+                <div class="admin-pill-group">
+                    <label>Admin Email / Username</label>
+                    <input type="text" id="adminEmail" class="admin-pill-input" placeholder="Enter your email/username" value="" autocomplete="username" required />
+                    <i class="fa fa-envelope admin-input-icon"></i>
+                </div>
+
+                <div class="admin-pill-group">
+                    <label>Master Password</label>
+                    <input type="password" id="adminPassword" class="admin-pill-input" placeholder="Enter your password" autocomplete="current-password" required />
+                    <i id="toggleAdminPass" class="fa fa-eye admin-input-icon" style="cursor: pointer; pointer-events: auto;" title="View Password"></i>
+                </div>
+
+                <button type="submit" id="adminLoginBtn" class="admin-submit-btn">
+                    <span>Sign In to Admin Portal</span>
+                    <i class="fa fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8; font-weight: 600;">
+                <i class="fa fa-shield-alt text-success mr-1"></i> 256-Bit SSL Encrypted Admin Session
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Header -->
+    <header class="admin-header">
+        <a href="/admin" class="admin-brand">
+            <img src="client/assets/img/amazon.png" alt="Logo" onerror="this.src='assets/uploads/logo/1742595477_icon.png'">
+            <span>Amazon Asia Merchants</span>
+            <span id="adminRoleBadge" class="badge-admin">Master Authority</span>
+        </a>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- Real-time Audio Alerts Controller -->
+            <button id="adminAudioToggleBtn" type="button" title="Sound Notifications & Live Chat Ringing (Click to toggle)" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #059669; border-radius: 10px; height: 38px; padding: 0 13px; font-size: 12.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; transition: all 0.2s ease; outline: none;">
+                <i class="fa fa-volume-up" id="adminAudioIcon"></i>
+                <span id="adminAudioLabel">Sound: ON</span>
+            </button>
+
+            <div style="position: relative;">
+                <div id="adminNotificationBellBtn" title="Pending Action Alerts" style="cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; background: rgba(0, 123, 255, 0.1); color: var(--primary);">
+                    <i class="fa fa-bell" style="font-size: 16px;"></i>
+                    <span id="adminTotalAlertsBadge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 800; border-radius: 10px; padding: 1px 6px; min-width: 18px; text-align: center; display: none; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
+                </div>
+                <!-- Notification Dropdown -->
+                <div id="adminNotifDropdown" style="display: none; position: absolute; top: 48px; right: 0; width: 340px; max-height: 440px; overflow-y: auto; background: #fff; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.18); z-index: 99999; border: 1px solid #e2e8f0; padding: 0;">
+                  <div style="padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border-top-left-radius: 14px; border-top-right-radius: 14px;">
+                    <span style="font-weight: 700; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 6px;">🔔 Pending Action Alerts</span>
+                    <button id="adminNotifCloseBtn" style="background: none; border: none; cursor: pointer; font-size: 20px; color: #94a3b8; line-height: 1; padding: 0 4px;">&times;</button>
+                  </div>
+                  <div id="adminNotifList" style="padding: 8px 0;">
+                    <div style="text-align: center; color: #94a3b8; padding: 24px 0; font-size: 13px;">Loading alerts...</div>
+                  </div>
+                </div>
+            </div>
+            <span id="adminUserGreeting" style="font-size: 13px; font-weight: 600; color: #475569;"></span>
+            <button id="adminLogoutBtn" class="btn-logout">
+                <i class="fa fa-power-off"></i> <span id="adminLogoutBtnText">Logout</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="admin-container">
+
+        <!-- Stats Grid -->
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(0, 123, 255, 0.1); color: var(--primary);">
+                    <i class="fa fa-users"></i>
+                </div>
+                <div class="stat-label">Total Registered Users</div>
+                <div class="stat-val" id="statUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+                    <i class="fa fa-wallet"></i>
+                </div>
+                <div class="stat-label">Total User Balance</div>
+                <div class="stat-val" id="statUserBalance">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
+                    <i class="fa fa-id-card"></i>
+                </div>
+                <div class="stat-label">Pending KYC Verifications</div>
+                <div class="stat-val" id="statPendingKycs" style="color: var(--warning);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+                    <i class="fa fa-arrow-circle-down"></i>
+                </div>
+                <div class="stat-label">Pending Deposits</div>
+                <div class="stat-val" id="statPendingDeposits" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
+                    <i class="fa fa-arrow-circle-up"></i>
+                </div>
+                <div class="stat-label">Pending Withdrawals</div>
+                <div class="stat-val" id="statPendingWithdrawals" style="color: var(--danger);">0</div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="admin-tabs">
+            <button id="tabBtnUsers" class="admin-tab-btn active" data-tab="tabUsers"><i class="fa fa-users"></i> Users & Balances</button>
+            <button id="tabBtnOrders" class="admin-tab-btn" data-tab="tabOrders"><i class="fa fa-shopping-cart"></i> Orders & Tasks <span id="adminOrdersBadge" class="badge-status" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#3b82f6; color:#fff; font-weight:700;">0</span></button>
+            <button id="tabBtnProducts" class="admin-tab-btn" data-tab="tabProducts"><i class="fa fa-box-open"></i> Products Catalog</button>
+            <button id="tabBtnAudit" class="admin-tab-btn" data-tab="tabAudit"><i class="fa fa-history"></i> Ledger & Audit</button>
+            <button id="tabBtnSessions" class="admin-tab-btn" data-tab="tabSessions"><i class="fa fa-signal"></i> Active Sessions <span id="adminOnlineBadge" class="badge-status" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#10b981; color:#fff; font-weight:700;">0</span></button>
+            <button id="tabBtnStaff" class="admin-tab-btn" data-tab="tabStaff"><i class="fa fa-user-shield"></i> Sub-Admins & Staff</button>
+            <button id="tabBtnChat" class="admin-tab-btn" data-tab="tabChat"><i class="fa fa-comments"></i> Live Chat & Tickets <span id="adminChatUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#ef4444; color:#fff; font-weight:700;">0</span></button>
+            <button id="tabBtnKyc" class="admin-tab-btn" data-tab="tabKyc"><i class="fa fa-id-card"></i> KYC / Documents Review <span id="adminKycUnreadBadge" class="badge-status badge-warning ml-1" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#f59e0b; color:#fff; font-weight:700;">0</span></button>
+            <button id="tabBtnDeposits" class="admin-tab-btn" data-tab="tabDeposits"><i class="fa fa-receipt"></i> Deposits & Receipts <span id="adminDepositUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#ef4444; color:#fff; font-weight:700;">0</span></button>
+            <button id="tabBtnWithdrawals" class="admin-tab-btn" data-tab="tabWithdrawals"><i class="fa fa-money-bill-wave"></i> Withdrawals & Payouts <span id="adminWithdrawUnreadBadge" class="badge-status badge-danger ml-1" style="display:none; font-size:11px; padding:2px 7px; border-radius:10px; background:#ef4444; color:#fff; font-weight:700;">0</span></button>
+            <button id="tabBtnSettings" class="admin-tab-btn" data-tab="tabSettings"><i class="fa fa-cog"></i> Crypto Wallets & Settings</button>
+        </div>
+
+        <!-- Tab 1: Users Management -->
+        <div id="tabUsers" class="admin-tab-content">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-users" style="color: var(--primary);"></i> Registered Platform Users</h5>
+                    <button class="btn-refresh" onclick="loadUsers()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table" style="min-width: 1400px;">
+                        <thead>
+                            <tr>
+                                <th>User Profile</th>
+                                <th>Contact Details</th>
+                                <th>VIP Tier</th>
+                                <th>Working Balance</th>
+                                <th>Frozen Balance</th>
+                                <th>Total Comm. Balance</th>
+                                <th>Today Profit</th>
+                                <th>KYC Status</th>
+                                <th>Status & Session</th>
+                                <th style="min-width: 340px;">Admin Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="10" style="text-align: center; padding: 24px; color: #64748b;">Loading user accounts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 1.5: Active Sessions & Online Merchants -->
+        <div id="tabSessions" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-signal" style="color: #10b981;"></i> Live Active Sessions & Online Merchants</h5>
+                        <p style="font-size: 12.5px; color: #64748b; margin: 4px 0 0 0;">Real-time heartbeat monitoring of merchants currently browsing and grabbing orders on the platform.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn-refresh" onclick="loadSessions()"><i class="fa fa-sync-alt"></i> Refresh Live</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Merchant Profile</th>
+                                <th>IP & Location</th>
+                                <th>Device / Browser</th>
+                                <th>Current Page</th>
+                                <th>Last Ping</th>
+                                <th>Working Balance</th>
+                                <th>Quick Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody">
+                            <tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;">Loading active sessions...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Staff & Sub-Admins Management -->
+        <div id="tabStaff" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-user-shield" style="color: var(--warning);"></i> Administrator Staff & Sub-Admins</h5>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-refresh" onclick="loadStaff()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                        <button class="btn-primary-custom" onclick="AdminUI.openModal('createStaffModal')"><i class="fa fa-plus-circle"></i> Create New Sub-Admin</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Administrator</th>
+                                <th>Email / Login</th>
+                                <th>Assigned Role</th>
+                                <th>Account Status</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffTableBody">
+                            <tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">Loading staff accounts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Live Customer Chat & Tickets -->
+        <div id="tabChat" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-comments" style="color: var(--success);"></i> Real-Time Customer Support & Chat Center</h5>
+                    <button class="btn-refresh" onclick="loadChatConversations()"><i class="fa fa-sync-alt"></i> Refresh Inbox</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 360px 1fr; min-height: 600px; background: #ffffff;">
+                    <!-- Left Pane: Conversations List -->
+                    <div style="border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; background: #f8fafc;">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #ffffff; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <select id="chatStartUserSelect" class="form-control" style="font-size: 13px; font-weight: 600; cursor: pointer; border-color: #0284c7; color: #0f172a;" onchange="if(this.value){ selectChatUser(this.value); this.value=''; }">
+                                    <option value="">➕ Start New Chat with User...</option>
+                                </select>
+                            </div>
+                            <input type="text" id="chatSearchUser" class="form-control" placeholder="Search user by name or email..." oninput="filterChatUsers(this.value)" />
+                        </div>
+                        <div id="adminConversationsList" style="flex: 1; overflow-y: auto; max-height: 540px;">
+                            <div style="text-align: center; color: #64748b; padding: 24px; font-size: 13px;">Loading conversations...</div>
+                        </div>
+                    </div>
+
+                    <!-- Right Pane: Active Chat Room -->
+                    <div id="adminChatActiveRoom" style="display: flex; flex-direction: column; background: #ffffff;">
+                        <div id="adminChatNoSelection" style="margin: auto; text-align: center; color: #64748b; padding: 40px;">
+                            <i class="fa fa-comments" style="font-size: 54px; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
+                            <h5 style="font-weight: 700; color: #1e293b; font-size: 17px;">Select a Customer Conversation</h5>
+                            <p style="font-size: 13px; color: #64748b;">Choose any user thread from the left to view live messages and reply directly.</p>
+                        </div>
+                        <div id="adminChatMainContent" style="display: none; flex-direction: column; height: 100%;">
+                            <!-- Room Header -->
+                            <div style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="width: 42px; height: 42px; background: #e0f2fe; color: #0284c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;">
+                                        <i class="fa fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 800; font-size: 15px; color: #0f172a;" id="adminChatSelectedName">User Name</div>
+                                        <div style="font-size: 12px; color: #64748b;" id="adminChatSelectedEmail">user@email.com</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <button type="button" id="adminChatSilenceBtn" onclick="silenceActiveChatAlarm()" title="Silence incoming message alarm for this chat" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #dc2626; border-radius: 8px; font-size: 12px; font-weight: 700; padding: 6px 12px; cursor: pointer; align-items: center; gap: 6px;">
+                                        <i class="fa fa-bell-slash"></i> Silence Alarm
+                                    </button>
+                                    <span id="adminChatSelectedVip" class="badge-status badge-primary">Bronze VIP</span>
+                                    <span id="adminChatSelectedBalance" class="badge-status badge-success">$0.00</span>
+                                </div>
+                            </div>
+
+                            <!-- Room Messages -->
+                            <div id="adminChatMessagesContainer" style="flex: 1; padding: 20px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; height: 380px; max-height: 380px;">
+                            </div>
+
+                            <!-- Quick Canned Responses -->
+                            <div style="padding: 8px 16px; background: #f1f5f9; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; overflow-x: auto; white-space: nowrap;">
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('👋 Hello! How can I assist you with your account today?')">👋 Greeting</button>
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('💳 Please provide your deposit TxID or upload the receipt in the Deposit screen.')">💳 Deposit Help</button>
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('✅ Your request has been verified and processed successfully!')">✅ Processed</button>
+                                <button type="button" class="btn-refresh" style="font-size: 11.5px; border-radius: 20px; padding: 4px 10px;" onclick="applyQuickReply('⏳ Please allow 10-15 minutes for blockchain network confirmation.')">⏳ Processing</button>
+                            </div>
+
+                            <!-- Room Input -->
+                            <div style="padding: 14px 16px; border-top: 1px solid #e2e8f0; background: #ffffff; display: flex; gap: 10px; align-items: center;">
+                                <input type="text" id="adminReplyInput" class="form-control" placeholder="Type your response to the user here... (Press Enter to send)" />
+                                <button type="button" id="adminSendReplyBtn" class="btn-action btn-approve" style="padding: 11px 22px; font-size: 14px;">
+                                    <i class="fa fa-paper-plane"></i> <span>Send</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: KYC Review -->
+        <div id="tabKyc" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-id-card" style="color: var(--warning);"></i> Identity Verification & Merchant Contracts</h5>
+                    <button class="btn-refresh" onclick="loadKycs()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Applicant Details</th>
+                                <th>Front Side of ID</th>
+                                <th>Back Side of ID</th>
+                                <th>Signature</th>
+                                <th>Investment ($)</th>
+                                <th>Review Status</th>
+                                <th>Admin Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kycTableBody">
+                            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">Loading KYC submissions...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Deposits & Receipts -->
+        <div id="tabDeposits" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-receipt" style="color: var(--success);"></i> Deposit Requests & Proof Receipts</h5>
+                    <button class="btn-refresh" onclick="loadDeposits()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Date & ID</th>
+                                <th>User Email</th>
+                                <th>Amount</th>
+                                <th>Network / Method</th>
+                                <th>TxID / Blockchain Hash & Proof</th>
+                                <th>Status</th>
+                                <th>Admin Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="depositsTableBody">
+                            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">Loading deposit requests...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 6: Withdrawals & Payouts -->
+        <div id="tabWithdrawals" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-money-bill-wave" style="color: var(--danger);"></i> Member Withdrawal Requests</h5>
+                    <button class="btn-refresh" onclick="loadWithdrawals()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Date & ID</th>
+                                <th>User Email</th>
+                                <th>Amount</th>
+                                <th>Payout Destination</th>
+                                <th>Status</th>
+                                <th>Admin Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawalsTableBody">
+                            <tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">Loading withdrawal requests...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 7: Settings -->
+        <div id="tabSettings" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header">
+                    <h5 class="panel-card-title"><i class="fa fa-wallet" style="color: var(--warning);"></i> Crypto Deposit Wallet Addresses & System Rules</h5>
+                </div>
+                <div style="padding: 24px;">
+                    <form id="systemSettingsForm">
+                        <div class="form-row">
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>USDT (TRC20) Receiving Address</label>
+                                <input type="text" id="setTrc20" class="form-control" placeholder="TJ8Yg9pKaV8vU3mQ2jN5xL7wE1tZ4dC6bA" />
+                                <small style="font-size: 11.5px; color: #64748b;">Displayed on user Deposit screen for TRC20 network</small>
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>USDT (ERC20) Receiving Address</label>
+                                <input type="text" id="setErc20" class="form-control" placeholder="0x88922C0A5A901F1aA719d3f1FeA6bA34B20C888A" />
+                                <small style="font-size: 11.5px; color: #64748b;">Displayed on user Deposit screen for ERC20 network</small>
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Bitcoin (BTC) Receiving Address</label>
+                                <input type="text" id="setBtc" class="form-control" placeholder="bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" />
+                            </div>
+                            <div class="form-group">
+                                <label>Minimum Deposit ($)</label>
+                                <input type="number" id="setMinDeposit" class="form-control" value="20" />
+                            </div>
+                            <div class="form-group">
+                                <label>Minimum Withdrawal ($)</label>
+                                <input type="number" id="setMinWithdraw" class="form-control" value="30" />
+                            </div>
+                            <div class="form-group">
+                                <label>Telegram Support URL</label>
+                                <input type="text" id="setTelegram" class="form-control" placeholder="https://t.me/adsmerchantsasia_support" />
+                            </div>
+                            <div class="form-group">
+                                <label>WhatsApp Support Number</label>
+                                <input type="text" id="setWhatsapp" class="form-control" placeholder="+60112345678" />
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Update Master Admin Password <small style="color: #64748b;">(Optional - leave blank if unchanged)</small></label>
+                                <input type="password" id="setAdminPassword" class="form-control" placeholder="Enter new master password" />
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary-custom" style="margin-top: 10px;">
+                            <i class="fa fa-save"></i> Save Wallet & System Settings
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Orders & Tasks Management -->
+        <div id="tabOrders" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header" style="flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-shopping-cart" style="color: var(--primary);"></i> Orders Management & Task Queues</h5>
+                        <small style="color: #64748b;">Centralized order tracking, precise pricing breakdowns, deficit monitoring, and task queue control.</small>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <input type="text" id="orderSearchInput" class="form-control" placeholder="Search Order # or Username..." style="width: 220px; padding: 6px 12px; font-size: 13px;" onkeyup="filterOrdersTable()" />
+                        <select id="orderStatusFilter" class="form-control" style="width: 140px; padding: 6px 12px; font-size: 13px;" onchange="loadOrders()">
+                            <option value="ALL">All Statuses</option>
+                            <option value="PROCESSING">Processing</option>
+                            <option value="SHORTFALL">Shortfall / Deficit</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                        <button class="btn-refresh" onclick="loadOrders()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                        <button class="btn-action" style="background: #2563eb; color: white; padding: 6px 14px; font-weight: 700; border-radius: 8px;" onclick="openCreateOrderModal()">
+                            <i class="fa fa-plus-circle mr-1"></i> Create Order / Push Task
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Order Number</th>
+                                <th>Merchant User</th>
+                                <th>Product Details</th>
+                                <th>Price & Qty</th>
+                                <th>Gross Required</th>
+                                <th>Yield / Reward</th>
+                                <th>Order Status</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">Loading order records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Active User Tasks Section -->
+            <div class="panel-card" style="margin-top: 24px;">
+                <div class="panel-card-header">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-tasks" style="color: #f59e0b;"></i> Active Tasks In Users' Mobile Queues</h5>
+                        <small style="color: #64748b;">Tasks currently waiting for review or frozen on deficit. Admins can force complete or cancel & refund.</small>
+                    </div>
+                    <button class="btn-refresh" onclick="loadTasks()"><i class="fa fa-sync-alt"></i> Refresh Tasks</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Task ID</th>
+                                <th>Order Number</th>
+                                <th>User</th>
+                                <th>Product Name</th>
+                                <th>Product Price</th>
+                                <th>Commission</th>
+                                <th>Deficit Status</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody">
+                            <tr><td colspan="9" style="text-align: center; padding: 24px; color: #64748b;">Loading user tasks...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Products Catalog -->
+        <div id="tabProducts" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header" style="flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-box-open" style="color: #10b981;"></i> Products Catalog & Pricing</h5>
+                        <small style="color: #64748b;">Products available for automatic matching, tiered VIP orders, and high-ticket deficit sets.</small>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-refresh" onclick="loadProducts()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                        <button class="btn-action" style="background: #10b981; color: white; padding: 6px 14px; font-weight: 700; border-radius: 8px;" onclick="openProductModal()">
+                            <i class="fa fa-plus mr-1"></i> Add New Product
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Price (USD)</th>
+                                <th>Active Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr><td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">Loading products...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Financial Ledger & Audit Logs -->
+        <div id="tabAudit" class="admin-tab-content" style="display: none;">
+            <div class="panel-card">
+                <div class="panel-card-header" style="flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-book" style="color: #6366f1;"></i> Double-Entry Financial Ledger (Wallet Transactions)</h5>
+                        <small style="color: #64748b;">Immutable ledger tracking ORDER_RESERVE, ORDER_RELEASE, REWARD, DEPOSIT, WITHDRAWAL, and ADMIN balance adjustments.</small>
+                    </div>
+                    <button class="btn-refresh" onclick="loadLedger()"><i class="fa fa-sync-alt"></i> Refresh Ledger</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Tx ID</th>
+                                <th>User</th>
+                                <th>Transaction Type</th>
+                                <th>Amount</th>
+                                <th>Balance Change</th>
+                                <th>Reference</th>
+                                <th>Description</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledgerTableBody">
+                            <tr><td colspan="8" style="text-align: center; padding: 24px; color: #64748b;">Loading ledger transactions...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Audit Logs Section -->
+            <div class="panel-card" style="margin-top: 24px;">
+                <div class="panel-card-header">
+                    <div>
+                        <h5 class="panel-card-title"><i class="fa fa-shield-alt" style="color: #ef4444;"></i> Administrative Action Audit Log</h5>
+                        <small style="color: #64748b;">Auditing every admin balance adjustment, deficit push, order creation, and status approval.</small>
+                    </div>
+                    <button class="btn-refresh" onclick="loadAuditLogs()"><i class="fa fa-sync-alt"></i> Refresh Logs</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Admin User</th>
+                                <th>Action Taken</th>
+                                <th>Target Entity</th>
+                                <th>Entity ID</th>
+                                <th>Details / Changes</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsTableBody">
+                            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">Loading audit logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-user-edit" style="color: var(--primary);"></i> Edit Member Account & Balance</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('editUserModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId" />
+                    <div class="form-group">
+                        <label>User Account</label>
+                        <input type="text" id="editUserEmail" class="form-control" readonly />
+                    </div>
+                    <div class="form-group">
+                        <label>VIP Tier</label>
+                        <select id="editUserVip" class="form-control">
+                            <option value="Bronze">Bronze VIP (20% commission - Standard 5/6 orders)</option>
+                            <option value="Silver">Silver VIP (30% commission - Standard 5/6 orders)</option>
+                            <option value="Gold">Gold VIP (40% commission - Standard 5/6 orders)</option>
+                            <option value="Diamond">Diamond VIP (50% commission - Standard 5/6 orders)</option>
+                        </select>
+                    </div>
+                    <!-- Reinvestment / Self-Balancing Control Card -->
+                    <div style="margin-bottom: 14px; padding: 12px 14px; background: #ecfdf5; border-radius: 12px; border: 1px solid #a7f3d0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <span style="font-size: 12px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Today's Accumulated Profit</span>
+                                <div id="editUserTodayProfit" style="font-size: 18px; font-weight: 800; color: #059669;">$0.00</div>
+                            </div>
+                            <button type="button" class="btn-action" style="background: #10b981; color: white; padding: 8px 14px; font-size: 12.5px; font-weight: 700; border-radius: 8px;" onclick="reinvestProfitToBalance()">
+                                <i class="fa fa-sync-alt mr-1"></i> Reinvest Profit to Working Balance
+                            </button>
+                        </div>
+                        <small style="color: #047857; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.4;">
+                            Transfers user's earned profit into Working Balance & resets task count to 0 so they can continue a full new cycle of orders without depositing fresh crypto.
+                        </small>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Working Balance ($)</label>
+                            <input type="number" step="0.01" id="editUserBalance" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Frozen Balance ($)</label>
+                            <input type="number" step="0.01" id="editUserFrozenBalance" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="form-row" style="display: flex; gap: 12px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label style="color: #16a34a; font-weight: 700;"><i class="fa fa-plus-circle"></i> Add Balance (+ $)</label>
+                            <input type="number" step="0.01" id="editUserAddBalance" class="form-control" placeholder="e.g. 50.00" style="border-color: #86efac;" />
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label style="color: #dc2626; font-weight: 700;"><i class="fa fa-minus-circle"></i> Deduct / Minus Balance (- $)</label>
+                            <input type="number" step="0.01" id="editUserDeductBalance" class="form-control" placeholder="e.g. 25.00" style="border-color: #fca5a5;" />
+                        </div>
+                    </div>
+                    <div class="form-row" style="display: flex; gap: 12px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Account Status</label>
+                            <select id="editUserStatus" class="form-control">
+                                <option value="active">Active (Normal Access)</option>
+                                <option value="banned">Suspended / Banned</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Merchant KYC Status</label>
+                            <select id="editUserKycStatus" class="form-control">
+                                <option value="none">None (Unsubmitted)</option>
+                                <option value="pending">Pending Review</option>
+                                <option value="approved">Approved (Allowed to Start Tasks)</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 18px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="editUserResetTasks" style="width: 16px; height: 16px;" />
+                        <label for="editUserResetTasks" style="font-size: 13px; font-weight: 700; color: #334155; margin: 0; cursor: pointer;">
+                            Reset Today Completed Tasks Count to 0 (Allow full new round of orders)
+                        </label>
+                    </div>
+                    <!-- Daily Task Limit Override -->
+                    <div style="margin-bottom: 18px; padding: 14px; background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border-radius: 12px; border: 1px solid #bfdbfe;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i class="fa fa-tasks" style="color: #2563eb; font-size: 14px;"></i>
+                            <span style="font-size: 12px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">Custom Daily Task Limit</span>
+                            <span id="editCurrentDailyLimit" style="font-size: 11px; background: #2563eb; color: white; border-radius: 20px; padding: 2px 8px; font-weight: 700; display: none;"></span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" min="1" max="200" id="editUserDailyLimit" class="form-control" placeholder="e.g. 10 (leave empty to use VIP default)" style="flex: 1; border-color: #93c5fd;" />
+                            <button type="button" onclick="clearDailyLimit()" style="padding: 8px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; white-space: nowrap;">
+                                <i class="fa fa-times"></i> Clear
+                            </button>
+                        </div>
+                        <small style="color: #3730a3; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.5;">
+                            Override this user's daily task cap. Leave <strong>empty</strong> to use standard daily limit (default 5 tasks). Resets automatically every day at midnight.
+                        </small>
+                    </div>
+                    <!-- Withdrawal Minimum Override -->
+                    <div style="margin-bottom: 18px; padding: 14px; background: #fff7ed; border-radius: 12px; border: 1px solid #fed7aa;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i class="fa fa-money-bill-wave" style="color: #ea580c; font-size: 14px;"></i>
+                            <span style="font-size: 12px; font-weight: 800; color: #9a3412; text-transform: uppercase; letter-spacing: 0.5px;">Minimum Withdrawal Override</span>
+                            <span id="editCurrentMinWithdraw" style="font-size: 11px; background: #ea580c; color: white; border-radius: 20px; padding: 2px 8px; font-weight: 700; display: none;"></span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" min="0.01" step="0.01" id="editUserMinWithdraw" class="form-control" placeholder="30.00 (leave empty for system default)" style="flex: 1; border-color: #fdba74;" />
+                            <button type="button" onclick="clearMinWithdraw()" style="padding: 8px 12px; background: #fff; border: 1px solid #fdba74; border-radius: 8px; font-size: 12px; font-weight: 700; color: #9a3412; cursor: pointer; white-space: nowrap;">
+                                <i class="fa fa-times"></i> Clear
+                            </button>
+                        </div>
+                        <small style="color: #9a3412; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.5;">
+                            Default for every user is <strong>$30.00</strong>. Set a different positive amount for this user, or clear it to use the system setting.
+                        </small>
+                    </div>
+                    <button type="submit" class="btn-action btn-edit" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-save"></i> Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Reset Modal -->
+    <div id="resetPasswordModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 480px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-key" style="color: var(--warning);"></i> Reset User Password</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('resetPasswordModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="resetPasswordForm">
+                    <input type="hidden" id="resetPassUserId" />
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
+                        Resetting password for: <strong id="resetPassUserName" style="color: #0f172a;"></strong>
+                    </p>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="text" id="newDirectPassword" class="form-control" placeholder="Enter new user password" required minlength="6" />
+                        <small style="font-size: 11.5px; color: #64748b;">Minimum 6 characters</small>
+                    </div>
+                    <button type="submit" class="btn-action btn-approve" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-check"></i> Set New Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Staff / Sub-Admin Modal -->
+    <div id="createStaffModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-user-plus" style="color: var(--warning);"></i> Create New Sub-Admin</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('createStaffModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="createStaffForm">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="staffFullName" class="form-control" placeholder="e.g. Support Manager" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Admin Email Address</label>
+                        <input type="email" id="staffEmail" class="form-control" placeholder="staff@ads-merchants-asia.com" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Password</label>
+                        <input type="text" id="staffPassword" class="form-control" placeholder="Minimum 6 characters" required minlength="6" />
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Role & Permissions</label>
+                        <select id="staffRole" class="form-control">
+                            <option value="sub_admin">Sub-Admin (Full Management Access)</option>
+                            <option value="support">Support Operator (Chat & KYC Review)</option>
+                            <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
+                            <option value="super_admin">Super Administrator (Master Access)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary-custom" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-plus-circle"></i> Create Sub-Admin Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Staff / Sub-Admin Modal -->
+    <div id="editStaffModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-user-edit" style="color: var(--primary);"></i> Edit Sub-Admin Account</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('editStaffModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="editStaffForm">
+                    <input type="hidden" id="editStaffId" />
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="editStaffFullName" class="form-control" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Role</label>
+                        <select id="editStaffRole" class="form-control">
+                            <option value="sub_admin">Sub-Admin (Full Management Access)</option>
+                            <option value="support">Support Operator (Chat & KYC Review)</option>
+                            <option value="finance">Finance Officer (Deposits & Withdrawals)</option>
+                            <option value="super_admin">Super Administrator (Master Access)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Account Status</label>
+                        <select id="editStaffStatus" class="form-control">
+                            <option value="active">Active (Permitted to Login)</option>
+                            <option value="suspended">Suspended / Revoked Access</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Change Password <small style="color: #64748b;">(Leave blank to keep unchanged)</small></label>
+                        <input type="text" id="editStaffNewPassword" class="form-control" placeholder="New password (optional)" minlength="6" />
+                    </div>
+                    <button type="submit" class="btn-action btn-edit" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+                        <i class="fa fa-save"></i> Save Sub-Admin Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smart Task & Negative Balance Assignment Modal -->
+    <div id="assignTaskModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 660px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-tasks" style="color: #f59e0b;"></i> Smart Task & Order Sequence Planner</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('assignTaskModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <!-- Tab Switching Bar -->
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+                    <button type="button" id="tabBtnSingleTask" onclick="switchAssignTaskTab('single')" style="flex: 1; padding: 9px 12px; border-radius: 8px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; background: #fef3c7; color: #92400e; transition: all 0.2s;">
+                        <i class="fa fa-bolt mr-1"></i> Single Task / Immediate Push
+                    </button>
+                    <button type="button" id="tabBtnSequencePlan" onclick="switchAssignTaskTab('sequence')" style="flex: 1; padding: 9px 12px; border-radius: 8px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; background: #f1f5f9; color: #64748b; transition: all 0.2s;">
+                        <i class="fa fa-list-ol mr-1"></i> Start Order Sequence Plan (Wave-Off)
+                    </button>
+                </div>
+
+                <!-- TAB 1: Single Task / Immediate Push (Existing Form) -->
+                <div id="assignTaskSingleView">
+                    <!-- 10-Category Quick Product Selector -->
+                    <div id="categoryPresetBox" style="margin-bottom: 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; overflow: hidden;">
+                        <div style="padding: 10px 12px 0;">
+                            <div style="font-size: 11px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;">&#9889; Quick Presets &mdash; Select Category:</div>
+                            <div id="categoryTabsRow" style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:8px;border-bottom:1px solid #fde68a;">
+                            </div>
+                        </div>
+                        <div id="categoryProductsRow" style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center;">
+                            <span style="color:#94a3b8;font-size:12px;">Select a category above...</span>
+                        </div>
+                    </div>
+
+                    <form id="assignTaskForm">
+                        <input type="hidden" id="assignTaskUserId" />
+                        <div class="form-group">
+                            <label>Target User</label>
+                            <input type="text" id="assignTaskUserName" class="form-control" readonly style="background: #f8fafc; font-weight: 600;" />
+                        </div>
+
+                        <!-- Push Notification & Safe Start Notice -->
+                        <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+                            <div style="display: flex; align-items: center; gap: 10px; font-weight: 700; color: #166534; margin: 0;">
+                                <i class="fa fa-bell" style="font-size: 18px; color: #16a34a;"></i>
+                                <div style="font-size: 13.5px; line-height: 1.3;">
+                                    <span>Real-Time Push Notification & Safe Order Start</span>
+                                    <small style="display: block; font-weight: 400; color: #475569; margin-top: 2px;">User will receive an instant push notification. Working balance will deduct into deficit ONLY when the merchant starts the order on the Start page.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Target Order Number <small style="color: #64748b;">(e.g., 5)</small></label>
+                                <input type="number" id="assignTaskOrderNum" class="form-control" min="1" max="100" value="5" required />
+                            </div>
+                            <div class="form-group">
+                                <label>Forced Deficit Amount ($) <small style="color: #64748b;">(Deficit to clear)</small></label>
+                                <input type="number" step="0.01" id="assignTaskDeficitAmount" class="form-control" min="0" value="25.00" required />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Product Category <small style="color: #64748b;">(10 categories)</small></label>
+                                <select id="assignTaskProductCategory" class="form-control">
+                                    <option value="">Manual / No Category</option>
+                                    <option value="budget">Budget Accessories</option>
+                                    <option value="fashion_travel">Fashion & Travel</option>
+                                    <option value="beauty_health">Beauty & Health</option>
+                                    <option value="mobile_audio">Mobile & Audio</option>
+                                    <option value="home_kitchen">Home & Kitchen</option>
+                                    <option value="tools">Tools & Hardware</option>
+                                    <option value="outdoor">Outdoor & Camping</option>
+                                    <option value="gaming_entertainment">Gaming & Entertainment</option>
+                                    <option value="premium_electronics">Premium Electronics</option>
+                                    <option value="high_ticket">High Ticket Deficit</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Category Product <small style="color: #64748b;">(random avoids repeats)</small></label>
+                                <select id="assignTaskCategoryProduct" class="form-control" disabled>
+                                    <option value="">Select category first</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Product Name <small style="color: #64748b;">(Optional - auto-assigned if empty)</small></label>
+                            <input type="text" id="assignTaskProductName" class="form-control" placeholder="e.g. Lifetime 9446 Outdoor Storage Shed" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>Product Price ($) <small style="color: #64748b;">(e.g., 2000.00 or 3674.00)</small></label>
+                            <input type="number" step="0.01" id="assignTaskProductPrice" class="form-control" placeholder="Leave empty for auto-calculated (Balance + Deficit)" />
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="clearUserCustomTask()">
+                                Clear Override
+                            </button>
+                            <button type="submit" class="btn-action" style="background: #f59e0b; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700; font-size: 14px;">
+                                <i class="fa fa-tasks mr-1"></i> Assign / Push Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TAB 2: Start Order Sequence Plan (Wave-Off Plan) -->
+                <div id="assignTaskSequenceView" style="display: none;">
+                    <form id="sequencePlanForm">
+                        <div class="form-group">
+                            <label>Target User</label>
+                            <input type="text" id="seqPlanUserName" class="form-control" readonly style="background: #f8fafc; font-weight: 600;" />
+                        </div>
+
+                        <!-- Balance & Budget Setup (As requested in voice note) -->
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                            <div style="font-weight: 800; color: #1e40af; font-size: 13px; margin-bottom: 8px;">
+                                <i class="fa fa-wallet mr-1"></i> 1. User Budget & Working Balance Top-Up
+                            </div>
+                            <div class="form-row" style="align-items: center;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 12px;">Set / Add Working Balance ($)</label>
+                                    <input type="number" step="0.01" id="seqPlanBalanceInput" class="form-control" placeholder="e.g. 100.00" />
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; padding-top: 20px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: #1e3a8a; margin: 0;">
+                                        <input type="checkbox" id="seqPlanApplyBalance" checked style="width: 17px; height: 17px; accent-color: #2563eb;" />
+                                        Update balance on save
+                                    </label>
+                                </div>
+                            </div>
+                            <small style="color: #64748b; display: block; margin-top: 6px;">Client voice note rule: e.g. set $100 budget to be absorbed across planned clicks.</small>
+                        </div>
+
+                        <!-- Sequence Controls & Presets -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="font-weight: 800; color: #0f172a; font-size: 13px;">
+                                    <i class="fa fa-sliders-h mr-1"></i> 2. Order Clicks & Sequence Flow
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="font-size: 12px; margin: 0; font-weight: 700;">Total Orders:</label>
+                                    <select id="seqPlanTotalOrders" class="form-control" style="width: 80px; padding: 4px 8px; font-weight: 700;" onchange="onSeqPlanTotalOrdersChange()">
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5" selected>5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Quick Preset Buttons -->
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                                <button type="button" class="btn-action" style="background: #e0e7ff; color: #3730a3; font-size: 11.5px; padding: 6px 10px; font-weight: 700;" onclick="applyVoiceNotePreset100()">
+                                    ⚡ Client Preset: 5 Orders ($10, $20, $30, $40, $2,000 Deficit)
+                                </button>
+                                <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; font-size: 11.5px; padding: 6px 10px; font-weight: 700;" onclick="autoDistributeSeqPlan()">
+                                    🔄 Distribute Budget Evenly
+                                </button>
+                            </div>
+
+                            <!-- Reset Today Progress Checkbox -->
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #334155; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" id="seqPlanResetProgress" checked style="width: 17px; height: 17px; accent-color: #f59e0b;" />
+                                    <span>Reset user progress to <strong>Order #1</strong> so they start immediately from click 1</span>
+                                </label>
+                            </div>
+
+                            <!-- Step Rows Container -->
+                            <div style="max-height: 230px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: white;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
+                                    <thead>
+                                        <tr style="background: #f1f5f9; text-align: left; color: #475569; font-weight: 700; border-bottom: 1px solid #e2e8f0;">
+                                            <th style="padding: 8px 10px;">Click / Order #</th>
+                                            <th style="padding: 8px 10px;">Order Amount ($)</th>
+                                            <th style="padding: 8px 10px;">Type / Status</th>
+                                            <th style="padding: 8px 10px;">Forced Deficit ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="seqPlanStepsTbody">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 18px;">
+                            <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="clearUserSequencePlan()">
+                                Clear Plan
+                            </button>
+                            <button type="submit" class="btn-action" style="background: #2563eb; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700; font-size: 14px;">
+                                <i class="fa fa-check-circle mr-1"></i> Save & Activate Sequence Plan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated High-Resolution Receipt & Proof Modal -->
+    <div id="receiptInspectorModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 680px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-receipt" style="color: var(--primary);"></i> Payment Receipt & Proof Inspector</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('receiptInspectorModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body" id="receiptInspectorBody">
+                <!-- Injected dynamically by admin.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Image Viewer Modal -->
+    <div id="imageViewerModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 640px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title" id="imageViewerTitle"><i class="fa fa-image" style="color: var(--primary);"></i> Image Viewer</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('imageViewerModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body" style="text-align: center;">
+                <div style="background: #f1f5f9; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px;">
+                    <img id="imageViewerImg" src="" style="max-height: 380px; max-width: 100%; border-radius: 8px; object-fit: contain;" alt="Preview" />
+                </div>
+                <a id="imageViewerLink" href="#" target="_blank" class="btn-refresh" style="text-decoration: none;">
+                    <i class="fa fa-external-link-alt"></i> Open Original Resolution
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Create Order & Push Task Modal -->
+    <div id="createOrderModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 640px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title"><i class="fa fa-cart-plus" style="color: var(--primary);"></i> Create Merchant Order / Push Task</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('createOrderModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="createOrderForm" onsubmit="submitCreateOrder(event)">
+                    <div class="form-group">
+                        <label>Target Merchant User <span style="color: red;">*</span></label>
+                        <select id="orderModalUserId" class="form-control" required onchange="onOrderUserChange()">
+                            <option value="">Select a user...</option>
+                        </select>
+                    </div>
+
+                    <!-- User Live Financial State Card -->
+                    <div id="orderUserStatsCard" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
+                            <div>
+                                <small style="color: #64748b; display: block; font-size: 11px;">Working Balance</small>
+                                <span id="orderUserWorkingBal" style="font-weight: 800; font-size: 15px; color: #0f172a;">$0.00</span>
+                            </div>
+                            <div>
+                                <small style="color: #64748b; display: block; font-size: 11px;">VIP Tier</small>
+                                <span id="orderUserVip" style="font-weight: 700; font-size: 13px; color: #2563eb;">Bronze</span>
+                            </div>
+                            <div>
+                                <small style="color: #64748b; display: block; font-size: 11px;">Today Tasks</small>
+                                <span id="orderUserTasks" style="font-weight: 700; font-size: 13px; color: #10b981;">0 / 5</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Product Selection</label>
+                            <select id="orderModalProductSelect" class="form-control" onchange="onOrderProductSelect()">
+                                <option value="">Custom Product / Manual Entry</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <input type="text" id="orderModalCategory" class="form-control" value="General" placeholder="General" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Product Name <span style="color: red;">*</span></label>
+                        <input type="text" id="orderModalProductName" class="form-control" required placeholder="e.g. Garment Bags for Travel, Convertible Carry on..." />
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unit Price ($) <span style="color: red;">*</span></label>
+                            <input type="number" step="0.01" min="0.01" id="orderModalUnitPrice" class="form-control" required placeholder="0.00" oninput="recalcOrderModal()" />
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity</label>
+                            <input type="number" min="1" id="orderModalQuantity" class="form-control" value="1" oninput="recalcOrderModal()" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Commission Rate (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" id="orderModalCommissionRate" class="form-control" value="20" oninput="recalcOrderModal()" />
+                        </div>
+                        <div class="form-group">
+                            <label>Product Image URL</label>
+                            <input type="text" id="orderModalImage" class="form-control" placeholder="client/assets/uploads/products/..." />
+                        </div>
+                    </div>
+
+                    <!-- Live Breakdown Display -->
+                    <div style="background: #f1f5f9; border-radius: 12px; padding: 14px; margin: 16px 0; border: 1px solid #cbd5e1;">
+                        <h6 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 700; color: #334155;">Real-Time Financial & Shortfall Breakdown</h6>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Subtotal:</span>
+                            <span id="orderBreakdownSubtotal" style="font-weight: 700;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Required Gross:</span>
+                            <span id="orderBreakdownGross" style="font-weight: 800; color: #0f172a;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Available User Balance:</span>
+                            <span id="orderBreakdownAvailable" style="font-weight: 700; color: #2563eb;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
+                            <span style="color: #64748b;">Funding Shortfall (Deficit):</span>
+                            <span id="orderBreakdownShortfall" style="font-weight: 800; color: #10b981;">$0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px;">
+                            <span style="color: #64748b;">Projected Commission Reward:</span>
+                            <span id="orderBreakdownCommission" style="font-weight: 800; color: #16a34a;">+$0.00</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="orderModalPushTask" checked style="width: 18px; height: 18px;" />
+                            <span style="font-size: 13.5px; font-weight: 600; color: #0f172a;">
+                                ⚡ Push as Assigned Task & Send Push Notification
+                                <small style="display: block; font-weight: 400; color: #64748b; margin-top: 2px;">User receives notification. Balance deducts into shortfall ONLY when merchant starts order on Start page.</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="AdminUI.closeModal('createOrderModal')">Cancel</button>
+                        <button type="submit" id="btnSubmitCreateOrder" class="btn-action" style="background: #2563eb; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700;">
+                            <i class="fa fa-check-circle mr-1"></i> Confirm & Create Order
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Product Catalog Modal -->
+    <div id="productModal" class="admin-modal-backdrop">
+        <div class="admin-modal-dialog" style="max-width: 500px;">
+            <div class="admin-modal-header">
+                <h5 class="admin-modal-title" id="productModalTitle"><i class="fa fa-box-open" style="color: #10b981;"></i> Add / Edit Product</h5>
+                <button type="button" class="admin-modal-close" onclick="AdminUI.closeModal('productModal')">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="productForm" onsubmit="submitProductForm(event)">
+                    <input type="hidden" id="productId" />
+                    <div class="form-group">
+                        <label>Product Name <span style="color: red;">*</span></label>
+                        <input type="text" id="prodName" class="form-control" required placeholder="e.g. Stanley Quencher Reusable Straw..." />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Price (USD) <span style="color: red;">*</span></label>
+                            <input type="number" step="0.01" min="0.01" id="prodPrice" class="form-control" required placeholder="9.99" />
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <input type="text" id="prodCategory" class="form-control" placeholder="Home & Kitchen" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Image URL / Path</label>
+                        <input type="text" id="prodImage" class="form-control" placeholder="client/assets/uploads/products/..." />
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="prodActive" checked style="width: 18px; height: 18px;" />
+                            <span style="font-size: 13.5px; font-weight: 600;">Active for Automated Task Matching</span>
+                        </label>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 16px;">
+                        <button type="button" class="btn-action" style="background: #f1f5f9; color: #475569; flex: 1; justify-content: center;" onclick="AdminUI.closeModal('productModal')">Cancel</button>
+                        <button type="submit" class="btn-action" style="background: #10b981; color: white; flex: 2; justify-content: center; padding: 12px; font-weight: 700;">
+                            <i class="fa fa-save mr-1"></i> Save Product
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Admin Script -->
+    <script src="/client/assets/js/admin.js?v=4.4.3"></script>
+</body>
+</html>

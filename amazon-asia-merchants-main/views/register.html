@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Amazon Asia Merchants - Register</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta content="Amazon Asia Merchant" name="description" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- Google Fonts Poppins & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f3f8;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 50px 15px 30px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 480px;
+            margin: auto;
+        }
+
+        .auth-card {
+            background: #ffffff;
+            border-radius: 28px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+            padding: 0 34px 28px;
+            position: relative;
+            text-align: center;
+        }
+
+        /* Top Floating Logo Badge */
+        .logo-badge-wrapper {
+            display: flex;
+            justify-content: center;
+            position: relative;
+            top: -38px;
+            margin-bottom: -18px;
+        }
+
+        .logo-badge {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            padding: 10px 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-badge img {
+            height: 70px;
+            max-width: 170px;
+            object-fit: contain;
+        }
+
+        .auth-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111111;
+            margin-bottom: 6px;
+        }
+
+        .auth-subtitle {
+            font-size: 13px;
+            color: #333333;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            padding: 0 10px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: #333333;
+            margin-bottom: 6px;
+        }
+
+        .text-danger {
+            color: #e53935;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-control-pill {
+            width: 100%;
+            height: 48px;
+            border-radius: 50px;
+            border: 1px solid #dbe2ea;
+            background-color: #ffffff;
+            padding: 10px 46px 10px 20px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #333333;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-control-pill::placeholder {
+            color: #9aa5b5;
+        }
+
+        .form-control-pill:focus {
+            border-color: #f3771d;
+            box-shadow: 0 0 0 3px rgba(243, 119, 29, 0.15);
+            background-color: #ffffff;
+        }
+
+        select.form-control-pill {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 18px center;
+            background-size: 14px;
+            padding-right: 40px;
+            cursor: pointer;
+        }
+
+        .input-icon-right {
+            position: absolute;
+            right: 18px;
+            color: #555555;
+            font-size: 16px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .input-icon-right:hover {
+            color: #f3771d;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 16px 0 22px;
+            text-align: left;
+            font-size: 12.5px;
+            color: #333333;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            margin-top: 3px;
+            accent-color: #f3771d;
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+        }
+
+        .checkbox-row a {
+            color: #f3771d;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .btn-submit-pill {
+            width: 100%;
+            height: 48px;
+            border-radius: 50px;
+            background: linear-gradient(90deg, #f7941d 0%, #f15a24 100%);
+            border: none;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 5px 18px rgba(243, 119, 29, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-submit-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 7px 22px rgba(243, 119, 29, 0.45);
+        }
+
+        .btn-submit-pill:active {
+            transform: translateY(0);
+        }
+
+        .btn-submit-pill:disabled {
+            opacity: 0.75;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .switch-auth-row {
+            margin-top: 20px;
+            font-size: 13.5px;
+            color: #333333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .switch-auth-link {
+            color: #f3771d;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .switch-auth-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            margin-top: 18px;
+            font-size: 12px;
+            color: #7081b9;
+        }
+
+        .footer-copyright .brand-name {
+            color: #f3771d;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .auth-card {
+                padding: 0 20px 24px;
+                border-radius: 20px;
+            }
+            .logo-badge {
+                padding: 8px 18px;
+            }
+            .logo-badge img {
+                height: 56px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            
+            <!-- Top Floating Logo Badge -->
+            <div class="logo-badge-wrapper">
+                <div class="logo-badge">
+                    <img src="assets/uploads/logo/1764857545_1743035462_logonew.webp" onerror="this.src='client/assets/img/logo.png'" alt="Amazon Asia Logo">
+                </div>
+            </div>
+
+            <!-- Header Titles -->
+            <h2 class="auth-title">Create An Account</h2>
+            <p class="auth-subtitle">
+                Sign up or Login Today to shop and earn cash!<br>Withdrawal to bank account. (Limited to one mobile number)
+            </p>
+
+            <!-- Registration Form -->
+            <form id="signupForm" method="POST" onsubmit="return false;">
+                
+                <!-- Full Name -->
+                <div class="form-group">
+                    <label for="fullname">Full Name <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="text" class="form-control-pill" name="fullname" id="fullname" placeholder="Full Name" required autocomplete="name">
+                        <span class="input-icon-right">
+                            <i class="fa-solid fa-list-ul"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- User Name -->
+                <div class="form-group">
+                    <label for="username">User Name <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="text" class="form-control-pill" name="username" id="username" placeholder="User Name" required autocomplete="username">
+                        <span class="input-icon-right">
+                            <i class="fa-regular fa-user"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div class="form-group">
+                    <label for="email">Email <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="email" class="form-control-pill" name="email" id="email" placeholder="Enter Email" required autocomplete="email">
+                        <span class="input-icon-right">
+                            <i class="fa-regular fa-envelope"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label for="userpassword">Password <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="password" class="form-control-pill" name="password" id="userpassword" placeholder="Enter password" required autocomplete="new-password">
+                        <span class="input-icon-right" id="togglePasswordBtn" title="Show/Hide Password">
+                            <i class="fa-regular fa-eye" id="togglePasswordIcon"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="form-group">
+                    <label for="confirmpassword">Confirm Password <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="password" class="form-control-pill" name="confirmpassword" id="confirmpassword" placeholder="Confirm password" required autocomplete="new-password">
+                        <span class="input-icon-right" id="toggleConfirmPasswordBtn" title="Show/Hide Password">
+                            <i class="fa-regular fa-eye" id="toggleConfirmPasswordIcon"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Gender -->
+                <div class="form-group">
+                    <label for="gender">Gender <span class="text-danger">*</span></label>
+                    <div class="input-wrapper">
+                        <select name="gender" id="gender" class="form-control-pill" required>
+                            <option value="">Select</option>
+                            <option value="Male" selected>Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Privacy & Terms Checkbox -->
+                <div class="checkbox-row">
+                    <input type="checkbox" id="termsCheck" checked required>
+                    <label for="termsCheck" style="margin-bottom:0; font-size:12.5px; font-weight:400; cursor:pointer;">
+                        I agree with <a href="#">Privacy and Policy</a> and <a href="#">Terms and Conditions</a>
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit-pill" id="registerBtn">
+                    <span>Sign Up</span> <i class="fas fa-user-plus"></i>
+                </button>
+
+            </form>
+
+            <!-- Switch to Login -->
+            <div class="switch-auth-row">
+                <i class="fa-solid fa-lock" style="font-size:12px; color:#7081b9;"></i> Having Account <a href="login.html" class="switch-auth-link">Login here</a>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer-copyright">
+                &copy; <script>document.write(new Date().getFullYear())</script> <span class="brand-name">Amazon Asia Merchants</span> . All rights reserved.
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Password toggles
+        function setupToggle(btnId, inputId, iconId) {
+            const btn = document.getElementById(btnId);
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (btn && input && icon) {
+                btn.addEventListener('click', function() {
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                });
+            }
+        }
+        setupToggle('togglePasswordBtn', 'userpassword', 'togglePasswordIcon');
+        setupToggle('toggleConfirmPasswordBtn', 'confirmpassword', 'toggleConfirmPasswordIcon');
+    </script>
+    <script src="client/assets/js/portal-bridge.js?v=3.6.0"></script>
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#007bff">
+
+    <title>Amazon Asia Merchant</title>
+
+    <link rel="shortcut icon" href="assets/uploads/logo/1742595477_icon.png">
+
+    <link rel="stylesheet" href="client/assets/css/index.css">
+
+    <link rel="stylesheet" href="client/assets/css/home.css">
+
+    <link rel="stylesheet" href="client/assets/css/levels.css">
+
+    <link rel="stylesheet" href="client/assets/css/start.css?v=4.0.1">
+
+        
+
+        
+
+        
+
+    <!-- FontAwesome 6.5.1 CDN -->
+
+<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> -->
+
+
+
+
+
+    <style>
+
+        .error, .alert-danger {
+
+            color: #D8000C;
+
+            background-color: #FFBABA;
+
+            padding: 10px;
+
+            border: 1px solid #D8000C;
+
+            margin-bottom: 15px;
+
+            border-radius: 5px;
+
+        }
+
+
+
+        .success, .alert-success {
+
+            color: #4F8A10;
+
+            background-color: #DFF2BF;
+
+            padding: 10px;
+
+            border: 1px solid #4F8A10;
+
+            margin-bottom: 15px;
+
+            border-radius: 5px;
+
+        }
+
+    </style>
+    <style>
+        body {
+            padding: 0;
+        }
+
+        @media screen and (min-width: 1200px) {
+            body {
+                padding: 0 450px;
+            }
+
+            .inner-header {
+                padding-left: 450px;
+                padding-right: 450px;
+            }
+
+            .footer-container {
+                padding-left: 450px;
+                padding-right: 450px;
+            }
+        }
+    </style>
+    <style>
+
+        .heading-x{
+
+            display: flex;
+
+            flex-direction: row;
+
+            gap: 10px;
+
+            align-items: center;
+
+            justify-content: space-evenly;
+
+        }
+
+        .user-username{
+
+            font-size: 20px;
+
+            font-weight: bold;
+
+        }
+
+
+
+.contact-containers{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:15px;
+
+    padding-top:80px;
+
+    padding-left:15px;
+
+    padding-right:15px;
+
+}
+
+.contact-item{
+
+    display:flex;
+
+    flex-direction:row;
+
+    gap:20px;
+
+    align-items:center;
+
+    padding:15px;
+
+    border-radius:10px;
+
+    background-color:white;
+
+}
+
+.contact-item a{
+
+    text-decoration:none;
+
+    color:black;
+
+}
+
+.contact-title{
+
+    font-size:14px;
+
+}
+
+    </style>
+
+</head>
+
+<input type="hidden" name="base_url" id="base_url" value=""/>
+
+
+
+<body>
+
+    <div class="main-container page-body">
+
+        <div class="header-container" style="text-align:center;padding: 0px 15px;">
+
+        <a href="" class="logo">
+
+                        <img src="assets/uploads/logo/1764857545_1743035462_logonew.webp" alt="logo" width="170">
+
+                    </a>
+
+        <div class="">
+
+                                
+
+                <div class="heading heading-x">
+
+                    <div class="user-username"><span class="usernamee">Welcome</span> <span class="user-name-text"></span></div>
+
+                    
+
+
+
+                    <a class="logout-button" href="login.html">
+
+                        <div class="profile-list-items-left">
+
+                            <div class="profile-list-text">Logout</div>
+
+                        </div>
+
+                        <div class="profile-list-items-right">
+
+                            <img src="client/assets/img/right-chevron.svg" class="profile-list-icons" alt="">
+
+                        </div>
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="top-middle"> 
+
+            <div class="notification-panel">
+
+                <div class="notification-panel-item">
+
+                    <img class="notification-bell" src="client/assets/img/bell.png" alt="">
+
+                    <div class="notification-panel-content-text"><marquee behavior="" direction="">We value your feedback! Please take a moment to complete our customer satisfaction survey and let us know how we can improve your experience.</marquee></div>
+
+                </div>
+
+            </div>
+
+            </div>
+
+
+
+
+
+        </div>
+
+        
+
+
+
+        <div class="container-home-middle">
+
+            
+
+            <div class="start-container">
+
+            <!--<div class="start-card-notice">-->
+
+            <!--    <div class="notice-title tiny-text">-->
+
+            <!--        <b>NOTICE:</b> Online customer service is available from 10:00 to 23:00, for assistance please contact customer service.-->
+
+            <!--    </div>-->
+
+            <!--</div>-->
+
+            <div class="balance-card-radius">
+
+                <div class="start-balance-card">
+
+                    <div class="start-balance-card-heading bold">
+
+                        <div class="start-balance-card-heading-left" style="font-size: 19px; font-weight: 700; color: #0a192f;">Starting</div>
+
+                        <div class="start-balance-card-heading-right" style="display: flex; align-items: center; gap: 6px; font-size: 19px; font-weight: 700; color: #0a192f;">
+
+                            <div><span class="user-name-text"></span></div>
+
+                            <span class="start-vip-badge"></span>
+
+                        </div>
+
+                    </div>
+
+                    <div class="start-balance-card-heading-bal">
+
+                        <div class="start-balance-card-heading-bal-left">
+
+                            <img src="client/assets/img/icons/dollar.svg" alt="" class="icon-image" style="width: 25px; height: 25px; margin-top: 1px; flex-shrink: 0;">
+
+                            <div class="start-balance-card-heading-bal-left-text">
+
+                                <div class="tiny-text" style="font-size: 13px; font-weight: 500; color: #1e293b;">Today's Profit</div>
+
+                                <div id="start-todays-profit-text" class="small-text bold" style="font-size: 16.5px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
+
+                                <div id="start-frozen-container" style="display: none; margin-top: 6px;">
+
+                                    <div class="tiny-text" style="font-size: 13px; font-weight: 500; color: #1e293b;">Frozen Balance</div>
+
+                                    <div id="start-frozen-balance-text" class="small-text bold user-frozen-balance user-frozen" style="font-size: 16px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="start-balance-card-heading-bal-right">
+
+                            <img src="client/assets/img/icons/wallet.svg" alt="" class="icon-image" style="width: 25px; height: 25px; margin-top: 1px; flex-shrink: 0;">
+
+                            <div class="start-balance-card-heading-bal-left-text">
+
+                                <div class="tiny-text" style="font-size: 13px; font-weight: 500; color: #1e293b;">Working Balance</div>
+
+                                <div id="start-total-balance-text" class="small-text bold" style="font-size: 16.5px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
+
+                                <div style="margin-top: 10px;">
+
+                                    <div class="tiny-text" style="font-size: 12px; font-weight: 500; color: #1e293b;">Total Balance with Commission</div>
+
+                                    <div id="start-grandtotal-balance-text" class="small-text bold" style="font-size: 16.5px; font-weight: 700; color: #0a192f; margin-top: 2px;">USD 0.00</div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="balance-card-notice" style="margin-top: 2px;">
+
+                        <div class="tiny-text">
+
+                            <ul style="margin: 0; padding-left: 18px; list-style-type: disc;">
+
+                                <li style="margin-bottom: 3px; color: #1e293b; font-size: 11.5px; font-weight: 500;">Daily profits will be updated automatically</li>
+
+                                <li style="color: #1e293b; font-size: 11.5px; font-weight: 500;">Every tasks profit will be added to the total balance</li>
+
+                            </ul>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            
+
+            <!-- Display error message -->
+
+            <div class="balance-card-radius-two">
+
+                <div class="start-button-card">
+
+                    <img src="client/assets/img/starting-90fe7295.gif" id="start-gif-image" class="gif-image" alt="" style="display: none;">
+
+                    <div class="start-button" id="start-button" style="top: 0px; width: 105px; height: 105px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 6px 14px rgba(0,0,0,0.25);">
+
+                        <div class="start-button-text" id="start-button-text" style="font-size: 15px; font-weight: 700;">Start</div>
+
+                        <div class="start-button-text" id="startSetText" style="font-size: 11px; font-weight: 500; opacity: 0.9; margin-top: 2px;">1st Set:</div>
+
+                        <div class="start-button-text" id="startTaskCountText" style="font-size: 12px; font-weight: 700;">0 / 3</div>
+
+                        <form action="#" id="start-form" data-user_id="1346" method="post" style="display: none;">
+
+                            <button type="submit" class="invisible_btn" id="start-button-submit" name="insertTask">
+
+                            Loading... 
+
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+<div class="footer-container">
+
+        <a class="footer-item " href="dashboard">
+
+            <img src="client/assets/img/home.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Home</div>
+
+        </a>
+
+        <a class="footer-item " href="recordData">
+
+            <img src="client/assets/img/record.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Record</div>
+
+        </a>
+
+        <a class="footer-item footer-item-active" href="startData">
+
+            <img src="client/assets/img/start.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Start</div>
+
+        </a>
+
+        <a class="footer-item " href="contactData">
+
+            <img src="client/assets/img/contact.png" class="header-user-icon" alt="">
+
+            <div class="footer-item-title">Contact</div>
+
+        </a>
+
+                <a class="footer-item " href="profileData">
+
+                    <img src="client/assets/img/default.png" class="header-user-icon-up" alt="">
+
+                    <div class="footer-item-title">Profile</div>
+
+        </a>
+
+</div>
+
+<script src="client/assets/js/main.js"></script>
+
+<script src="client/assets/js/home.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="client/assets/js/start.js"></script>
+
+    
+
+
+
+
+
+
+
+<script>
+
+    $(".alert").fadeTo(2000, 500).slideUp(500, function(){
+
+    $(".alert").slideUp(500);
+
+});
+
+</script>
+
+<script src="client/assets/js/portal-bridge.js?v=3.9.8"></script>
+</body>
+
+</html>
