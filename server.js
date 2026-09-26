@@ -134,8 +134,12 @@ const checkUserSessionRedirect = (req, res, next) => {
     try {
       const jwt = require('jsonwebtoken');
       const { JWT_SECRET } = require('./server/middleware/auth');
-      jwt.verify(token, JWT_SECRET);
-      return res.redirect('/dashboard');
+      const decoded = jwt.verify(token, JWT_SECRET);
+      return db.findUserById(decoded.id).then(user => {
+        if (user) return res.redirect('/dashboard');
+        res.clearCookie('token', { path: '/' });
+        next();
+      }).catch(() => next());
     } catch (_) {}
   }
   next();

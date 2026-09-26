@@ -4,9 +4,37 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm install --ignore-scripts --no-audit --no-fund
+
+    - name: Check JavaScript syntax
+      run: |
+        node --check server.js
+        find server client/assets/js js -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+
+    - name: Run tests
+      run: npm test
+
   deploy:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -21,9 +49,9 @@ jobs:
         port: 22
         script: |
           cd /var/www/ads-merchants-asia
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Haider899/-Ads-Merchants-Asia.git
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Haider899/amazon-asia-merchants.git
           git fetch origin main
           git reset --hard origin/main
-          git remote set-url origin https://github.com/Haider899/-Ads-Merchants-Asia.git
+          git remote set-url origin https://github.com/Haider899/amazon-asia-merchants.git
           npm install --production
           pm2 restart all

@@ -119,6 +119,7 @@ async function authMiddleware(req, res, next) {
       user = await db.findUserByIdentifier(decoded.email);
     }
     if (!user) {
+      res.clearCookie('token', { path: '/' });
       return res.status(401).json({ success: false, message: 'User not found' });
     }
     if (user.status === 'banned') {
