@@ -1089,6 +1089,12 @@
         cancelBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelling...';
         try {
           const cancelRes = await API.post('/api/tasks/cancel', { taskId: task.id });
+          if (!cancelRes || !cancelRes.success) {
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = '✕ Cancel';
+            showBridgeToast('Cancellation Failed', (cancelRes && cancelRes.message) || 'The order could not be cancelled. Please try again.', 'error');
+            return;
+          }
           modal.style.display = 'none';
           window.__activePendingTask = null;
           if (window.__currentUser) {
@@ -1105,10 +1111,9 @@
           }
         } catch (cancelErr) {
           console.error('Cancel order error:', cancelErr);
-          modal.style.display = 'none';
-          window.__activePendingTask = null;
-          showBridgeToast('Notice', 'Order closed. Balance is unaffected.', 'info');
-          if (typeof window.fetchTaskStatus === 'function') window.fetchTaskStatus();
+          cancelBtn.disabled = false;
+          cancelBtn.textContent = '✕ Cancel';
+          showBridgeToast('Cancellation Failed', 'The order could not be cancelled. Please try again.', 'error');
         }
       };
     }
@@ -3233,4 +3238,3 @@
   };
 
 })();
-

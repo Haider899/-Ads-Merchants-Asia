@@ -13,6 +13,10 @@ const {
   generateTaskNumber,
   calculateOrder
 } = require('../utils/orderCalculator');
+const {
+  isLinkedToCancelledTask,
+  isOrphanedNormalProcessingOrder
+} = require('../utils/orderTaskLink');
 
 function toDateString(val) {
   if (!val) return null;
@@ -990,6 +994,21 @@ router.post('/cancel', authMiddleware, async (req, res) => {
       : tasks.find(t => t.status === 'pending');
 
     if (!task) {
+      const alreadyCancelled = taskId && tasks.some(t =>
+        String(t.id) === String(taskId) && isCancelledStatus(t.status)
+      );
+      if (alreadyCancelled) {
+        const refreshedUser = await db.findUserById(user.id);
+        return res.json({
+          success: true,
+          message: 'Order was already cancelled.',
+          data: {
+            balance: refreshedUser.balance,
+            today_profit: refreshedUser.today_profit,
+            commission_balance: refreshedUser.commission_balance
+          }
+        });
+      }
       return res.status(404).json({ success: false, message: 'No pending order found to cancel.' });
     }
 
@@ -1000,17 +1019,27 @@ router.post('/cancel', authMiddleware, async (req, res) => {
       });
     }
 
-    // Delete the pending task so user can start fresh
-    await db.deleteTask(task.id).catch(async () => {
-      await db.updateTask(task.id, { status: 'cancelled' });
-    });
+    // Keep a cancellation tombstone so a linked order cannot be re-added as
+    // a standalone pending record if the order update is delayed or fails.
+    await db.updateTask(task.id, { status: 'cancelled' });
 
-    // Mark order as CANCELLED in orders table
-    if (task.order_number) {
-      await db.updateOrder(task.order_number, {
-        order_status: 'CANCELLED',
-        payment_status: 'CANCELLED'
-      }).catch(() => {});
+    // Update the actual linked order row (by primary ID) when one exists.
+    try {
+      const userOrders = await db.getOrders({ user_id: user.id });
+      const linkedOrder = userOrders.find(order =>
+        (order.task_id && String(order.task_id) === String(task.id)) ||
+        (task.order_number && String(order.order_number) === String(task.order_number))
+      );
+      if (linkedOrder) {
+        await db.updateOrder(linkedOrder.id, {
+          order_status: 'CANCELLED',
+          payment_status: 'CANCELLED'
+        });
+      }
+    } catch (orderSyncErr) {
+      // The cancelled task itself is the authoritative tombstone. Records
+      // filtering uses it to prevent a stale linked order from reappearing.
+      console.error('[Task Cancel] Linked order sync failed:', orderSyncErr.message);
     }
 
     // Ensure user balance is intact (it was not deducted for normal task)
@@ -1049,6 +1078,7 @@ router.get('/records', authMiddleware, async (req, res) => {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
 
+    const cancelledTasks = userTasks.filter(t => isCancelledStatus(t.status));
     const formattedTasks = userTasks.filter(t => !isCancelledStatus(t.status)).map(t => {
       let prodImage = t.product_image;
       if (!prodImage || prodImage.includes('undefined') || String(prodImage).trim() === '') {
@@ -1107,9 +1137,14 @@ router.get('/records', authMiddleware, async (req, res) => {
     // Also include any standalone orders from orders table that don't already exist in tasks
     const existingTaskIds = new Set(formattedTasks.map(t => String(t.id)));
     const existingOrderNums = new Set(formattedTasks.map(t => String(t.order_number)));
+    const knownTaskIds = new Set(userTasks
+      .filter(t => !isCancelledStatus(t.status))
+      .map(t => String(t.id)));
 
     for (const o of userOrders) {
-      if (!isCancelledStatus(o.order_status) && !isCancelledStatus(o.payment_status) && !existingTaskIds.has(String(o.task_id)) && !existingOrderNums.has(String(o.order_number))) {
+      const linkedToCancelledTask = isLinkedToCancelledTask(o, cancelledTasks);
+      const orphanedNormalOrder = isOrphanedNormalProcessingOrder(o, knownTaskIds);
+      if (!linkedToCancelledTask && !orphanedNormalOrder && !isCancelledStatus(o.order_status) && !isCancelledStatus(o.payment_status) && !existingTaskIds.has(String(o.task_id)) && !existingOrderNums.has(String(o.order_number))) {
         const price = parseFloat(o.gross_amount || o.unit_price || 0);
         const comm = parseFloat(o.commission_amount || 0);
         const oStatus = String(o.order_status || '').toLowerCase().trim();

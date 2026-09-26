@@ -53,7 +53,7 @@ function isTaskCancelled(t) {
 }
 
 function isTaskPending(t) {
-    return !isTaskCompleted(t);
+    return !isTaskCancelled(t) && !isTaskCompleted(t);
 }
 
 function renderEmptyState(icon, message, subtext = '') {
