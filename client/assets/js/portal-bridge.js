@@ -4,6 +4,28 @@
  */
 
 (function() {
+  let redirectingAfterUnauthorized = false;
+
+  function isUserPage() {
+    const path = window.location.pathname.toLowerCase();
+    return !path.includes('login') && !path.includes('register') && path !== '/' && path !== '/index.html' && !path.includes('admin');
+  }
+
+  function handleUnauthorized() {
+    if (!isUserPage() || redirectingAfterUnauthorized) return;
+    redirectingAfterUnauthorized = true;
+    localStorage.removeItem('ama_token');
+    localStorage.removeItem('ama_user');
+    window.location.replace('/login');
+  }
+
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async function(...args) {
+    const response = await nativeFetch(...args);
+    if (response.status === 401) handleUnauthorized();
+    return response;
+  };
+
   // Global HTML escaping utility
   function escapeHtml(str) {
     if (!str) return '';
@@ -29,10 +51,8 @@
           headers,
           credentials: 'include'
         });
-        if (res.status === 401 && !window.location.pathname.includes('login') && !window.location.pathname.includes('register') && !window.location.pathname.includes('admin')) {
-          localStorage.removeItem('ama_token');
-          localStorage.removeItem('ama_user');
-          window.location.href = '/login';
+        if (res.status === 401) {
+          handleUnauthorized();
           return null;
         }
         return await res.json();
@@ -59,10 +79,8 @@
           credentials: 'include',
           body: JSON.stringify(data)
         });
-        if (res.status === 401 && !window.location.pathname.includes('login') && !window.location.pathname.includes('register') && window.location.pathname !== '/' && window.location.pathname !== '/index.html' && !window.location.pathname.includes('admin')) {
-          localStorage.removeItem('ama_token');
-          localStorage.removeItem('ama_user');
-          window.location.href = '/login';
+        if (res.status === 401) {
+          handleUnauthorized();
           return null;
         }
         return await res.json();
