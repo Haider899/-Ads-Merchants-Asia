@@ -668,6 +668,227 @@
         .pulse-ringing {
             animation: pulseRinging 1.5s infinite !important;
         }
+
+        /* Mobile & Tablet Ultra-Responsive Rules */
+        @media (max-width: 768px) {
+            .admin-header {
+                padding: 10px 12px !important;
+                gap: 6px !important;
+                justify-content: space-between !important;
+                flex-wrap: nowrap !important;
+            }
+
+            .admin-brand {
+                gap: 8px !important;
+                min-width: 0 !important;
+                flex: 1 1 auto !important;
+                overflow: hidden !important;
+            }
+
+            .admin-brand img {
+                height: 28px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .admin-brand span {
+                font-size: 14.5px !important;
+                letter-spacing: -0.3px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                max-width: 140px !important;
+            }
+
+            #adminRoleBadge {
+                display: none !important;
+            }
+
+            .admin-header > div:last-child {
+                gap: 6px !important;
+                flex-shrink: 0 !important;
+            }
+
+            #adminAudioToggleBtn {
+                height: 34px !important;
+                padding: 0 10px !important;
+                font-size: 13px !important;
+                border-radius: 8px !important;
+            }
+
+            #adminAudioLabel {
+                display: none !important;
+            }
+
+            #adminNotificationBellBtn {
+                width: 34px !important;
+                height: 34px !important;
+                border-radius: 8px !important;
+            }
+
+            #adminUserGreeting {
+                display: none !important;
+            }
+
+            #adminLogoutBtn {
+                padding: 0 11px !important;
+                height: 34px !important;
+                font-size: 13px !important;
+                border-radius: 8px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+
+            #adminLogoutBtnText {
+                display: none !important;
+            }
+
+            #adminNotifDropdown {
+                width: min(320px, 92vw) !important;
+                right: -60px !important;
+                top: 44px !important;
+            }
+
+            .admin-container {
+                margin: 12px auto !important;
+                padding: 0 10px !important;
+            }
+
+            /* Responsive 2-Column Stat Grid */
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+                margin-bottom: 14px !important;
+            }
+
+            .stat-card {
+                padding: 12px !important;
+                border-radius: 12px !important;
+            }
+
+            .stat-card:last-child:nth-child(odd) {
+                grid-column: span 2 !important;
+            }
+
+            .stat-icon {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 14px !important;
+                margin-bottom: 6px !important;
+                border-radius: 8px !important;
+            }
+
+            .stat-label {
+                font-size: 11px !important;
+                line-height: 1.25 !important;
+                height: 28px !important;
+                overflow: hidden !important;
+                display: -webkit-box !important;
+                -webkit-line-clamp: 2 !important;
+                -webkit-box-orient: vertical !important;
+                margin-bottom: 4px !important;
+            }
+
+            .stat-val {
+                font-size: 17px !important;
+            }
+
+            /* Smooth Native Horizontal Touch Tabs */
+            .admin-tabs {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                scrollbar-width: none !important;
+                padding: 6px !important;
+                gap: 6px !important;
+                margin-bottom: 14px !important;
+                border-radius: 10px !important;
+            }
+
+            .admin-tabs::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            .admin-tab-btn {
+                flex-shrink: 0 !important;
+                padding: 8px 12px !important;
+                font-size: 12px !important;
+                gap: 6px !important;
+                border-radius: 6px !important;
+            }
+
+            /* Responsive Panel Cards & Headers */
+            .panel-card {
+                border-radius: 12px !important;
+                margin-bottom: 16px !important;
+            }
+
+            .panel-card-header {
+                padding: 12px 14px !important;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 10px !important;
+            }
+
+            .panel-card-header > div,
+            .panel-card-header > form,
+            .panel-card-header .btn-refresh {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: space-between !important;
+            }
+
+            .panel-card-title {
+                font-size: 14.5px !important;
+            }
+
+            /* Responsive Table Handling */
+            .table-responsive {
+                width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                border: 0 !important;
+            }
+
+            .admin-table th, .admin-table td {
+                padding: 10px 12px !important;
+                font-size: 12.5px !important;
+                white-space: nowrap !important;
+            }
+
+            /* Responsive Modals & Action Dialogs */
+            .admin-modal-backdrop {
+                padding: 10px !important;
+            }
+
+            .admin-modal-dialog {
+                width: 96% !important;
+                max-width: 96% !important;
+                margin: 10px auto !important;
+                max-height: 92vh !important;
+                border-radius: 16px !important;
+            }
+
+            .admin-modal-header {
+                padding: 14px 16px !important;
+            }
+
+            .admin-modal-title {
+                font-size: 15px !important;
+            }
+
+            .admin-modal-body {
+                padding: 16px !important;
+                max-height: calc(92vh - 100px) !important;
+                overflow-y: auto !important;
+            }
+
+            .admin-auth-card {
+                padding: 36px 18px 26px 18px !important;
+                border-radius: 20px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -770,7 +991,7 @@
             </div>
             <span id="adminUserGreeting" style="font-size: 13px; font-weight: 600; color: #475569;"></span>
             <button id="adminLogoutBtn" class="btn-logout">
-                <i class="fa fa-power-off"></i> Logout
+                <i class="fa fa-power-off"></i> <span id="adminLogoutBtnText">Logout</span>
             </button>
         </div>
     </header>

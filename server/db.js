@@ -37,19 +37,27 @@ let _adminsTableEnsured = false;
 let _chatMessagesTableEnsured = false;
 let _notificationsTableEnsured = false;
 let _userTaskSettingColsEnsured = false;
+let _financialTablesEnsured = false;
+let _cachedUserCols = null;
+let _productsTableEnsured = false;
+let _cachedProducts = null;
+let _lastProductsFetch = 0;
+
+async function getUserColumns() {
+  if (_cachedUserCols && _cachedUserCols.size > 0) return _cachedUserCols;
+  try {
+    const [cols] = await pool.query('SHOW COLUMNS FROM users');
+    if (Array.isArray(cols)) {
+      _cachedUserCols = new Set(cols.map(c => c.Field.toLowerCase()));
+    }
+  } catch (_) {}
+  return _cachedUserCols || new Set();
+}
 
 async function ensureUserTaskSettingColumns() {
   if (_userTaskSettingColsEnsured) return;
   try {
-    let existingColNames = new Set();
-    try {
-      const [cols] = await pool.query('SHOW COLUMNS FROM users');
-      if (Array.isArray(cols)) {
-        cols.forEach(c => existingColNames.add(String(c.Field).toLowerCase()));
-      }
-    } catch (e) {
-      console.warn('[DB] Notice querying SHOW COLUMNS FROM users:', e.message);
-    }
+    let existingColNames = await getUserColumns();
 
     const columns = [
       { name: 'status', type: "VARCHAR(50) DEFAULT 'active'" },
@@ -85,6 +93,7 @@ async function ensureUserTaskSettingColumns() {
         }
       }
     }
+    _cachedUserCols = existingColNames;
     _userTaskSettingColsEnsured = true;
   } catch (err) {
     console.error('[DB] User task setting columns ensure notice:', err.message);
@@ -95,6 +104,7 @@ const db = {
   query: query,
   ensureUserTaskSettingColumns,
   ensureFinancialTables: async () => {
+    if (_financialTablesEnsured) return;
     try {
       await query(`CREATE TABLE IF NOT EXISTS deposits (
         id VARCHAR(50) PRIMARY KEY,
@@ -130,6 +140,7 @@ const db = {
         INDEX (user_id),
         INDEX (created_at)
       )`);
+      _financialTablesEnsured = true;
     } catch (e) {
       console.log('[DB] ensureFinancialTables withdrawals notice:', e.message);
     }
@@ -274,13 +285,7 @@ const db = {
     await ensureUserTaskSettingColumns();
     const id = userData.id || (await db.getNextUserId());
 
-    let existingCols = new Set();
-    try {
-      const [colRows] = await pool.query('SHOW COLUMNS FROM users');
-      if (Array.isArray(colRows)) {
-        existingCols = new Set(colRows.map(c => c.Field.toLowerCase()));
-      }
-    } catch (_) {}
+    const existingCols = await getUserColumns();
 
     const fields = [
       'id', 'fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 
@@ -322,15 +327,11 @@ const db = {
   },
 
   updateUser: async (id, updates) => {
-    await ensureUserTaskSettingColumns();
+    if (!_userTaskSettingColsEnsured) {
+      await ensureUserTaskSettingColumns();
+    }
 
-    let existingCols = null;
-    try {
-      const [cols] = await pool.query('SHOW COLUMNS FROM users');
-      if (Array.isArray(cols)) {
-        existingCols = new Set(cols.map(c => c.Field.toLowerCase()));
-      }
-    } catch (_) {}
+    const existingCols = await getUserColumns();
 
     const allowed = [
       'fullname', 'username', 'email', 'phone', 'gender', 'password_hash', 
@@ -871,12 +872,19 @@ const db = {
   },
 
   getProducts: async () => {
-    await query(`CREATE TABLE IF NOT EXISTS products (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      price DECIMAL(15,2) NOT NULL,
-      image VARCHAR(255)
-    )`);
+    const now = Date.now();
+    if (_cachedProducts && (now - _lastProductsFetch) < 45000) {
+      return _cachedProducts;
+    }
+    if (!_productsTableEnsured) {
+      await query(`CREATE TABLE IF NOT EXISTS products (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        price DECIMAL(15,2) NOT NULL,
+        image VARCHAR(255)
+      )`);
+      _productsTableEnsured = true;
+    }
     const rows = await query(`SELECT * FROM products WHERE image NOT LIKE '%icon.png%' AND image NOT LIKE '%logo%'`);
     if (rows.length === 0) {
       const defaultProducts = [
@@ -905,8 +913,13 @@ const db = {
       for (const [name, price, img] of defaultProducts) {
         await query(`INSERT INTO products (name, price, image) VALUES (?, ?, ?)`, [name, price, img]);
       }
-      return await query(`SELECT * FROM products`);
+      const seeded = await query(`SELECT * FROM products`);
+      _cachedProducts = seeded;
+      _lastProductsFetch = Date.now();
+      return seeded;
     }
+    _cachedProducts = rows;
+    _lastProductsFetch = now;
     return rows;
   },
 
@@ -1254,6 +1267,7 @@ const db = {
 
   createProduct: async (productData) => {
     await db.ensureProductionSchema();
+    _cachedProducts = null;
     const res = await query(`INSERT INTO products (
       name, price, image, category, sku, is_active, commission_rate, reward_rate
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1272,6 +1286,7 @@ const db = {
 
   updateProduct: async (id, updates) => {
     await db.ensureProductionSchema();
+    _cachedProducts = null;
     const allowed = ['name', 'price', 'image', 'category', 'sku', 'is_active', 'commission_rate', 'reward_rate'];
     const keys = Object.keys(updates).filter(k => allowed.includes(k));
     if (keys.length === 0) return true;
@@ -1284,6 +1299,7 @@ const db = {
 
   deleteProduct: async (id) => {
     await db.ensureProductionSchema();
+    _cachedProducts = null;
     await query(`DELETE FROM products WHERE id = ?`, [id]);
     return true;
   }

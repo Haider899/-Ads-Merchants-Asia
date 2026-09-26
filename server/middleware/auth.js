@@ -7,6 +7,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'ads_merchants_asia_super_secret_jw
 
 // In-memory active sessions tracker: userId -> session details
 const activeSessions = new Map();
+const lastSessionDbSync = new Map(); // userId -> last db update timestamp
+const onlineGeoCheckedIps = new Set(); // track IPs already checked online
 
 function trackUserSession(user, req) {
   if (!user || !user.id) return;
@@ -33,11 +35,16 @@ function trackUserSession(user, req) {
     path: req.headers['referer'] ? req.headers['referer'].split('/').slice(3).join('/') : (req.originalUrl || '/')
   });
 
-  // Automatically update user's location in the database if unset or changed
-  if (location.countryCode && (user.country_code !== location.countryCode || user.last_ip !== location.ip)) {
+  const now = Date.now();
+  const lastSync = lastSessionDbSync.get(String(user.id)) || 0;
+  const needsImmediateSync = !user.country_code || !user.last_ip || (user.country_code === 'DE' && location.countryCode !== 'DE');
+
+  // Automatically update user's location in DB, throttled to once every 3 minutes
+  if (location.countryCode && (needsImmediateSync || (now - lastSync > 180000 && (user.country_code !== location.countryCode || user.last_ip !== location.ip)))) {
     user.country_code = location.countryCode;
     user.country_name = location.countryName;
     user.last_ip = location.ip;
+    lastSessionDbSync.set(String(user.id), now);
     db.updateUser(user.id, {
       country_code: location.countryCode,
       country_name: location.countryName,
@@ -45,13 +52,15 @@ function trackUserSession(user, req) {
     }).catch(() => {});
   }
 
-  // Live online IP check to catch Pakistani subnets mislabeled by offline databases
-  if (geo.fetchOnlineGeo && clientIp && clientIp !== '127.0.0.1' && !clientIp.startsWith('192.168.') && !clientIp.startsWith('10.')) {
+  // Live online IP check (throttled to run once per IP address in background)
+  if (geo.fetchOnlineGeo && clientIp && clientIp !== '127.0.0.1' && !clientIp.startsWith('192.168.') && !clientIp.startsWith('10.') && !onlineGeoCheckedIps.has(clientIp)) {
+    onlineGeoCheckedIps.add(clientIp);
     geo.fetchOnlineGeo(clientIp).then(realLoc => {
       if (realLoc && realLoc.countryCode && (user.country_code !== realLoc.countryCode || user.country_code === 'DE')) {
         user.country_code = realLoc.countryCode;
         user.country_name = realLoc.countryName;
         user.last_ip = realLoc.ip;
+        lastSessionDbSync.set(String(user.id), Date.now());
         db.updateUser(user.id, {
           country_code: realLoc.countryCode,
           country_name: realLoc.countryName,

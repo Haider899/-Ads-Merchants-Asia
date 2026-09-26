@@ -28,8 +28,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid password. Please try again.' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    res.cookie('token', token, { 
+      httpOnly: true, 
+      maxAge: 30 * 24 * 60 * 60 * 1000, 
+      path: '/', 
+      sameSite: 'lax',
+      secure: isHttps
+    });
 
     // Track user location
     try {
@@ -109,8 +116,15 @@ router.post('/register', async (req, res) => {
 
     await db.createUser(newUser);
 
-    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '30d' });
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    res.cookie('token', token, { 
+      httpOnly: true, 
+      maxAge: 30 * 24 * 60 * 60 * 1000, 
+      path: '/', 
+      sameSite: 'lax',
+      secure: isHttps
+    });
 
     const safeUser = { ...newUser };
     delete safeUser.password_hash;
@@ -190,8 +204,8 @@ router.get('/me', authMiddleware, async (req, res) => {
   res.json({ success: true, user: safeUser });
 });
 
-// POST /api/auth/logout
-router.post('/logout', async (req, res) => {
+// ALL /api/auth/logout & /signout
+router.all(['/logout', '/signout'], async (req, res) => {
   res.clearCookie('token', { path: '/' });
   res.json({ success: true, message: 'Logged out successfully' });
 });

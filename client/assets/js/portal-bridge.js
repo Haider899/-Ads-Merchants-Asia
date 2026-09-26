@@ -12,18 +12,26 @@
     );
   }
 
-  // Global API Helper
+  // Global API Helper with Automatic Token & Credentials Integration
   window.API = {
     async get(endpoint) {
       try {
         const tz = (window.Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
+        const token = localStorage.getItem('ama_token') || '';
+        const headers = {
+          'Accept': 'application/json',
+          'x-client-timezone': tz
+        };
+        if (token) {
+          headers['Authorization'] = 'Bearer ' + token;
+        }
         const res = await fetch(endpoint, {
-          headers: {
-            'Accept': 'application/json',
-            'x-client-timezone': tz
-          }
+          headers,
+          credentials: 'include'
         });
         if (res.status === 401 && !window.location.pathname.includes('login') && !window.location.pathname.includes('register') && !window.location.pathname.includes('admin')) {
+          localStorage.removeItem('ama_token');
+          localStorage.removeItem('ama_user');
           window.location.href = '/login';
           return null;
         }
@@ -36,16 +44,24 @@
     async post(endpoint, data) {
       try {
         const tz = (window.Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
+        const token = localStorage.getItem('ama_token') || '';
+        const headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'x-client-timezone': tz
+        };
+        if (token) {
+          headers['Authorization'] = 'Bearer ' + token;
+        }
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'x-client-timezone': tz
-          },
+          headers,
+          credentials: 'include',
           body: JSON.stringify(data)
         });
         if (res.status === 401 && !window.location.pathname.includes('login') && !window.location.pathname.includes('register') && window.location.pathname !== '/' && window.location.pathname !== '/index.html' && !window.location.pathname.includes('admin')) {
+          localStorage.removeItem('ama_token');
+          localStorage.removeItem('ama_user');
           window.location.href = '/login';
           return null;
         }
@@ -154,30 +170,67 @@
     // Ignore admin page entirely
     if (pathname.includes('admin')) return;
 
+    // 0. Instant Optimistic Render from LocalStorage Cache (0ms latency!)
+    let currentUser = null;
+    const cachedUserJson = localStorage.getItem('ama_user');
+    if (cachedUserJson) {
+      try {
+        currentUser = JSON.parse(cachedUserJson);
+        window.__currentUser = currentUser;
+        populateUserData(currentUser);
+      } catch (_) {}
+    }
+
+    // Global clean logout handler for all profile & navigation logout links
+    document.querySelectorAll('a[href*="logout"], a[href*="signout"], .profile-button-items[href*="login"], #profileLogoutBtn').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('ama_token');
+        localStorage.removeItem('ama_user');
+        window.location.href = '/logout';
+      });
+    });
+
+    const isAuthPage = pathname === '/' || pathname === '/index.html' || pathname.includes('login') || pathname.includes('register') || pathname.includes('signup');
+    const storedToken = localStorage.getItem('ama_token');
+
+    // Auto-redirect if on login or registration page with active session
+    if (isAuthPage && storedToken) {
+      API.get('/api/auth/me').then(authRes => {
+        if (authRes && authRes.success && authRes.user) {
+          window.location.replace('/dashboard');
+        }
+      }).catch(() => {});
+    }
+
     // 1. Check Auth for Protected Pages
     const isProtected = ['dashboard', 'start', 'record', 'deposit', 'withdraw', 'profile', 'contract', 'editprofile'].some(p => pathname.includes(p));
-    let currentUser = null;
 
     if (isProtected || pathname.includes('levels') || pathname.includes('license') || pathname.includes('contact')) {
       const authRes = await API.get('/api/auth/me');
       if (authRes && authRes.success && authRes.user) {
         currentUser = authRes.user;
         window.__currentUser = currentUser;
+        try { localStorage.setItem('ama_user', JSON.stringify(currentUser)); } catch (_) {}
         populateUserData(currentUser);
 
-        // Preload fresh task status to guard withdrawal clicks
-        try {
-          const tStat = await API.get('/api/tasks/status');
+        // Preload fresh task status in background (non-blocking!)
+        API.get('/api/tasks/status').then(tStat => {
           if (tStat && tStat.success && tStat.data) {
             window.__userTaskStatus = tStat.data;
           }
-        } catch (_) {}
+        }).catch(() => {});
 
         checkUserNotifications();
-        setInterval(checkUserNotifications, 3500); // Check every 3.5s for real-time alerts
-      } else if (isProtected && !pathname.includes('login') && !pathname.includes('register') && pathname !== '/' && pathname !== '/index.html') {
-        window.location.href = '/login';
-        return;
+        setInterval(checkUserNotifications, 5000); // Check every 5s for real-time alerts
+      } else if (isProtected && !isAuthPage) {
+        // ONLY redirect if server explicitly rejected auth (401) or no token was found
+        if (!storedToken || (authRes && authRes.status === 401)) {
+          localStorage.removeItem('ama_token');
+          localStorage.removeItem('ama_user');
+          window.location.href = '/login';
+          return;
+        }
       }
     }
 
@@ -564,10 +617,16 @@
 
         if (res && res.success) {
           try { sessionStorage.removeItem('ama_shown_toast_ids'); } catch (_) {}
+          if (res.token) {
+            localStorage.setItem('ama_token', res.token);
+          }
+          if (res.user) {
+            localStorage.setItem('ama_user', JSON.stringify(res.user));
+          }
           showBridgeToast('Login Successful', `Welcome back, ${res.user.fullname || res.user.username}!`, 'success');
           setTimeout(() => {
             window.location.href = '/dashboard';
-          }, 500);
+          }, 350);
         } else {
           showBridgeToast('Login Failed', (res && res.message) || 'Invalid login credentials', 'error');
         }
@@ -645,10 +704,16 @@
         isSubmitting = false;
 
         if (res && res.success) {
+          if (res.token) {
+            localStorage.setItem('ama_token', res.token);
+          }
+          if (res.user) {
+            localStorage.setItem('ama_user', JSON.stringify(res.user));
+          }
           showBridgeToast('Welcome!', res.message, 'success');
           setTimeout(() => {
             window.location.href = '/dashboard';
-          }, 500);
+          }, 350);
         } else {
           showBridgeToast('Registration Failed', (res && res.message) || 'Could not complete registration', 'error');
         }

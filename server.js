@@ -127,16 +127,27 @@ const servePage = (fileName) => (req, res) => {
   res.sendFile(path.join(__dirname, 'views', fileName));
 };
 
-// Route Mappings matching the original Ads Merchants Asia site
-mainApp.get('/', (req, res) => {
-  if (req.cookies.token) {
-    return res.redirect('/dashboard');
+// Check active user session to auto-redirect from login/root to dashboard
+const checkUserSessionRedirect = (req, res, next) => {
+  const token = (req.cookies && req.cookies.token) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  if (token) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('./server/middleware/auth');
+      jwt.verify(token, JWT_SECRET);
+      return res.redirect('/dashboard');
+    } catch (_) {}
   }
+  next();
+};
+
+// Route Mappings matching the original Ads Merchants Asia site
+mainApp.get('/', checkUserSessionRedirect, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
-mainApp.get(['/login', '/Login', '/login.html'], servePage('login.html'));
-mainApp.get(['/register', '/Register', '/register.html', '/signup', '/Signup', '/signup.html'], servePage('register.html'));
+mainApp.get(['/login', '/Login', '/login.html'], checkUserSessionRedirect, servePage('login.html'));
+mainApp.get(['/register', '/Register', '/register.html', '/signup', '/Signup', '/signup.html'], checkUserSessionRedirect, servePage('register.html'));
 mainApp.get(['/forgotpass', '/forgotpass.html'], servePage('forgotpass.html'));
 mainApp.get(['/dashboard', '/dashboard.html'], servePage('dashboard.html'));
 mainApp.get(['/recordData', '/record', '/record.html'], servePage('record.html'));
