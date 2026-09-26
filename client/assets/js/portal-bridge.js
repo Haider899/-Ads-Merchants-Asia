@@ -34,6 +34,28 @@
     );
   }
 
+  function formatTaskDeficit(response) {
+    const amounts = [response && response.deficit_amount, response && response.userFrozenBalance];
+    for (const value of amounts) {
+      if (value === null || value === undefined || value === '') continue;
+      const amount = Math.abs(Number(value));
+      if (Number.isFinite(amount) && amount > 0) {
+        return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+    }
+
+    const balance = Number(response && response.user_balance);
+    return Number.isFinite(balance) && balance < 0
+      ? Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : null;
+  }
+
+  function taskDeficitMessage(formattedDeficit) {
+    return formattedDeficit
+      ? `Your current balance is insufficient to complete this order. Please recharge ${formattedDeficit} USDT to your account to proceed with the order.`
+      : 'Your current balance is insufficient to complete this order. Please recharge your account to proceed with the order.';
+  }
+
   // Global API Helper with Automatic Token & Credentials Integration
   window.API = {
     async get(endpoint) {
@@ -849,17 +871,15 @@
             }
             showTaskModal(res.task);
           } else {
-            const froz = res && (res.userFrozenBalance || res.deficit_amount);
-            if (res && (res.reachedLimit || froz || (res.message && (res.message.includes('frozen limit') || res.message.includes('deficit'))))) {
-              const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
-              const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const formattedDeficit = formatTaskDeficit(res);
+            if (res && (res.reachedLimit || formattedDeficit || (res.message && (res.message.includes('frozen limit') || res.message.includes('deficit'))))) {
               const balanceText = document.getElementById('start-total-balance-text');
-              if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
+              if (balanceText && formattedDeficit) balanceText.innerHTML = `USD -${formattedDeficit}`;
               if (typeof Swal !== 'undefined') {
                 Swal.fire({
-                  title: "Shortfall Deposit Required",
+                  title: "Account Limit Reached!",
                   icon: "warning",
-                  html: `Your balance is currently in deficit (-USD $${formattedDeficit}).<br><br>Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> or <a href="depositData" style="color: #2563eb; font-weight: bold; text-decoration: underline;">deposit funds</a> to clear your shortfall.`,
+                  text: taskDeficitMessage(formattedDeficit),
                   focusConfirm: false,
                   confirmButtonText: `Deposit Now`,
                   showCancelButton: true,
@@ -872,7 +892,7 @@
                   }
                 });
               } else {
-                alert(`Shortfall Deposit Required! Please clear your balance deficit of -${formattedDeficit} USDT.`);
+                alert(taskDeficitMessage(formattedDeficit));
               }
               return;
             }
@@ -1168,25 +1188,23 @@
       } else {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>Submit Optimization</span>';
-        const froz = res && (res.userFrozenBalance || res.deficit_amount);
-        if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
+        const formattedDeficit = formatTaskDeficit(res);
+        if (res && (res.reachedLimit || formattedDeficit || (res.message && res.message.includes('frozen limit')))) {
           modal.style.display = 'none';
-          const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
-          const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           const balanceText = document.getElementById('start-total-balance-text');
-          if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
+          if (balanceText && formattedDeficit) balanceText.innerHTML = `USD -${formattedDeficit}`;
           if (typeof Swal !== 'undefined') {
             Swal.fire({
               title: "Account Limit Reached!",
               icon: "info",
-              html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
+              text: taskDeficitMessage(formattedDeficit),
               focusConfirm: false,
               confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
             }).then(() => {
               window.location.href = "startData";
             });
           } else {
-            alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
+            alert(taskDeficitMessage(formattedDeficit));
           }
           return;
         }
@@ -1315,9 +1333,11 @@
             }
             const amt = parseFloat(d.amount || 0).toFixed(2);
             const st = (d.status || 'Pending').toLowerCase();
-            const statusLabel = st === 'approved' ? 'Approved' : (st === 'rejected' ? 'Rejected' : 'Pending');
-            const statusBg = st === 'approved' ? '#dcfce7' : (st === 'rejected' ? '#fee2e2' : '#fef3c7');
-            const statusColor = st === 'approved' ? '#15803d' : (st === 'rejected' ? '#b91c1c' : '#b45309');
+            const statusLabel = st === 'approved' ? 'Approved — credited' : (st === 'verified' ? 'Verified — on hold for contract approval' : (st === 'rejected' ? 'Rejected' : 'Pending verification'));
+            const statusBg = st === 'approved' ? '#dcfce7' : (st === 'verified' ? '#fef3c7' : (st === 'rejected' ? '#fee2e2' : '#fef3c7'));
+            const statusColor = st === 'approved' ? '#15803d' : (st === 'verified' ? '#a16207' : (st === 'rejected' ? '#b91c1c' : '#b45309'));
+            const amountLabel = st === 'approved' ? `USD +${amt}` : (st === 'verified' ? `USD ${amt} (held)` : `USD ${amt}`);
+            const amountColor = st === 'approved' ? '#16a34a' : (st === 'rejected' ? '#b91c1c' : '#a16207');
             const txid = d.txid ? (d.txid.length > 16 ? d.txid.substring(0, 16) + '...' : d.txid) : 'Blockchain Deposit';
             return `
               <div style="background: white; border-radius: 12px; padding: 14px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #f1f5f9;">
@@ -1329,7 +1349,7 @@
                   </div>
                   <div style="flex: 1; text-align: center;">
                     <div style="color: #64748b; font-size: 12px;">Amount</div>
-                    <div style="font-weight: 700; font-size: 15px; color: #16a34a; margin-top: 4px;">USD +${amt}</div>
+                    <div style="font-weight: 700; font-size: 15px; color: ${amountColor}; margin-top: 4px;">${amountLabel}</div>
                   </div>
                   <div style="flex: 1; text-align: right;">
                     <div style="color: #64748b; font-size: 12px;">Status</div>
@@ -1886,20 +1906,18 @@
               initRecordPage(user);
             }
           } else {
-            const froz = res && (res.userFrozenBalance || res.deficit_amount);
-            if (res && (res.reachedLimit || froz || (res.message && res.message.includes('frozen limit')))) {
-              const numVal = froz ? Math.abs(parseFloat(froz)) : 25.00;
-              const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const formattedDeficit = formatTaskDeficit(res);
+            if (res && (res.reachedLimit || formattedDeficit || (res.message && res.message.includes('frozen limit')))) {
               if (typeof Swal !== 'undefined') {
                 Swal.fire({
                   title: "Account Limit Reached!",
                   icon: "info",
-                  html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
+                  text: taskDeficitMessage(formattedDeficit),
                   focusConfirm: false,
                   confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`
                 });
               } else {
-                alert(`Account Limit Reached! Please contact customer care service to clear your balance of -${formattedDeficit} USDT.`);
+                alert(taskDeficitMessage(formattedDeficit));
               }
             } else {
               if (typeof Swal !== 'undefined') {
@@ -1945,30 +1963,28 @@
 
     const investmentInput = document.getElementById('investmentAmount');
     if (investmentInput) {
-      investmentInput.readOnly = true;
-      investmentInput.setAttribute('readonly', 'readonly');
-      investmentInput.style.backgroundColor = '#f1f5f9';
-      investmentInput.style.cursor = 'not-allowed';
+      investmentInput.readOnly = false;
+      investmentInput.removeAttribute('readonly');
+      investmentInput.min = '0.01';
+      investmentInput.step = '0.01';
+      investmentInput.inputMode = 'decimal';
+      investmentInput.style.backgroundColor = '#ffffff';
+      investmentInput.style.cursor = 'text';
       investmentInput.style.fontWeight = '700';
       investmentInput.style.color = '#0284c7';
 
-      // Auto-fetch user's verified deposit amount
+      // Approved and held verified deposits are a convenient editable suggestion;
+      // submitting this contract amount does not alter the working balance.
       let verifiedDeposit = 0;
       try {
         const histRes = await API.get('/api/finance/history');
         if (histRes && Array.isArray(histRes.deposits) && histRes.deposits.length > 0) {
-          const approved = histRes.deposits.filter(d => d.status === 'approved');
-          if (approved.length > 0) {
-            verifiedDeposit = approved.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
-          } else {
-            verifiedDeposit = parseFloat(histRes.deposits[0].amount) || 0;
+          const confirmedDeposits = histRes.deposits.filter(d => ['approved', 'verified'].includes(String(d.status || '').toLowerCase()));
+          if (confirmedDeposits.length > 0) {
+            verifiedDeposit = confirmedDeposits.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
           }
         }
       } catch (_) {}
-
-      if (!verifiedDeposit && user && user.balance && parseFloat(user.balance) > 0) {
-        verifiedDeposit = parseFloat(user.balance);
-      }
 
       investmentInput.value = verifiedDeposit ? verifiedDeposit.toFixed(2) : '0.00';
     }
@@ -2138,6 +2154,17 @@
       }
       if (nameEl) nameEl.style.border = '';
 
+      // The requested investment must be explicit and match the server's cents precision.
+      if (!/^\d+(?:\.\d{1,2})?$/.test(investmentVal) || !Number.isFinite(Number(investmentVal)) || Number(investmentVal) <= 0) {
+        if (investmentEl) {
+          investmentEl.focus();
+          investmentEl.style.border = '2px solid #ef4444';
+        }
+        showBridgeToast('Invalid Investment Amount', 'Enter a positive amount with no more than two decimal places.', 'error');
+        return false;
+      }
+      if (investmentEl) investmentEl.style.border = '';
+
       // 2. Validate Front ID
       let front_id = '';
       if (frontImgEl && frontImgEl.src && frontImgEl.src.startsWith('data:image/')) {
@@ -2228,7 +2255,7 @@
           front_id,
           back_id,
           signature,
-          investment_amount: parseFloat(investmentVal) || 0
+          investment_amount: Number(Number(investmentVal).toFixed(2))
         };
 
         const res = await Promise.race([

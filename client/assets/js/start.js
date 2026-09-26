@@ -70,15 +70,20 @@ sleep(2000).then(() => {
         
         
         // Handling based on returned messages
-        if (data.message === "You have reached the frozen limit." || data.message === "You have reached frozen balance limit.") {
-            const numVal = Math.abs(parseFloat(data.userFrozenBalance || 0));
-            const formattedDeficit = numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const rawDeficit = data.deficit_amount !== undefined ? data.deficit_amount : data.userFrozenBalance;
+        const deficitNumber = Math.abs(Number(rawDeficit));
+        const formattedDeficit = Number.isFinite(deficitNumber) && deficitNumber > 0
+            ? deficitNumber.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : null;
+        if (data.reachedLimit || formattedDeficit || data.message === "You have reached the frozen limit." || data.message === "You have reached frozen balance limit.") {
             const balanceText = document.getElementById('start-total-balance-text');
-            if (balanceText) balanceText.innerHTML = `USD -${formattedDeficit}`;
+            if (balanceText && formattedDeficit) balanceText.innerHTML = `USD -${formattedDeficit}`;
             Swal.fire({
                 title: "Account Limit Reached!",
                 icon: "info",
-                html: `Please contact <a target="_blank" href="contactData" autofocus style="color: #007bff; text-decoration: underline; font-weight: bold;">customer care service</a> to clear your balance of -${formattedDeficit} USDT.`,
+                text: formattedDeficit
+                    ? `Your current balance is insufficient to complete this order. Please recharge ${formattedDeficit} USDT to your account to proceed with the order.`
+                    : 'Your current balance is insufficient to complete this order. Please recharge your account to proceed with the order.',
                 focusConfirm: false,
                 confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
             }).then((result) => {
@@ -550,6 +555,5 @@ const updateTaskOrProductRecord = (task, event) => {
         Swal.fire('Error!', 'There was an error processing your request.', 'error');
     });
 }
-
 
 

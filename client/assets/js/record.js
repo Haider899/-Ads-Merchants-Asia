@@ -10,6 +10,21 @@ function escapeHtml(str) {
     );
 }
 
+function formatDeficitAmount(response) {
+    const amounts = [response && response.deficit_amount, response && response.userFrozenBalance];
+    for (const value of amounts) {
+        if (value === null || value === undefined || value === '') continue;
+        const amount = Math.abs(Number(value));
+        if (Number.isFinite(amount) && amount > 0) {
+            return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    }
+    const balance = Number(response && response.user_balance);
+    return Number.isFinite(balance) && balance < 0
+        ? Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : null;
+}
+
 function formatDate(dateVal) {
     if (!dateVal) return 'Just now';
     try {
@@ -302,14 +317,16 @@ async function submitOrderFromRecord(taskId, btn) {
                 loadTaskRecords();
             }
         } else {
-            const froz = data && (data.userFrozenBalance || data.deficit_amount);
-            if (data && (data.reachedLimit || froz || (data.message && (data.message.includes('frozen limit') || data.message.includes('deficit'))))) {
-                const deficitVal = froz ? parseFloat(froz).toFixed(2) : '25.00';
+            const deficitVal = formatDeficitAmount(data);
+            if (data && (data.reachedLimit || deficitVal || (data.message && (data.message.includes('frozen limit') || data.message.includes('deficit'))))) {
+                const shortfallMessage = deficitVal
+                    ? `Your current balance is insufficient to complete this order. Please recharge ${deficitVal} USDT to your account to proceed with the order.`
+                    : 'Your current balance is insufficient to complete this order. Please recharge your account to proceed with the order.';
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        title: "Shortfall Deposit Required",
+                        title: "Account Limit Reached!",
                         icon: "warning",
-                        html: `<div style="font-size: 14.5px; line-height: 1.5; color: #334155;">This order exceeds your working balance.<br>Required Shortfall: <strong style="color: #ef4444; font-size: 16px;">USD $${deficitVal}</strong>.<br><br>Please clear the shortfall to complete this order.</div>`,
+                        text: shortfallMessage,
                         showCancelButton: true,
                         confirmButtonColor: '#2563eb',
                         cancelButtonColor: '#64748b',
@@ -323,7 +340,7 @@ async function submitOrderFromRecord(taskId, btn) {
                         }
                     });
                 } else {
-                    alert(`Shortfall Deposit Required! Your balance has a shortfall of USD $${deficitVal}. Please clear the shortfall.`);
+                    alert(shortfallMessage);
                 }
             } else {
                 if (typeof Swal !== 'undefined') {

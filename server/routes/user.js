@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { parseInvestmentAmount } = require('../utils/investmentAmount');
 
 // GET /api/user/profile
 router.get('/profile', authMiddleware, async (req, res) => {
@@ -75,7 +76,15 @@ router.get('/kyc', authMiddleware, async (req, res) => {
 // POST /api/user/kyc - Submit KYC Documents & Contract
 router.post('/kyc', authMiddleware, async (req, res) => {
   const { name, front_id, back_id, signature, investment_amount } = req.body;
+  const investmentAmount = parseInvestmentAmount(investment_amount);
   const user = await db.findUserById(req.user.id);
+
+  if (investmentAmount === null) {
+    return res.status(400).json({
+      success: false,
+      message: 'Enter a positive investment amount with no more than two decimal places.'
+    });
+  }
 
   if (!name || !front_id || !back_id || !signature) {
     return res.status(400).json({
@@ -92,7 +101,7 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     front_id_image: front_id,
     back_id_image: back_id,
     signature_image: signature,
-    investment_amount: parseFloat(investment_amount) || 0,
+    investment_amount: investmentAmount,
     status: 'pending',
     rejection_reason: '',
     created_at: new Date().toISOString()

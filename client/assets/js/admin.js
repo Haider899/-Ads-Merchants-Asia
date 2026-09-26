@@ -1763,7 +1763,7 @@
     if (action === 'approve') {
       const confirmed = await AdminUI.confirm({
         title: 'Approve KYC Verification?',
-        message: `Are you sure you want to approve merchant documents for ${applicantName}?`,
+        message: `Approve the contract for ${applicantName}? The system will require the contract investment amount to exactly match all already-credited plus newly verified deposits. Any newly verified funds will be credited once only after approval; a mismatch blocks approval and credits nothing.`,
         type: 'success',
         confirmText: 'Yes, Approve Verification'
       });
@@ -1773,6 +1773,7 @@
       if (res && res.success) {
         AdminUI.toast('KYC Approved', res.message, 'success');
         loadKycs();
+        loadDeposits();
         loadUsers();
         loadMetrics();
       } else {
@@ -1846,7 +1847,7 @@
             <div style="font-size: 12px; color: #0284c7; font-weight: 600;">@${escapeHtml(d.username || 'user')}</div>
             <div style="font-size: 11.5px; color: #64748b;">${escapeHtml(d.user_email)}</div>
           </td>
-          <td style="font-weight: 800; color: #10b981; font-size: 15px;">+$${parseFloat(d.amount).toFixed(2)}</td>
+          <td style="font-weight: 800; color: ${String(d.status || '').toLowerCase() === 'approved' ? '#10b981' : '#a16207'}; font-size: 15px;">${String(d.status || '').toLowerCase() === 'approved' ? '+' : ''}$${parseFloat(d.amount).toFixed(2)}</td>
           <td><span class="badge-status badge-info">${d.method}</span></td>
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1858,9 +1859,11 @@
           </td>
           <td><span class="badge-status badge-${(d.status || 'pending').toLowerCase()}">${d.status}</span></td>
           <td>
-            ${d.status === 'pending' ? `
+            ${['pending', 'verified'].includes(String(d.status || '').toLowerCase()) ? `
               <div style="display: flex; gap: 6px;">
-                <button class="btn-action btn-approve" onclick="confirmDepositAction('${d.id}', 'approve')"><i class="fa fa-check"></i> Approve (Credit)</button>
+                ${String(d.status || '').toLowerCase() === 'verified'
+                  ? '<small style="color:#a16207; font-weight:700;">Verified — held for contract approval</small>'
+                  : `<button class="btn-action btn-approve" onclick="confirmDepositAction('${d.id}', 'approve')"><i class="fa fa-check"></i> ${String(d.kyc_status || '').toLowerCase() === 'approved' ? 'Verify & Credit' : 'Verify (Hold)'}</button>`}
                 <button class="btn-action btn-reject" onclick="confirmDepositAction('${d.id}', 'reject')"><i class="fa fa-times"></i> Reject</button>
               </div>
             ` : `<small style="color: #64748b; font-weight: 600;">Resolved (${d.status})</small>`}
@@ -1889,7 +1892,7 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 20px; font-size: 13.5px;">
         <div><span style="color: #64748b;">Deposit ID:</span> <strong>${dep.id}</strong></div>
         <div><span style="color: #64748b;">User Account:</span> <strong>${escapeHtml(dep.fullname || dep.username || 'User')} (${dep.user_email})</strong></div>
-        <div><span style="color: #64748b;">Deposit Amount:</span> <strong style="color: #10b981; font-size: 16px;">+$${parseFloat(dep.amount).toFixed(2)}</strong></div>
+        <div><span style="color: #64748b;">Deposit Amount:</span> <strong style="color: ${String(dep.status || '').toLowerCase() === 'approved' ? '#10b981' : '#a16207'}; font-size: 16px;">${String(dep.status || '').toLowerCase() === 'approved' ? '+' : ''}$${parseFloat(dep.amount).toFixed(2)}</strong></div>
         <div><span style="color: #64748b;">Payment Method:</span> <span class="badge-status badge-info">${dep.method}</span></div>
         <div style="grid-column: span 2;">
           <span style="color: #64748b;">Blockchain TxHash:</span>
@@ -1900,11 +1903,14 @@
         <div><span style="color: #64748b;">Status:</span> <span class="badge-status badge-${(dep.status || 'pending').toLowerCase()}">${dep.status}</span></div>
         <div><span style="color: #64748b;">Timestamp:</span> <small>${new Date(dep.created_at).toLocaleString()}</small></div>
       </div>
-      ${dep.status === 'pending' ? `
+      ${['pending', 'verified'].includes(String(dep.status || '').toLowerCase()) ? `
         <div style="display: flex; gap: 10px;">
-          <button class="btn-action btn-approve" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'approve');">
-            <i class="fa fa-check"></i> Approve & Credit Balance
+          ${String(dep.status || '').toLowerCase() === 'verified'
+            ? '<span style="color:#a16207;font-weight:700;">Verified — held for contract approval</span>'
+            : `<button class="btn-action btn-approve" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'approve');">
+            <i class="fa fa-check"></i> ${String(dep.kyc_status || '').toLowerCase() === 'approved' ? 'Verify & Credit Balance' : 'Verify & Hold'}
           </button>
+          `}
           <button class="btn-action btn-reject" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'reject');">
             <i class="fa fa-times"></i> Reject Deposit
           </button>
@@ -1921,10 +1927,12 @@
 
     if (action === 'approve') {
       const confirmed = await AdminUI.confirm({
-        title: `Approve Deposit of ${amountStr}?`,
-        message: `The deposit will be immediately verified and ${amountStr} will be credited to the user's working balance.`,
+        title: `Verify Deposit of ${amountStr}?`,
+        message: dep && String(dep.kyc_status || '').toLowerCase() === 'approved'
+          ? `${amountStr} will be credited to the user's Working Balance because the contract is already approved.`
+          : `The payment will be marked as verified and held. It will not enter Working Balance unless the contract is approved with an exact match to all verified and already-credited deposits.`,
         type: 'success',
-        confirmText: 'Yes, Approve & Credit'
+        confirmText: dep && String(dep.kyc_status || '').toLowerCase() === 'approved' ? 'Verify & Credit' : 'Verify & Hold'
       });
       if (!confirmed) return;
 

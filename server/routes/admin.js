@@ -818,61 +818,79 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
     }
 
     const user = await db.findUserById(kyc.user_id);
-    let newStatus = 'pending';
-    let userKycStatus = 'pending';
-
     if (action === 'approve') {
-      newStatus = 'approved';
-      userKycStatus = 'approved';
-    } else if (action === 'reject') {
-      newStatus = 'rejected';
-      userKycStatus = 'rejected';
-    } else if (action === 'reupload') {
-      newStatus = 'reupload_required';
-      userKycStatus = 'reupload_required';
-    } else {
-      return res.status(400).json({ success: false, message: 'Invalid action: ' + action });
-    }
-
-    await db.updateKycSubmission(kyc.id, {
-      status: newStatus,
-      rejection_reason: reason
-    });
-
-    if (user) {
-      await db.updateUser(user.id, {
-        kyc_status: userKycStatus,
-        kyc_notes: reason
+      const result = await db.approveKycAndReleaseVerifiedDeposits({
+        kycId: kyc.id,
+        adminId: req.admin.id,
+        rejectionReason: reason
       });
-
-      if (action === 'approve') {
-        await db.createNotification({
-          user_id: user.id,
-          title: 'KYC Verified! ✅',
-          message: 'Congratulations! Your merchant identity documents have been verified and approved.',
-          type: 'success'
-        });
-      } else if (action === 'reject') {
-        await db.createNotification({
-          user_id: user.id,
-          title: 'KYC Rejected ⚠️',
-          message: 'Your KYC submission was rejected. Reason: ' + (reason || 'Documents could not be verified.'),
-          type: 'error'
-        });
-      } else if (action === 'reupload') {
-        await db.createNotification({
-          user_id: user.id,
-          title: 'KYC Re-upload Required 📝',
-          message: 'Please re-upload your verification documents. Instructions: ' + (reason || 'Clear photo required.'),
-          type: 'warning'
+      if (result.notFound) {
+        return res.status(404).json({ success: false, message: 'KYC submission not found.' });
+      }
+      if (result.userNotFound) {
+        return res.status(404).json({ success: false, message: 'Associated user not found.' });
+      }
+      if (result.mismatch) {
+        return res.status(409).json({
+          success: false,
+          mismatch: true,
+          message: `Contract amount $${result.contractAmount} does not match the user's approved and verified deposit total of $${result.verifiedAndApprovedTotal}. No balance was credited and the contract remains pending.`
         });
       }
+
+      if (!result.alreadyApproved && user) {
+        const releasedAmount = Number(result.releaseAmount || 0);
+        await db.createNotification({
+          user_id: user.id,
+          title: 'Contract Approved! ✅',
+          message: releasedAmount > 0
+            ? `Your contract has been approved and $${releasedAmount.toFixed(2)} in verified deposits has been credited to your Working Balance.`
+            : 'Your contract has been approved. Your verified deposits were already credited; no funds were credited a second time.',
+          type: 'success'
+        });
+        await db.createAuditLog({
+          adminId: req.admin.id,
+          action: 'KYC_APPROVE_DEPOSIT_RELEASE',
+          entity: 'kyc_submission',
+          entityId: kyc.id,
+          oldValue: { balance: result.balanceBefore, kyc_status: user.kyc_status },
+          newValue: { balance: result.balanceAfter, kyc_status: 'approved', released_deposits: result.releasedDeposits },
+          ipAddress: req.ip
+        }).catch(() => {});
+      }
+
+      return res.json({
+        success: true,
+        message: result.alreadyApproved
+          ? 'This contract was already approved; no funds were credited again.'
+          : `Contract approved. $${Number(result.releaseAmount || 0).toFixed(2)} in newly verified deposits released to Working Balance.`
+      });
     }
 
-    res.json({
-      success: true,
-      message: `KYC submission marked as ${newStatus}. User has been notified.`
-    });
+    if (!['reject', 'reupload'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Invalid action: ' + action });
+    }
+    if (String(kyc.status || '').toLowerCase() === 'approved') {
+      return res.status(409).json({ success: false, message: 'An approved contract cannot be changed to rejected or re-upload required.' });
+    }
+
+    const newStatus = action === 'reject' ? 'rejected' : 'reupload_required';
+    const userKycStatus = newStatus;
+    await db.updateKycSubmission(kyc.id, { status: newStatus, rejection_reason: reason });
+
+    if (user) {
+      await db.updateUser(user.id, { kyc_status: userKycStatus, kyc_notes: reason });
+      await db.createNotification({
+        user_id: user.id,
+        title: action === 'reject' ? 'KYC Rejected ⚠️' : 'KYC Re-upload Required 📝',
+        message: action === 'reject'
+          ? 'Your KYC submission was rejected. Reason: ' + (reason || 'Documents could not be verified.')
+          : 'Please re-upload your verification documents. Instructions: ' + (reason || 'Clear photo required.'),
+        type: action === 'reject' ? 'error' : 'warning'
+      });
+    }
+
+    return res.json({ success: true, message: `KYC submission marked as ${newStatus}. User has been notified.` });
   } catch (err) {
     console.error('KYC Action Error:', err);
     res.status(500).json({ success: false, message: 'Error processing KYC action: ' + err.message });
@@ -889,105 +907,59 @@ router.get('/deposits', adminAuthMiddleware, checkRole('sub_admin', 'finance'), 
 router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
     const { depositId, action, notes } = req.body;
-    const deposits = await db.getDeposits();
-    const deposit = deposits.find(d => d.id === depositId);
+    if (!depositId) return res.status(400).json({ success: false, message: 'Deposit ID is required.' });
+    const result = await db.processDepositDecision({ depositId, adminId: req.admin.id, action, notes: (notes || '').trim() });
+    if (result.notFound) return res.status(404).json({ success: false, message: 'Deposit request not found.' });
+    if (result.invalidAction) return res.status(400).json({ success: false, message: 'Invalid action.' });
 
-    if (!deposit) {
-      return res.status(404).json({ success: false, message: 'Deposit request not found' });
+    const user = result.user;
+    const amount = Number(result.amount || 0);
+    if (result.alreadyProcessed) {
+      const message = result.status === 'verified'
+        ? 'Deposit is already verified and held until contract approval.'
+        : (result.status === 'approved' ? 'Deposit was already credited; it will not be credited again.' : 'Deposit is already rejected.');
+      return res.json({ success: true, status: result.status, creditedAmount: '0.00', message });
     }
 
-    const user = await db.findUserById(deposit.user_id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Associated user not found' });
-    }
-
-    const currentBalance = parseFloat(user.balance) || 0;
-    const depositAmount = parseFloat(deposit.amount) || 0;
+    const creditedAmount = Number(result.creditedAmount || 0);
+    await db.createAuditLog({
+      adminId: req.admin.id,
+      action: action === 'approve' ? (result.status === 'verified' ? 'DEPOSIT_VERIFY_HOLD' : 'DEPOSIT_APPROVE_CREDIT') : 'DEPOSIT_REJECT',
+      entity: 'deposit',
+      entityId: depositId,
+      oldValue: { balance: result.balanceBefore, status: action === 'approve' ? 'pending' : 'previous' },
+      newValue: { balance: result.balanceAfter, status: result.status, credited_amount: creditedAmount.toFixed(2) },
+      reason: notes || null,
+      ipAddress: req.ip
+    }).catch(() => {});
 
     if (action === 'approve') {
-      if (deposit.status === 'approved') {
-        return res.json({ success: true, message: 'Deposit is already approved.' });
-      }
-
-      const newBalance = parseFloat((currentBalance + depositAmount).toFixed(2));
-      const userUpdates = { balance: newBalance };
-      if (newBalance >= 0) {
-        // Only clear frozen_balance if there are no pending deficit tasks remaining
-        const pendingDeficit = await db.query(
-          'SELECT COUNT(*) as cnt FROM tasks WHERE user_id = ? AND status = "pending" AND is_deficit = 1',
-          [user.id]
-        ).catch(() => [{ cnt: 0 }]);
-        const hasPendingDeficit = pendingDeficit && pendingDeficit[0] && parseInt(pendingDeficit[0].cnt, 10) > 0;
-        if (!hasPendingDeficit) {
-          userUpdates.frozen_balance = 0.00;
-        }
-      }
-      await db.updateUser(user.id, userUpdates);
-      await db.updateDeposit(depositId, {
-        status: 'approved',
-        admin_notes: notes || 'Verified on blockchain'
-      });
-
-      await db.createLedgerTransaction({
-        userId: user.id,
-        adminId: req.admin.id,
-        type: 'DEPOSIT',
-        amount: depositAmount,
-        balanceBefore: currentBalance,
-        balanceAfter: newBalance,
-        currency: 'USD',
-        reference: deposit.tx_hash || deposit.id,
-        description: `Deposit approved by admin (${deposit.method || 'USDT'})`
-      }).catch(() => {});
-
-      await db.createAuditLog({
-        adminId: req.admin.id,
-        action: 'DEPOSIT_APPROVE',
-        entity: 'deposit',
-        entityId: depositId,
-        oldValue: { balance: currentBalance, status: deposit.status },
-        newValue: { balance: newBalance, status: 'approved' },
-        ipAddress: req.ip
-      }).catch(() => {});
-
+      const held = result.status === 'verified';
       await db.createNotification({
         user_id: user.id,
-        title: 'Deposit Approved! 💳',
-        message: `Your deposit of $${depositAmount.toFixed(2)} (${deposit.method}) has been approved and credited to your working balance!`,
+        title: held ? 'Deposit Verified — On Hold' : 'Deposit Approved! 💳',
+        message: held
+          ? `Your deposit of $${amount.toFixed(2)} (${result.method || 'USDT'}) is verified. It will be credited after your contract is approved.`
+          : `Your deposit of $${amount.toFixed(2)} (${result.method || 'USDT'}) has been verified and credited to your Working Balance.`,
         type: 'success'
       });
-
       return res.json({
         success: true,
-        message: `Deposit of $${depositAmount.toFixed(2)} approved. User balance credited to $${newBalance.toFixed(2)}.`
-      });
-    } else if (action === 'reject') {
-      let newBalance = currentBalance;
-      // If the deposit was already approved previously, reverse the credited amount
-      if (deposit.status === 'approved') {
-        newBalance = Math.max(0, parseFloat((currentBalance - depositAmount).toFixed(2)));
-        await db.updateUser(user.id, { balance: newBalance });
-      }
-
-      await db.updateDeposit(depositId, {
-        status: 'rejected',
-        admin_notes: notes || 'Invalid transaction hash / receipt'
-      });
-
-      await db.createNotification({
-        user_id: user.id,
-        title: 'Deposit Rejected ⚠️',
-        message: `Your deposit request of $${depositAmount.toFixed(2)} was rejected. Reason: ` + (notes || 'Invalid transaction receipt.'),
-        type: 'error'
-      });
-
-      return res.json({
-        success: true,
-        message: `Deposit of $${depositAmount.toFixed(2)} marked as rejected.`
+        status: result.status,
+        creditedAmount: creditedAmount.toFixed(2),
+        message: held
+          ? `Deposit of $${amount.toFixed(2)} verified and held until contract approval. No balance was credited.`
+          : `Deposit of $${amount.toFixed(2)} verified and credited. Working Balance is now $${result.balanceAfter}.`
       });
     }
 
-    return res.status(400).json({ success: false, message: 'Invalid action' });
+    await db.createNotification({
+      user_id: user.id,
+      title: 'Deposit Rejected ⚠️',
+      message: `Your deposit request of $${amount.toFixed(2)} was rejected. Reason: ${notes || 'Invalid transaction receipt.'}`,
+      type: 'error'
+    });
+    return res.json({ success: true, status: 'rejected', creditedAmount: '0.00', message: `Deposit of $${amount.toFixed(2)} marked as rejected.` });
   } catch (err) {
     console.error('Deposit Action Error:', err);
     res.status(500).json({ success: false, message: 'Error processing deposit action: ' + err.message });

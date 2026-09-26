@@ -1,6 +1,7 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
+const { calculateDepositContractMatch } = require('./utils/depositContractMatch');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -377,7 +378,7 @@ const db = {
 
   getDeposits: async (userId) => {
     let sql = `
-      SELECT d.*, u.username, u.fullname, u.phone 
+      SELECT d.*, u.username, u.fullname, u.phone, u.kyc_status
       FROM deposits d 
       LEFT JOIN users u ON d.user_id = u.id
     `;
@@ -410,6 +411,112 @@ const db = {
     const values = Object.values(filteredUpdates);
     values.push(id);
     await query(`UPDATE deposits SET ${setClause} WHERE id = ?`, values);
+  },
+
+  processDepositDecision: async ({ depositId, adminId, action, notes = '' }) => {
+    await db.ensureProductionSchema();
+    await db.ensureTasksTable();
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [lookupRows] = await connection.execute('SELECT user_id FROM deposits WHERE id = ?', [depositId]);
+      const userId = lookupRows[0] && lookupRows[0].user_id;
+      if (!userId) {
+        await connection.rollback();
+        return { success: false, notFound: true };
+      }
+
+      // Keep lock ordering consistent with KYC approval (user, then deposits).
+      const [userRows] = await connection.execute('SELECT * FROM users WHERE id = ? FOR UPDATE', [userId]);
+      const [depositRows] = await connection.execute('SELECT * FROM deposits WHERE id = ? FOR UPDATE', [depositId]);
+      const user = userRows[0];
+      const deposit = depositRows[0];
+      if (!user || !deposit) {
+        await connection.rollback();
+        return { success: false, notFound: true };
+      }
+
+      const previousStatus = String(deposit.status || 'pending').toLowerCase();
+      if (action === 'approve' && ['approved', 'verified'].includes(previousStatus)) {
+        await connection.rollback();
+        return { success: true, alreadyProcessed: true, status: previousStatus, amount: Number(deposit.amount || 0), creditedAmount: 0, user: db.formatUser(user) };
+      }
+      if (action === 'reject' && previousStatus === 'rejected') {
+        await connection.rollback();
+        return { success: true, alreadyProcessed: true, status: 'rejected', amount: Number(deposit.amount || 0), creditedAmount: 0, user: db.formatUser(user) };
+      }
+      if (!['approve', 'reject'].includes(action)) {
+        await connection.rollback();
+        return { success: false, invalidAction: true };
+      }
+
+      const amountCents = Math.max(0, Math.round(Number(deposit.amount || 0) * 100));
+      const balanceBeforeCents = Math.round(Number(user.balance || 0) * 100);
+      let balanceAfterCents = balanceBeforeCents;
+      let finalStatus;
+      let creditedAmountCents = 0;
+      if (action === 'approve') {
+        const contractApproved = String(user.kyc_status || '').toLowerCase() === 'approved';
+        finalStatus = contractApproved ? 'approved' : 'verified';
+        if (contractApproved) {
+          balanceAfterCents += amountCents;
+          creditedAmountCents = amountCents;
+        }
+      } else {
+        finalStatus = 'rejected';
+        if (previousStatus === 'approved') balanceAfterCents = Math.max(0, balanceBeforeCents - amountCents);
+      }
+
+      await connection.execute(
+        'UPDATE deposits SET status = ?, admin_notes = ? WHERE id = ?',
+        [finalStatus, notes || (finalStatus === 'verified' ? 'Verified; held until contract approval' : (action === 'approve' ? 'Verified on blockchain' : 'Invalid transaction hash / receipt')), depositId]
+      );
+
+      if (balanceAfterCents !== balanceBeforeCents) {
+        let frozenBalance = Number(user.frozen_balance || 0);
+        if (balanceAfterCents >= 0) {
+          const [pendingDeficitRows] = await connection.execute(
+            'SELECT COUNT(*) AS cnt FROM tasks WHERE user_id = ? AND status = ? AND is_deficit = 1',
+            [user.id, 'pending']
+          );
+          if (!pendingDeficitRows[0] || Number(pendingDeficitRows[0].cnt || 0) === 0) frozenBalance = 0;
+        }
+        await connection.execute(
+          'UPDATE users SET balance = ?, frozen_balance = ? WHERE id = ?',
+          [(balanceAfterCents / 100).toFixed(2), frozenBalance.toFixed(2), user.id]
+        );
+        const transactionId = `txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+        const ledgerAmountCents = balanceAfterCents - balanceBeforeCents;
+        await connection.execute(
+          `INSERT INTO wallet_transactions (
+            id, user_id, admin_id, transaction_type, amount, balance_before, balance_after,
+            currency, reference, description, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [transactionId, user.id, adminId || null, 'DEPOSIT', (ledgerAmountCents / 100).toFixed(2),
+            (balanceBeforeCents / 100).toFixed(2), (balanceAfterCents / 100).toFixed(2), 'USD', deposit.txid || deposit.id,
+            action === 'approve' ? `Deposit credited after contract approval (${deposit.method || 'USDT'})` : 'Previously credited deposit reversed by admin',
+            formatMySQLDate(new Date())]
+        );
+      }
+
+      await connection.commit();
+      return {
+        success: true,
+        alreadyProcessed: false,
+        status: finalStatus,
+        amount: (amountCents / 100).toFixed(2),
+        method: deposit.method || 'USDT',
+        creditedAmount: (creditedAmountCents / 100).toFixed(2),
+        balanceBefore: (balanceBeforeCents / 100).toFixed(2),
+        balanceAfter: (balanceAfterCents / 100).toFixed(2),
+        user: db.formatUser({ ...user, balance: (balanceAfterCents / 100).toFixed(2) })
+      };
+    } catch (err) {
+      try { await connection.rollback(); } catch (_) {}
+      throw err;
+    } finally {
+      connection.release();
+    }
   },
 
   getWithdrawals: async (userId = null) => {
@@ -459,6 +566,127 @@ const db = {
   },
 
   // KYC Helpers
+  approveKycAndReleaseVerifiedDeposits: async ({ kycId, adminId, rejectionReason = '' }) => {
+    await db.ensureProductionSchema();
+    await db.ensureTasksTable();
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+      const [kycRows] = await connection.execute(
+        'SELECT * FROM kyc_submissions WHERE id = ? FOR UPDATE',
+        [kycId]
+      );
+      const kyc = kycRows[0];
+      if (!kyc) {
+        await connection.rollback();
+        return { success: false, notFound: true };
+      }
+      if (String(kyc.status || '').toLowerCase() === 'approved') {
+        const [userRows] = await connection.execute('SELECT * FROM users WHERE id = ? FOR UPDATE', [kyc.user_id]);
+        if (!userRows[0]) {
+          await connection.rollback();
+          return { success: false, userNotFound: true };
+        }
+        await connection.rollback();
+        return { success: true, alreadyApproved: true, user: db.formatUser(userRows[0]), releaseAmount: 0 };
+      }
+
+      const [userRows] = await connection.execute('SELECT * FROM users WHERE id = ? FOR UPDATE', [kyc.user_id]);
+      const user = userRows[0];
+      if (!user) {
+        await connection.rollback();
+        return { success: false, userNotFound: true };
+      }
+
+      const [deposits] = await connection.execute(
+        `SELECT id, amount, status, method, txid
+         FROM deposits
+         WHERE user_id = ? AND status IN ('approved', 'verified')
+         ORDER BY created_at ASC
+         FOR UPDATE`,
+        [user.id]
+      );
+      const match = calculateDepositContractMatch(kyc.investment_amount, deposits);
+      if (!match.matches) {
+        await connection.rollback();
+        return {
+          success: false,
+          mismatch: true,
+          contractAmount: match.contractAmount,
+          verifiedAndApprovedTotal: (match.matchedDepositCents / 100).toFixed(2)
+        };
+      }
+
+      const balanceBefore = Math.round(Number(user.balance || 0) * 100);
+      let runningBalanceCents = balanceBefore;
+      const releasableDeposits = deposits.filter(d => String(d.status || '').toLowerCase() === 'verified');
+      const releaseCents = releasableDeposits.reduce((sum, d) => sum + Math.max(0, Math.round(Number(d.amount || 0) * 100)), 0);
+
+      await connection.execute(
+        'UPDATE kyc_submissions SET status = ?, rejection_reason = ? WHERE id = ?',
+        ['approved', rejectionReason, kyc.id]
+      );
+      for (const deposit of releasableDeposits) {
+        const amountCents = Math.max(0, Math.round(Number(deposit.amount || 0) * 100));
+        const nextBalanceCents = runningBalanceCents + amountCents;
+        const transactionId = `txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+        await connection.execute(
+          `INSERT INTO wallet_transactions (
+            id, user_id, admin_id, transaction_type, amount, balance_before, balance_after,
+            currency, reference, description, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            transactionId,
+            user.id,
+            adminId || null,
+            'DEPOSIT',
+            (amountCents / 100).toFixed(2),
+            (runningBalanceCents / 100).toFixed(2),
+            (nextBalanceCents / 100).toFixed(2),
+            'USD',
+            deposit.id,
+            `Verified deposit released after exact-match contract approval (${deposit.method || 'USDT'})`,
+            formatMySQLDate(new Date())
+          ]
+        );
+        runningBalanceCents = nextBalanceCents;
+        await connection.execute('UPDATE deposits SET status = ? WHERE id = ? AND status = ?', ['approved', deposit.id, 'verified']);
+      }
+
+      let frozenBalance = Number(user.frozen_balance || 0);
+      if (runningBalanceCents >= 0) {
+        const [pendingDeficitRows] = await connection.execute(
+          'SELECT COUNT(*) AS cnt FROM tasks WHERE user_id = ? AND status = ? AND is_deficit = 1',
+          [user.id, 'pending']
+        );
+        if (!pendingDeficitRows[0] || Number(pendingDeficitRows[0].cnt || 0) === 0) frozenBalance = 0;
+      }
+
+      await connection.execute(
+        'UPDATE users SET balance = ?, frozen_balance = ?, kyc_status = ?, kyc_notes = ? WHERE id = ?',
+        [(runningBalanceCents / 100).toFixed(2), frozenBalance.toFixed(2), 'approved', rejectionReason, user.id]
+      );
+      await connection.commit();
+
+      return {
+        success: true,
+        alreadyApproved: false,
+        user: db.formatUser({ ...user, balance: (runningBalanceCents / 100).toFixed(2), frozen_balance: frozenBalance, kyc_status: 'approved', kyc_notes: rejectionReason }),
+        releaseAmount: (releaseCents / 100).toFixed(2),
+        balanceBefore: (balanceBefore / 100).toFixed(2),
+        balanceAfter: (runningBalanceCents / 100).toFixed(2),
+        releasedDeposits: releasableDeposits.map(d => d.id),
+        contractAmount: match.contractAmount
+      };
+    } catch (err) {
+      try { await connection.rollback(); } catch (_) {}
+      throw err;
+    } finally {
+      connection.release();
+    }
+  },
+
   getKycSubmissions: async (userId) => {
     let sql = `
       SELECT k.*, u.username, u.fullname, u.phone 
@@ -1306,4 +1534,3 @@ const db = {
 };
 
 module.exports = db;
-

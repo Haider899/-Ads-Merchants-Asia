@@ -77,7 +77,7 @@ router.post('/deposit', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Deposit request of $${numAmount.toFixed(2)} submitted successfully! Your account will be credited once verified on the blockchain.`,
+      message: `Deposit request of $${numAmount.toFixed(2)} submitted successfully! After blockchain verification, funds are credited only if your contract is approved; otherwise they stay on hold until approval.`,
       deposit
     });
   } catch (err) {
