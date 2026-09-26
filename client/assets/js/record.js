@@ -47,6 +47,11 @@ function isTaskCompleted(t) {
     return s === 'completed' || s === 'approved' || s === 'complete' || s === 'done';
 }
 
+function isTaskCancelled(t) {
+    const status = String((t && (t.status || t.order_status || t.payment_status)) || '').toLowerCase().trim();
+    return status === 'cancelled' || status === 'canceled';
+}
+
 function isTaskPending(t) {
     return !isTaskCompleted(t);
 }
@@ -248,7 +253,13 @@ async function loadTaskRecords() {
             return;
         }
 
-        allTasksList = (data.all_tasks || data.tasks || []);
+        const records = (data.all_tasks || data.tasks || []).filter(task => !isTaskCancelled(task));
+        const uniqueRecords = new Map();
+        records.forEach(task => {
+            const key = task.order_number ? `order:${task.order_number}` : `id:${task.id}`;
+            if (!uniqueRecords.has(key)) uniqueRecords.set(key, task);
+        });
+        allTasksList = Array.from(uniqueRecords.values());
         currentUserInfo = data.user || {};
 
         renderActiveTab();

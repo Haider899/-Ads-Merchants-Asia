@@ -36,6 +36,11 @@ function toDateString(val) {
   return null;
 }
 
+function isCancelledStatus(status) {
+  const normalized = String(status || '').toLowerCase().trim();
+  return normalized === 'cancelled' || normalized === 'canceled';
+}
+
 // Helper: auto-reset daily stats ONLY if date has actually changed (24-hour cycle)
 async function autoResetIfNewDay(user) {
   const today = toDateString(new Date());
@@ -1044,7 +1049,7 @@ router.get('/records', authMiddleware, async (req, res) => {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
 
-    const formattedTasks = userTasks.map(t => {
+    const formattedTasks = userTasks.filter(t => !isCancelledStatus(t.status)).map(t => {
       let prodImage = t.product_image;
       if (!prodImage || prodImage.includes('undefined') || String(prodImage).trim() === '') {
         const match = allProducts.find(p => p.name && t.product_name && (p.name.toLowerCase().includes(t.product_name.substring(0, 15).toLowerCase()) || t.product_name.toLowerCase().includes(p.name.substring(0, 15).toLowerCase())));
@@ -1104,7 +1109,7 @@ router.get('/records', authMiddleware, async (req, res) => {
     const existingOrderNums = new Set(formattedTasks.map(t => String(t.order_number)));
 
     for (const o of userOrders) {
-      if (!existingTaskIds.has(String(o.task_id)) && !existingOrderNums.has(String(o.order_number))) {
+      if (!isCancelledStatus(o.order_status) && !isCancelledStatus(o.payment_status) && !existingTaskIds.has(String(o.task_id)) && !existingOrderNums.has(String(o.order_number))) {
         const price = parseFloat(o.gross_amount || o.unit_price || 0);
         const comm = parseFloat(o.commission_amount || 0);
         const oStatus = String(o.order_status || '').toLowerCase().trim();
@@ -1137,6 +1142,15 @@ router.get('/records', authMiddleware, async (req, res) => {
         });
       }
     }
+
+    // A task and its order record can represent the same user order. Keep one card.
+    const uniqueRecords = new Map();
+    for (const record of formattedTasks) {
+      const key = record.order_number ? `order:${record.order_number}` : `id:${record.id}`;
+      if (!uniqueRecords.has(key)) uniqueRecords.set(key, record);
+    }
+    formattedTasks.length = 0;
+    formattedTasks.push(...uniqueRecords.values());
 
     // Sort newest first
     formattedTasks.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
