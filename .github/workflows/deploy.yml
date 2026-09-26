@@ -38,20 +38,31 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
-    - name: Deploy to VPS
-      uses: appleboy/ssh-action@v1.0.3
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Load deployment SSH key
+      uses: webfactory/ssh-agent@v0.9.0
       with:
-        host: ${{ secrets.VPS_IP }}
-        username: ${{ secrets.VPS_USERNAME }}
-        key: ${{ secrets.VPS_SSH_KEY }}
-        port: 22
-        script: |
-          cd /var/www/amazon-asia
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Haider899/amazon-asia-merchants.git
-          git fetch origin main
-          git reset --hard origin/main
-          git remote set-url origin https://github.com/Haider899/amazon-asia-merchants.git
-          npm install --production
-          pm2 restart all
+        ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+    - name: Trust VPS host key
+      run: ssh-keyscan -H "${{ secrets.VPS_IP }}" >> "$HOME/.ssh/known_hosts"
+
+    - name: Deploy to VPS
+      env:
+        VPS_IP: ${{ secrets.VPS_IP }}
+        VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+      run: |
+        set -euo pipefail
+        ssh -o BatchMode=yes -o IdentitiesOnly=no "$VPS_USERNAME@$VPS_IP" 'bash -s' <<'REMOTE_SCRIPT'
+        set -euo pipefail
+        cd /var/www/amazon-asia
+        git remote set-url origin https://github.com/Haider899/amazon-asia-merchants.git
+        git fetch origin main
+        git reset --hard origin/main
+        npm install --production
+        pm2 restart all
+        REMOTE_SCRIPT
