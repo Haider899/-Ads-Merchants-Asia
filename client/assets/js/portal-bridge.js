@@ -496,9 +496,10 @@
       pendingComm = parseFloat(pTask.commission_amount !== undefined && pTask.commission_amount !== null ? pTask.commission_amount : (pTask.commission_earned || 0));
     }
 
-    const totalBalNum = workingBalNum >= 0 
-      ? (workingBalNum + pendingPrice + pendingComm + frozenBalNum) 
-      : (frozenBalNum + totalProfitNum);
+    const commissionBalNum = parseFloat(user.commission_balance || 0);
+    // A deficit must remain a negative Working Balance; do not replace it
+    // with today's profit when rendering the profile.
+    const totalBalNum = commissionBalNum + (workingBalNum >= 0 ? pendingPrice + pendingComm : 0);
     const userProfitNum = totalProfitNum + (workingBalNum >= 0 && pendingComm > 0 ? pendingComm : 0);
 
     const formatUSD = (num) => {
@@ -517,9 +518,7 @@
     // 1. Total Balance (Working + Frozen funds)
     document.querySelectorAll(`
       .user-total-balance, 
-      #userTotalBalance, 
-      #profile-total-balance,
-      .profile-total-balance
+      #userTotalBalance
     `).forEach(el => {
       el.textContent = `USD ${totalBal}`;
     });
@@ -557,6 +556,12 @@
     `).forEach(el => {
       el.textContent = `USD ${workingBal}`;
     });
+    document.querySelectorAll('#profile-working-balance, .profile-working-balance').forEach(el => {
+      el.textContent = `USD ${workingBal}`;
+    });
+    document.querySelectorAll('#profile-total-balance, .profile-total-balance').forEach(el => {
+      el.textContent = `USD ${totalBal}`;
+    });
 
     // Withdraw page withdrawable balance (Total Balance with Commission)
     const commBalNum = parseFloat(user.commission_balance !== undefined && user.commission_balance !== null ? user.commission_balance : 0);
@@ -588,6 +593,12 @@
       #start-frozen-balance-text
     `).forEach(el => {
       el.textContent = `USD ${frozenBal}`;
+    });
+    document.querySelectorAll('#profile-frozen-balance, .profile-frozen-balance').forEach(el => {
+      el.textContent = `USD ${frozenBal}`;
+    });
+    document.querySelectorAll('#profile-total-profit, .profile-total-profit').forEach(el => {
+      el.textContent = `USD ${formatUSD(totalProfitNum)}`;
     });
 
     const startFrozenContainer = document.getElementById('start-frozen-container');
@@ -957,33 +968,43 @@
       pendingComm = parseFloat(pTask.commission_amount !== undefined && pTask.commission_amount !== null ? pTask.commission_amount : (pTask.commission_earned || 0));
     }
 
-    const totBal = workBal >= 0 
-      ? (workBal + frozBal) 
-      : (frozBal + profitVal);
+    const commBal = parseFloat(data.commission_balance !== undefined && data.commission_balance !== null
+      ? data.commission_balance
+      : (window.__currentUser && window.__currentUser.commission_balance) || 0);
+    const totBal = commBal + (workBal >= 0 ? pendingPrice + pendingComm : 0);
     const displayProfit = profitVal;
 
     document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, .deposit-working-balance, #start-total-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(workBal)}`;
     });
-    document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
+    document.querySelectorAll('.user-total-balance').forEach(el => {
+      el.textContent = `USD ${formatUSD(totBal)}`;
+    });
+    document.querySelectorAll('#profile-working-balance, .profile-working-balance').forEach(el => {
+      el.textContent = `USD ${formatUSD(workBal)}`;
+    });
+    document.querySelectorAll('#profile-total-balance, .profile-total-balance').forEach(el => {
       el.textContent = `USD ${formatUSD(totBal)}`;
     });
     // Start Page specific: Total Balance with Commission represents accumulated order gross + commission (Option A)
     const startGrandTotalEl = document.getElementById('start-grandtotal-balance-text');
     if (startGrandTotalEl) {
-      let commBal = parseFloat(
+      let startCommBal = parseFloat(
         data.commission_balance !== undefined && data.commission_balance !== null
           ? data.commission_balance
           : (window.__currentUser && window.__currentUser.commission_balance !== undefined && window.__currentUser.commission_balance !== null
               ? window.__currentUser.commission_balance
               : 0)
       );
-      if (commBal === 0 && window.__currentUser && parseFloat(window.__currentUser.commission_balance || 0) > 0) {
-        commBal = parseFloat(window.__currentUser.commission_balance);
+      if (startCommBal === 0 && window.__currentUser && parseFloat(window.__currentUser.commission_balance || 0) > 0) {
+        startCommBal = parseFloat(window.__currentUser.commission_balance);
       }
-      startGrandTotalEl.textContent = `USD ${formatUSD(commBal)}`;
+      startGrandTotalEl.textContent = `USD ${formatUSD(startCommBal)}`;
     }
     document.querySelectorAll('.user-frozen, .user-frozen-balance, #start-frozen-balance-text').forEach(el => {
+      el.textContent = `USD ${formatUSD(frozBal)}`;
+    });
+    document.querySelectorAll('#profile-frozen-balance, .profile-frozen-balance').forEach(el => {
       el.textContent = `USD ${formatUSD(frozBal)}`;
     });
     const taskFrozenContainer = document.getElementById('start-frozen-container');
