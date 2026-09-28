@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { MIN_WITHDRAWAL_AMOUNT, parseWholeDollarAmount } = require('../utils/withdrawalAmount');
 const { adminAuthMiddleware, isUserOnline, getActiveSessions, kickSession, JWT_SECRET } = require('../middleware/auth');
 const geo = require('../utils/geo');
 const {
@@ -356,8 +357,11 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
       if (custom_min_withdraw === '' || custom_min_withdraw === null) {
         updates.custom_min_withdraw = null;
       } else {
-        const cmw = parseFloat(custom_min_withdraw);
-        updates.custom_min_withdraw = (!isNaN(cmw) && cmw > 0) ? parseFloat(cmw.toFixed(2)) : null;
+        const cmw = parseWholeDollarAmount(String(custom_min_withdraw));
+        if (cmw === null || cmw < MIN_WITHDRAWAL_AMOUNT) {
+          return res.status(400).json({ success: false, message: 'User minimum withdrawal must be a whole-dollar amount of at least $10.' });
+        }
+        updates.custom_min_withdraw = cmw;
       }
     }
 
@@ -381,6 +385,8 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
         updates.today_profit = 0.00;
         updates.today_tasks_completed = 0;
         updates.current_set = 0;
+        updates.tasks_reset_at = new Date();
+        updates.last_reset_date = new Date().toISOString().slice(0, 10);
         reinvestNotification = {
           user_id: user.id,
           title: 'Profit Reinvested! 🚀',
@@ -1015,8 +1021,11 @@ router.post('/withdrawals/action', adminAuthMiddleware, checkRole('sub_admin', '
       await db.updateUser(user.id, {
         balance: newBalance,
         frozen_balance: newFrozen,
+        today_profit: 0.00,
         today_tasks_completed: 0,
-        current_set: 0
+        current_set: 0,
+        tasks_reset_at: new Date(),
+        last_reset_date: new Date().toISOString().slice(0, 10)
       });
 
       await db.updateWithdrawal(withdrawalId, {
@@ -1243,13 +1252,18 @@ router.get('/settings', adminAuthMiddleware, checkRole('super_admin'), async (re
 // POST /api/admin/settings
 router.post('/settings', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   const { trc20_address, erc20_address, btc_address, min_deposit, min_withdraw, telegram_support, whatsapp_support, new_admin_password } = req.body;
-  
   const updates = {};
   if (trc20_address) updates.trc20_address = trc20_address.trim();
   if (erc20_address) updates.erc20_address = erc20_address.trim();
   if (btc_address) updates.btc_address = btc_address.trim();
   if (min_deposit) updates.min_deposit = parseFloat(min_deposit);
-  if (min_withdraw) updates.min_withdraw = parseFloat(min_withdraw);
+  if (min_withdraw !== undefined && min_withdraw !== '') {
+    const parsedMinimum = parseWholeDollarAmount(String(min_withdraw));
+    if (parsedMinimum === null || parsedMinimum < MIN_WITHDRAWAL_AMOUNT) {
+      return res.status(400).json({ success: false, message: 'System minimum withdrawal must be a whole-dollar amount of at least $10.' });
+    }
+    updates.min_withdraw = parsedMinimum;
+  }
   if (telegram_support) updates.telegram_support = telegram_support.trim();
   if (whatsapp_support) updates.whatsapp_support = whatsapp_support.trim();
 

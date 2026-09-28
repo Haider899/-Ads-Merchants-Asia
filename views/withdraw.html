@@ -452,13 +452,13 @@
 
                         <div class="large-text">Withdraw Method</div>
 
-                        <div class="small-text">Withdrawal will be transferred via USD</div>
+                        <div class="small-text">Withdrawal will be transferred via USD. Minimum $10; whole-dollar amounts only.</div>
 
                         <div class="input-group">
 
                             <div class="input-field">
 
-                                <input class="input-form" placeholder="Withdrawal Amount" type="text" name="withdraw_amount" id="withdraw-amount" required>
+                                <input class="input-form" placeholder="Withdrawal Amount (whole dollars)" type="number" name="withdraw_amount" id="withdraw-amount" min="10" step="1" inputmode="numeric" required>
 
                             </div>
 
@@ -554,7 +554,7 @@
 
                             <div class="input-field">
 
-                                <input class="input-form" placeholder="Withdrawal Amount" type="text" name="withdraw_amount" id="withdraw-amount" required>
+                                <input class="input-form" placeholder="Withdrawal Amount (whole dollars)" type="number" name="withdraw_amount" id="withdraw-amount" min="10" step="1" inputmode="numeric" required>
 
                             </div>
 
@@ -667,7 +667,7 @@
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="client/assets/js/portal-bridge.js?v=3.9.8"></script>
+<script src="client/assets/js/portal-bridge.js?v=4.2.0"></script>
 </body>
 
 </html>

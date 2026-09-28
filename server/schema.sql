@@ -231,7 +231,7 @@ INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
 ('telegram_support', 'https://t.me/adsmerchantsasia_support'),
 ('whatsapp_support', '+60112345678'),
 ('min_deposit', '20'),
-('min_withdraw', '30'),
+('min_withdraw', '10'),
 ('daily_tasks_limit', '38'),
 ('vip_rates', '{"Bronze":{"commission":0.20,"min_balance":0,"max_tasks":38},"Silver":{"commission":0.30,"min_balance":500,"max_tasks":45},"Gold":{"commission":0.40,"min_balance":2000,"max_tasks":55},"Diamond":{"commission":0.50,"min_balance":5000,"max_tasks":65},"Platinum":{"commission":0.50,"min_balance":5000,"max_tasks":65}}');
 
@@ -247,4 +247,3 @@ INSERT IGNORE INTO products (id, name, price, image) VALUES
 (8, 'Logitech MX Master 3S Advanced Wireless Mouse', 99.00, 'client/assets/uploads/products/dewalt_drill.jpg'),
 (9, 'Bose QuietComfort Ultra Wireless Earbuds', 299.00, 'client/assets/uploads/products/soundbar.jpg'),
 (10, 'Kindle Paperwhite Signature Edition 32GB', 189.00, 'client/assets/uploads/products/macbook_air.jpg');
-

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { MIN_WITHDRAWAL_AMOUNT, parseWholeDollarAmount, effectiveWithdrawalMinimum } = require('../utils/withdrawalAmount');
 
 // GET /api/finance/wallets - Retrieve current crypto deposit addresses
 router.get('/wallets', async (req, res) => {
@@ -147,14 +148,15 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       });
     }
 
-    const systemMinWithdraw = parseFloat(settings.min_withdraw);
-    const defaultMinWithdraw = Number.isFinite(systemMinWithdraw) && systemMinWithdraw > 0 ? systemMinWithdraw : 30;
-    const userMinWithdraw = parseFloat(user.custom_min_withdraw);
-    const minWithdraw = Number.isFinite(userMinWithdraw) && userMinWithdraw > 0
-      ? userMinWithdraw
-      : defaultMinWithdraw;
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount < minWithdraw) {
+    const minWithdraw = effectiveWithdrawalMinimum(user.custom_min_withdraw, settings.min_withdraw);
+    const numAmount = parseWholeDollarAmount(amount);
+    if (numAmount === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Withdrawal amount must be a whole-dollar number (for example, $10 or $20).'
+      });
+    }
+    if (numAmount < minWithdraw || numAmount < MIN_WITHDRAWAL_AMOUNT) {
       return res.status(400).json({
         success: false,
         message: `Minimum withdrawal amount is $${minWithdraw.toFixed(2)}`
@@ -221,6 +223,7 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       message: `Withdrawal request for $${numAmount.toFixed(2)} submitted successfully! Processing time is usually 15-60 minutes.`,
       withdrawal,
       new_balance: updates.balance !== undefined ? updates.balance : workBalance,
+      new_commission_balance: updates.commission_balance !== undefined ? updates.commission_balance : commBalance,
       new_frozen: updates.frozen_balance
     });
   } catch (err) {

@@ -173,6 +173,22 @@ const db = {
     return db.getSettings();
   },
 
+  migrateDefaultWithdrawalMinimumToTen: async () => {
+    const migrationKey = 'migration_default_withdraw_minimum_10_v1';
+    const completed = await query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', [migrationKey]);
+    if (completed.length) return false;
+
+    const current = await query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['min_withdraw']);
+    if (!current.length) {
+      await query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['min_withdraw', '10']);
+    } else if (Number(current[0].setting_value) === 30) {
+      await query('UPDATE settings SET setting_value = ? WHERE setting_key = ? AND setting_value = ?', ['10', 'min_withdraw', current[0].setting_value]);
+    }
+
+    await query('INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, ?)', [migrationKey, new Date().toISOString()]);
+    return true;
+  },
+
   formatUser: (u) => {
     if (!u) return null;
     return {

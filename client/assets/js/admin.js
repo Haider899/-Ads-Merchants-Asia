@@ -2094,7 +2094,7 @@
       if (document.getElementById('setErc20')) document.getElementById('setErc20').value = res.settings.erc20_address || '';
       if (document.getElementById('setBtc')) document.getElementById('setBtc').value = res.settings.btc_address || '';
       if (document.getElementById('setMinDeposit')) document.getElementById('setMinDeposit').value = res.settings.min_deposit || 20;
-      if (document.getElementById('setMinWithdraw')) document.getElementById('setMinWithdraw').value = res.settings.min_withdraw || 30;
+      if (document.getElementById('setMinWithdraw')) document.getElementById('setMinWithdraw').value = res.settings.min_withdraw || 10;
       if (document.getElementById('setTelegram')) document.getElementById('setTelegram').value = res.settings.telegram_support || '';
       if (document.getElementById('setWhatsapp')) document.getElementById('setWhatsapp').value = res.settings.whatsapp_support || '';
     }
@@ -3424,7 +3424,7 @@
           erc20_address: document.getElementById('setErc20').value.trim(),
           btc_address: document.getElementById('setBtc').value.trim(),
           min_deposit: parseFloat(document.getElementById('setMinDeposit').value) || 20,
-          min_withdraw: parseFloat(document.getElementById('setMinWithdraw').value) || 30,
+          min_withdraw: parseFloat(document.getElementById('setMinWithdraw').value) || 10,
           telegram_support: document.getElementById('setTelegram').value.trim(),
           whatsapp_support: document.getElementById('setWhatsapp').value.trim(),
           new_admin_password: document.getElementById('setAdminPassword').value

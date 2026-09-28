@@ -234,7 +234,11 @@ app.listen(PORT, () => {
   console.log(`=======================================================`);
   
   if (db.ensureProductionSchema) {
-    db.ensureProductionSchema().catch(err => {
+    db.ensureProductionSchema().then(() => {
+      return db.migrateDefaultWithdrawalMinimumToTen
+        ? db.migrateDefaultWithdrawalMinimumToTen()
+        : undefined;
+    }).catch(err => {
       console.log('Production schema migration notice:', err.message);
     });
   }

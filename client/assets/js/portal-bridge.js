@@ -519,8 +519,7 @@
       .user-total-balance, 
       #userTotalBalance, 
       #profile-total-balance,
-      .profile-total-balance,
-      .deposit-card-value
+      .profile-total-balance
     `).forEach(el => {
       el.textContent = `USD ${totalBal}`;
     });
@@ -551,6 +550,7 @@
       #userWorkingBalance,
       #profile-working-balance,
       .profile-working-balance,
+      .deposit-working-balance,
       #start-total-balance-text,
       .task-balance,
       #workingBalance
@@ -962,7 +962,7 @@
       : (frozBal + profitVal);
     const displayProfit = profitVal;
 
-    document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, #start-total-balance-text').forEach(el => {
+    document.querySelectorAll('.task-balance, #workingBalance, .user-balance, #userBalance, .user-working-balance, .deposit-working-balance, #start-total-balance-text').forEach(el => {
       el.textContent = `USD ${formatUSD(workBal)}`;
     });
     document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
@@ -1664,9 +1664,12 @@
 
         if (!amountInput) return;
 
-        const amount = parseFloat(amountInput.value);
-        if (isNaN(amount) || amount < 30) {
-          showBridgeToast('Invalid Amount', 'Minimum withdrawal is $30.00', 'error');
+        const amountText = String(amountInput.value || '').trim();
+        const amount = Number(amountText);
+        const userOverride = Number(user && user.custom_min_withdraw);
+        const clientMinimum = Number.isFinite(userOverride) && userOverride > 0 ? Math.max(10, userOverride) : 10;
+        if (!/^\d+(?:\.0+)?$/.test(amountText) || !Number.isSafeInteger(amount) || amount < clientMinimum) {
+          showBridgeToast('Invalid Amount', `Enter a whole-dollar amount of at least $${clientMinimum.toFixed(2)}.`, 'error');
           return;
         }
 
@@ -1706,14 +1709,19 @@
             if (ibanInput) ibanInput.value = '';
             if (res.new_balance !== undefined) {
               const newWork = parseFloat(res.new_balance || 0);
+              const newCommission = parseFloat(res.new_commission_balance !== undefined ? res.new_commission_balance : (window.__currentUser ? window.__currentUser.commission_balance : 0)) || 0;
               const newFrozen = parseFloat(res.new_frozen !== undefined ? res.new_frozen : (window.__currentUser ? window.__currentUser.frozen_balance : 0));
               const newTot = newWork + newFrozen;
               if (window.__currentUser) {
                 window.__currentUser.balance = newWork;
+                window.__currentUser.commission_balance = newCommission;
                 window.__currentUser.frozen_balance = newFrozen;
               }
-              document.querySelectorAll('.user-balance, #userBalance, .user-working-balance, .withdraw-card-value').forEach(el => {
+              document.querySelectorAll('.user-balance, #userBalance, .user-working-balance').forEach(el => {
                 el.textContent = `USD ${newWork.toFixed(2)}`;
+              });
+              document.querySelectorAll('.withdraw-card-value').forEach(el => {
+                el.textContent = `USD ${(newCommission > 0 ? newCommission : newWork).toFixed(2)}`;
               });
               document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
                 el.textContent = `USD ${newTot.toFixed(2)}`;
