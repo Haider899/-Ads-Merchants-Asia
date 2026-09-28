@@ -57,6 +57,17 @@ function getCategory(key) {
   return TASK_PRODUCT_CATEGORIES.find(category => category.key === key) || null;
 }
 
+function getCatalogCategory(key) {
+  const normalized = String(key || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return {
+    key: String(key).trim(),
+    label: String(key).trim(),
+    catalogOnly: true,
+    matchesProduct: product => String(product && product.category || '').trim().toLowerCase() === normalized
+  };
+}
+
 function isCategoryMarker(value) {
   return typeof value === 'string' && value.startsWith(CATEGORY_MARKER);
 }
@@ -71,6 +82,9 @@ function parseCategoryMarker(value) {
 
 function productMatchesCategory(product, category) {
   if (!product || !category) return false;
+  if (category.catalogOnly && typeof category.matchesProduct === 'function') {
+    return category.matchesProduct(product);
+  }
   const price = parseFloat(product.price || 0);
   const name = String(product.name || '').toLowerCase();
 
@@ -82,7 +96,7 @@ function productMatchesCategory(product, category) {
 }
 
 function getProductsForCategory(products, categoryKey) {
-  const category = getCategory(categoryKey);
+  const category = getCategory(categoryKey) || getCatalogCategory(categoryKey);
   if (!category) return [];
   return (products || []).filter(product => productMatchesCategory(product, category));
 }
@@ -120,6 +134,7 @@ module.exports = {
   CATEGORY_MARKER,
   TASK_PRODUCT_CATEGORIES,
   getCategory,
+  getCatalogCategory,
   getProductsForCategory,
   isCategoryMarker,
   makeCategoryMarker,

@@ -603,7 +603,12 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     // Get catalog products to match images or fallback
     const products = await db.getProducts();
     const allTasks = await db.getTasks().catch(() => []);
-    const selectedCategory = getCategory(productCategory);
+    // Built-in categories use keyword matching; catalog categories use the product.category field.
+    const selectedCategory = getCategory(productCategory) || (
+      productCategory && String(productCategory).trim()
+        ? { key: String(productCategory).trim(), label: String(productCategory).trim() }
+        : null
+    );
 
     let pName = (productName || '').trim();
     let pPrice = parseFloat(productPrice) || 0;

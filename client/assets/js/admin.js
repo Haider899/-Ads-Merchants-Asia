@@ -1062,9 +1062,11 @@
     AdminUI.openModal('resetPasswordModal');
   };
 
-  window.openAssignTaskModal = function(userId) {
+  window.openAssignTaskModal = async function(userId) {
     const user = state.users.find(u => String(u.id) === String(userId));
     if (!user) return;
+    if (!state.products || state.products.length === 0) await loadProducts();
+    refreshAssignmentCategoryOptions();
     document.getElementById('assignTaskUserId').value = user.id;
     const bal = parseFloat(user.balance || 0);
     document.getElementById('assignTaskUserName').value = `${user.fullname || user.username} (@${user.username}) - Working Balance: $${bal.toFixed(2)}`;
@@ -1076,7 +1078,7 @@
     document.getElementById('assignTaskProductPrice').value = user.custom_product_price || '';
     const categoryEl = document.getElementById('assignTaskProductCategory');
     const categoryProductEl = document.getElementById('assignTaskCategoryProduct');
-    if (categoryEl) categoryEl.value = TASK_PRODUCT_CATEGORIES[savedCategory] ? savedCategory : '';
+    if (categoryEl) categoryEl.value = getAssignmentCategoryMap()[savedCategory] ? savedCategory : '';
     if (categoryEl && categoryEl.value) {
       window.populateAssignTaskCategoryProducts();
     } else if (categoryProductEl) {
@@ -1124,6 +1126,30 @@
     });
   };
 
+  function getAssignmentCategoryMap() {
+    const categories = { ...TASK_PRODUCT_CATEGORIES };
+    (state.products || []).forEach(product => {
+      const label = String(product.category || '').trim();
+      if (!label || label.toLowerCase() === 'general') return;
+      const key = label;
+      if (!categories[key]) categories[key] = { label, products: [] };
+      if (!categories[key].products.some(([name]) => name === product.name)) {
+        categories[key].products.push([product.name, parseFloat(product.price || 0), product.image || '']);
+      }
+    });
+    return categories;
+  }
+
+  function refreshAssignmentCategoryOptions() {
+    const select = document.getElementById('assignTaskProductCategory');
+    if (!select) return;
+    const current = select.value;
+    const categories = getAssignmentCategoryMap();
+    select.innerHTML = '<option value="">Manual / No Category</option>' + Object.entries(categories)
+      .map(([key, category]) => `<option value="${escapeHtml(key)}">${escapeHtml(category.label || key)}</option>`).join('');
+    if (current && categories[current]) select.value = current;
+  }
+
   // Category preset tab definitions
   const PRESET_CATEGORIES = [
     { key: 'outdoor',             emoji: '📦', label: 'Outdoor' },
@@ -1142,7 +1168,14 @@
     const tabsRow = document.getElementById('categoryTabsRow');
     if (!tabsRow) return;
     tabsRow.innerHTML = '';
-    PRESET_CATEGORIES.forEach((cat, i) => {
+    const categories = getAssignmentCategoryMap();
+    const presetKeys = new Set(PRESET_CATEGORIES.map(cat => cat.key));
+    const allCategories = PRESET_CATEGORIES.concat(
+      Object.entries(categories)
+        .filter(([key]) => !presetKeys.has(key))
+        .map(([key, category]) => ({ key, emoji: '🧩', label: category.label || key }))
+    );
+    allCategories.forEach((cat, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.cat = cat.key;
@@ -1159,7 +1192,8 @@
       btn.onclick = () => window.switchPresetCategory(btn, cat.key);
       tabsRow.appendChild(btn);
     });
-    window.switchPresetCategory(tabsRow.querySelector('[data-cat="' + (defaultCat || 'outdoor') + '"]') || tabsRow.firstChild, defaultCat || 'outdoor');
+    const initial = categories[defaultCat] ? defaultCat : 'outdoor';
+    window.switchPresetCategory(tabsRow.querySelector('[data-cat="' + initial + '"]') || tabsRow.firstChild, initial);
   };
 
   window.switchPresetCategory = function(btn, catKey) {
@@ -1172,7 +1206,7 @@
     // Render products for this category
     const row = document.getElementById('categoryProductsRow');
     if (!row) return;
-    const cat = TASK_PRODUCT_CATEGORIES[catKey];
+    const cat = getAssignmentCategoryMap()[catKey];
     if (!cat || !cat.products || cat.products.length === 0) {
       row.innerHTML = '<span style="color:#94a3b8;font-size:12px;">No products in this category.</span>';
       return;
@@ -1206,7 +1240,7 @@
     if (!categoryEl || !productEl) return;
 
     const categoryKey = categoryEl.value;
-    const category = TASK_PRODUCT_CATEGORIES[categoryKey];
+    const category = getAssignmentCategoryMap()[categoryKey];
     productEl.innerHTML = '';
 
     if (!category) {
@@ -1232,7 +1266,7 @@
     const productPriceEl = document.getElementById('assignTaskProductPrice');
     if (!categoryEl || !productEl || !productNameEl || !productPriceEl) return;
 
-    const category = TASK_PRODUCT_CATEGORIES[categoryEl.value];
+    const category = getAssignmentCategoryMap()[categoryEl.value];
     if (!category || !productEl.value || productEl.value === CATEGORY_RANDOM_VALUE) {
       productNameEl.value = '';
       productPriceEl.value = '';
@@ -2592,8 +2626,11 @@
     if (res && res.success && Array.isArray(res.products)) {
       state.products = res.products;
       renderProductsTable(state.products);
+      refreshAssignmentCategoryOptions();
+      return state.products;
     } else {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load products.</td></tr>`;
+      return [];
     }
   };
 
@@ -2615,10 +2652,10 @@
       return `
         <tr>
           <td>
-            <img src="${img}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" />
+            <img src="${img}" style="width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" />
           </td>
           <td>
-            <div style="font-weight: 700; color: #0f172a; max-width: 320px;">${escapeHtml(p.name)}</div>
+            <div style="font-weight: 700; color: #0f172a; max-width: 420px; line-height: 1.35;">${escapeHtml(p.name)}</div>
           </td>
           <td><span class="badge-status" style="background:#f1f5f9; color:#475569;">${escapeHtml(p.category || 'General')}</span></td>
           <td><strong style="font-size: 15px; color: #0f172a;">$${parseFloat(p.price || 0).toFixed(2)}</strong></td>
