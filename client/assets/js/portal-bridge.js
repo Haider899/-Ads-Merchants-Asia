@@ -1089,7 +1089,7 @@
           <span style="background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px;">Order #${task.order_num}</span>
         </div>
         <div style="text-align: center; margin-bottom: 16px;">
-          <img src="${task.product_image || 'assets/uploads/logo/1742595477_icon.png'}" style="width: 150px; height: 150px; object-fit: contain; object-position: center; display: block; margin: 0 auto 12px; border-radius: 10px; border: 1px solid #f0f0f0; padding: 8px; box-sizing: border-box; background: #fff;" />
+          <img src="${task.product_image || 'assets/uploads/logo/1742595477_icon.png'}" style="width: 220px; height: 220px; object-fit: contain; object-position: center; display: block; margin: 0 auto 14px; border-radius: 10px; border: 1px solid #f0f0f0; padding: 10px; box-sizing: border-box; background: #fff;" />
           <div style="font-weight: 600; font-size: 15px; color: #222; margin-bottom: 6px; line-height: 1.3;">${task.product_name}</div>
           <div style="color: #666; font-size: 13px;">Merchant Value: <strong style="color: #111;">$${task.product_price.toFixed(2)}</strong></div>
         </div>
