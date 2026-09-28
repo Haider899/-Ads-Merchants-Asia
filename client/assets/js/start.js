@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
         startButtonSubmit.disabled = true;
         const startGifImage = document.getElementById('start-gif-image');
         startGifImage.style.display = 'block';
-        startButton.style.top = '-220px';
 
         //const userId = document.getElementById('start-form').getAttribute('data-user_id');
         //console.log(userId);
@@ -555,5 +554,4 @@ const updateTaskOrProductRecord = (task, event) => {
         Swal.fire('Error!', 'There was an error processing your request.', 'error');
     });
 }
-
 

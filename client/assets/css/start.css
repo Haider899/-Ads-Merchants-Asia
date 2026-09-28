@@ -49,56 +49,14 @@
     position: relative;
     overflow: hidden;
 }
-.product-360-orbit {
+.gif-image{
   position: absolute;
-  width: 310px;
-  height: 235px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 1;
-}
-.product-360-ring {
-  position: relative;
+  inset: 0;
   width: 100%;
   height: 100%;
-  animation: product360Rotate 18s linear infinite;
-}
-.product-360-ring::after {
-  content: '';
-  position: absolute;
-  inset: 53px 38px;
-  border: 1px dashed rgba(14, 165, 233, .35);
-  border-radius: 50%;
-}
-.product-360-ring img {
-  position: absolute;
-  width: 48px;
-  height: 48px;
-  padding: 3px;
-  object-fit: cover;
-  border-radius: 50%;
-  background: rgba(255,255,255,.92);
-  border: 2px solid rgba(14, 165, 233, .28);
-  box-shadow: 0 5px 12px rgba(14, 116, 144, .2);
-  animation: product360CounterRotate 18s linear infinite;
-}
-.product-360-ring img:nth-child(1) { left: 132px; top: 2px; }
-.product-360-ring img:nth-child(2) { right: 22px; top: 43px; }
-.product-360-ring img:nth-child(3) { right: 22px; bottom: 35px; }
-.product-360-ring img:nth-child(4) { left: 132px; bottom: 2px; }
-.product-360-ring img:nth-child(5) { left: 22px; bottom: 35px; }
-.product-360-ring img:nth-child(6) { left: 22px; top: 43px; }
-@keyframes product360Rotate { to { transform: rotate(360deg); } }
-@keyframes product360CounterRotate { to { transform: rotate(-360deg); } }
-.start-button-card .start-button { z-index: 3; }
-.start-button-card .gif-image { position: relative; z-index: 4; pointer-events: none; }
-.gif-image{
-  width: 100%;
-  height: 400px;
-  text-align: center;
-  padding-top: 70px;
+  object-fit: fill;
+  z-index: 1;
+  pointer-events: none;
 }
 .start-button {
     display: flex;
@@ -117,7 +75,7 @@
     text-decoration: none;
     color: white !important;
     cursor: pointer;
-    z-index: 2;
+    z-index: 3;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   .start-button:hover {
