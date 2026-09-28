@@ -1991,6 +1991,7 @@
     }
 
     const investmentInput = document.getElementById('investmentAmount');
+    let canonicalInvestmentAmount = 0;
     if (investmentInput) {
       investmentInput.readOnly = false;
       investmentInput.removeAttribute('readonly');
@@ -2015,6 +2016,10 @@
         }
       } catch (_) {}
 
+      // Always prefer the live verified/approved deposit total. The previous
+      // submission is only a fallback when no confirmed deposit is available;
+      // otherwise a stale first-contract amount can overwrite the new value.
+      canonicalInvestmentAmount = verifiedDeposit;
       investmentInput.value = verifiedDeposit ? verifiedDeposit.toFixed(2) : '0.00';
     }
 
@@ -2064,7 +2069,11 @@
       if (kycRes.latest_submission) {
         const sub = kycRes.latest_submission;
         if (sub.name && nameInput) nameInput.value = sub.name;
-        if (sub.investment_amount && investmentInput) investmentInput.value = sub.investment_amount;
+        if (investmentInput && canonicalInvestmentAmount > 0) {
+          investmentInput.value = canonicalInvestmentAmount.toFixed(2);
+        } else if (sub.investment_amount && investmentInput) {
+          investmentInput.value = Number(sub.investment_amount).toFixed(2);
+        }
         if (sub.front_id_image) {
           const frontImg = document.getElementById('frontPreviewImg');
           const frontContainer = document.getElementById('frontPreviewContainer');
