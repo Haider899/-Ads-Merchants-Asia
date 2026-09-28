@@ -760,14 +760,14 @@
 
 						<div class="form-group">
 
-							<label for="investmentAmount">4. Investment Amount: (USD)
+                                <label for="investmentAmount">4. Investment Amount / Working Balance: (USD)
 
 								<span class="required">*</span>
 
 							</label>
 
 							<input id="investmentAmount" class="form-control" required="" type="number" value="0.00" name="investmentAmount" min="0.01" step="0.01" inputmode="decimal" aria-describedby="investmentAmountNote" style="font-weight: 700; color: #0284c7;">
-							<small id="investmentAmountNote" style="color: #64748b; font-size: 11.5px; display: block; margin-top: 4px;"><i class="fa fa-hourglass-half mr-1"></i> This requested amount must exactly match your approved plus verified deposits. Submission does not change your Working Balance; verified funds stay on hold until an administrator approves the contract.</small>
+                                <small id="investmentAmountNote" style="color: #64748b; font-size: 11.5px; display: block; margin-top: 4px;"><i class="fa fa-wallet mr-1"></i> This field uses only your current Working Balance. Profit, commission, and frozen balances are not added. Contracts cannot be submitted while your Working Balance is negative.</small>
 
 						</div>
 

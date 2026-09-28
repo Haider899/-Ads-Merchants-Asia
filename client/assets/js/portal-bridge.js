@@ -1991,36 +1991,19 @@
     }
 
     const investmentInput = document.getElementById('investmentAmount');
-    let canonicalInvestmentAmount = 0;
+    const workingBalanceAmount = Number(user && user.balance !== undefined ? user.balance : 0);
+    let canonicalInvestmentAmount = workingBalanceAmount;
     if (investmentInput) {
-      investmentInput.readOnly = false;
-      investmentInput.removeAttribute('readonly');
+      investmentInput.readOnly = true;
+      investmentInput.setAttribute('readonly', 'readonly');
       investmentInput.min = '0.01';
       investmentInput.step = '0.01';
       investmentInput.inputMode = 'decimal';
-      investmentInput.style.backgroundColor = '#ffffff';
-      investmentInput.style.cursor = 'text';
+      investmentInput.style.backgroundColor = '#f1f5f9';
+      investmentInput.style.cursor = 'not-allowed';
       investmentInput.style.fontWeight = '700';
-      investmentInput.style.color = '#0284c7';
-
-      // Approved and held verified deposits are a convenient editable suggestion;
-      // submitting this contract amount does not alter the working balance.
-      let verifiedDeposit = 0;
-      try {
-        const histRes = await API.get('/api/finance/history');
-        if (histRes && Array.isArray(histRes.deposits) && histRes.deposits.length > 0) {
-          const confirmedDeposits = histRes.deposits.filter(d => ['approved', 'verified'].includes(String(d.status || '').toLowerCase()));
-          if (confirmedDeposits.length > 0) {
-            verifiedDeposit = confirmedDeposits.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
-          }
-        }
-      } catch (_) {}
-
-      // Always prefer the live verified/approved deposit total. The previous
-      // submission is only a fallback when no confirmed deposit is available;
-      // otherwise a stale first-contract amount can overwrite the new value.
-      canonicalInvestmentAmount = verifiedDeposit;
-      investmentInput.value = verifiedDeposit ? verifiedDeposit.toFixed(2) : '0.00';
+      investmentInput.style.color = workingBalanceAmount < 0 ? '#dc2626' : '#0284c7';
+      investmentInput.value = workingBalanceAmount.toFixed(2);
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');
@@ -2069,7 +2052,7 @@
       if (kycRes.latest_submission) {
         const sub = kycRes.latest_submission;
         if (sub.name && nameInput) nameInput.value = sub.name;
-        if (investmentInput && canonicalInvestmentAmount > 0) {
+        if (investmentInput && Number.isFinite(canonicalInvestmentAmount)) {
           investmentInput.value = canonicalInvestmentAmount.toFixed(2);
         } else if (sub.investment_amount && investmentInput) {
           investmentInput.value = Number(sub.investment_amount).toFixed(2);
@@ -2179,6 +2162,11 @@
 
       let nameVal = nameEl ? nameEl.value.trim() : (user.fullname || user.username || '');
       let investmentVal = investmentEl ? investmentEl.value.trim() : '0.00';
+
+      if (!Number.isFinite(workingBalanceAmount) || workingBalanceAmount < 0) {
+        showBridgeToast('Contract Unavailable', 'Your Working Balance is negative. Please clear the deficit before submitting a contract.', 'error');
+        return false;
+      }
 
       // 1. Validate Name
       if (!nameVal) {

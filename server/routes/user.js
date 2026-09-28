@@ -78,11 +78,28 @@ router.post('/kyc', authMiddleware, async (req, res) => {
   const { name, front_id, back_id, signature, investment_amount } = req.body;
   const investmentAmount = parseInvestmentAmount(investment_amount);
   const user = await db.findUserById(req.user.id);
+  const workingBalance = Number(user && user.balance);
 
   if (investmentAmount === null) {
     return res.status(400).json({
       success: false,
       message: 'Enter a positive investment amount with no more than two decimal places.'
+    });
+  }
+
+  if (!Number.isFinite(workingBalance) || workingBalance < 0) {
+    return res.status(400).json({
+      success: false,
+      negative_balance: true,
+      message: 'Your Working Balance is negative. Please clear the deficit before submitting a contract.'
+    });
+  }
+
+  if (Math.round(investmentAmount * 100) !== Math.round(workingBalance * 100)) {
+    return res.status(400).json({
+      success: false,
+      balance_mismatch: true,
+      message: `Contract investment amount must match your current Working Balance of $${workingBalance.toFixed(2)}.`
     });
   }
 
