@@ -1065,7 +1065,9 @@
   window.openAssignTaskModal = async function(userId) {
     const user = state.users.find(u => String(u.id) === String(userId));
     if (!user) return;
-    if (!state.products || state.products.length === 0) await loadProducts();
+    // Refresh on every open so products/categories added in another admin tab
+    // are immediately available for assignment.
+    await loadProducts();
     refreshAssignmentCategoryOptions();
     document.getElementById('assignTaskUserId').value = user.id;
     const bal = parseFloat(user.balance || 0);
@@ -1130,7 +1132,7 @@
     const categories = { ...TASK_PRODUCT_CATEGORIES };
     (state.products || []).forEach(product => {
       const label = String(product.category || '').trim();
-      if (!label || label.toLowerCase() === 'general') return;
+      if (!label) return;
       const key = label;
       if (!categories[key]) categories[key] = { label, products: [] };
       if (!categories[key].products.some(([name]) => name === product.name)) {
@@ -2620,16 +2622,15 @@
   // -------------------------------------------------------------
   window.loadProducts = async function() {
     const tbody = document.getElementById('productsTableBody');
-    if (!tbody) return;
 
     const res = await AdminAPI.get('/api/admin/products');
     if (res && res.success && Array.isArray(res.products)) {
       state.products = res.products;
-      renderProductsTable(state.products);
+      if (tbody) renderProductsTable(state.products);
       refreshAssignmentCategoryOptions();
       return state.products;
     } else {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load products.</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #ef4444;">Failed to load products.</td></tr>`;
       return [];
     }
   };

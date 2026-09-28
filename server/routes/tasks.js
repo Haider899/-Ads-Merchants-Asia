@@ -134,6 +134,14 @@ router.get('/status', authMiddleware, async (req, res) => {
   if (assignedCnt > 0) {
     maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + assignedCnt);
   }
+  const hasCustomAssignment = Boolean(user.custom_order_num);
+  if (hasCustomAssignment) {
+    maxTasks = Math.max(
+      maxTasks,
+      (parseInt(user.today_tasks_completed || 0, 10) || 0) + 1,
+      parseInt(user.custom_order_num, 10) || 0
+    );
+  }
 
   const userTasks = await db.getTasks(user.id);
 
@@ -199,7 +207,7 @@ router.get('/status', authMiddleware, async (req, res) => {
       today_tasks_completed: currentTasksCompleted,
       current_set: user.current_set || 0,
       max_tasks: maxTasks,
-      has_assigned_push_order: assignedCnt > 0,
+      has_assigned_push_order: assignedCnt > 0 || hasCustomAssignment,
       assigned_count: assignedCnt,
       custom_daily_limit: user.custom_daily_limit || null,
       vip_level: user.vip_level,
@@ -259,7 +267,9 @@ router.post('/generate', authMiddleware, async (req, res) => {
     if (assignedCnt > 0) {
       maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + assignedCnt);
     }
-    const hasPushedOrders = (assignedCnt > 0) || (user.custom_order_num && user.custom_order_num > effectiveCompleted);
+    // An active admin assignment must remain startable even when the user's
+    // ordinary daily quota is complete. Other guards below still apply.
+    const hasPushedOrders = (assignedCnt > 0) || Boolean(user.custom_order_num);
 
     // Disabled / Restricted user check
     if (user.status === 'disabled' || user.status === 'banned') {
