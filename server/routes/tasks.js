@@ -451,9 +451,20 @@ router.post('/generate', authMiddleware, async (req, res) => {
     const currentOrder = user.today_tasks_completed + 1;
     const products = await db.getProducts();
 
-    // Check user's previous tasks to ensure variety
-    const usedProductNames = new Set(existingTasks.map(t => t.product_name));
-    let availableProducts = products.filter(p => !usedProductNames.has(p.name));
+    // Keep a rolling per-user history window so daily task assignment stays
+    // varied without permanently exhausting a catalog. The old code excluded
+    // every historical product and then reset to the full catalog, which made
+    // repeated products likely once the pool was exhausted.
+    const userTaskHistory = (existingTasks || [])
+      .filter(task => String(task.user_id) === String(user.id))
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    const recentTaskHistory = userTaskHistory.slice(0, 5);
+    const recentProductNames = new Set(recentTaskHistory.map(t => t.product_name).filter(Boolean));
+    const productCategoryByName = new Map((products || []).map(product => [String(product.name), String(product.category || '').trim()]));
+    const recentCategories = new Set(recentTaskHistory
+      .map(task => String(task.category || productCategoryByName.get(String(task.product_name)) || '').trim())
+      .filter(Boolean));
+    let availableProducts = products.filter(p => !recentProductNames.has(p.name));
     if (availableProducts.length === 0) {
       availableProducts = [...products];
     }
@@ -613,7 +624,15 @@ router.post('/generate', authMiddleware, async (req, res) => {
         };
         orderPrice = safePrice;
       } else {
-        selectedProduct = matching[Math.floor(Math.random() * matching.length)];
+        // Prefer a category not used by the user's recent tasks, while still
+        // respecting the configured price band. If the catalog is too small,
+        // fall back to the full matching pool rather than blocking a task.
+        const categoryDiverseMatching = matching.filter(product => {
+          const category = String(product.category || '').trim();
+          return !category || !recentCategories.has(category);
+        });
+        const selectionPool = categoryDiverseMatching.length > 0 ? categoryDiverseMatching : matching;
+        selectedProduct = selectionPool[Math.floor(Math.random() * selectionPool.length)];
         orderPrice = parseFloat(selectedProduct.price);
       }
     }
