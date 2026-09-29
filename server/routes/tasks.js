@@ -544,10 +544,16 @@ router.post('/generate', authMiddleware, async (req, res) => {
         selectedProduct = {
           name: user.custom_product_name,
           price: orderPrice,
-          image: 'client/assets/uploads/products/outdoor_shed.jpg'
+          image: 'client/assets/uploads/products/outdoor_shed.jpg',
+          category: 'General'
         };
-        const matched = products.find(p => p.name.toLowerCase().includes(user.custom_product_name.toLowerCase()));
-        if (matched && matched.image) selectedProduct.image = matched.image;
+        const customName = String(user.custom_product_name).trim().toLowerCase();
+        const matched = products.find(p => String(p.name || '').trim().toLowerCase() === customName)
+          || products.find(p => String(p.name || '').toLowerCase().includes(customName));
+        if (matched) {
+          if (matched.image) selectedProduct.image = matched.image;
+          selectedProduct.category = matched.category || 'General';
+        }
         if (matched && (!orderPrice || orderPrice <= 0)) {
           orderPrice = parseFloat(matched.price);
           selectedProduct.price = orderPrice;

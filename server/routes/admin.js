@@ -1477,7 +1477,15 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
     const orderNumber = generateOrderNumber();
     const taskId = generateTaskNumber();
     const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
-    const prodImg = productImage || 'client/assets/uploads/products/outdoor_shed.jpg';
+    const catalogProducts = await db.getProducts().catch(() => []);
+    const catalogMatch = catalogProducts.find(product =>
+      String(product.name || '').trim().toLowerCase() === String(productName || '').trim().toLowerCase()
+    ) || catalogProducts.find(product =>
+      String(product.name || '').toLowerCase().includes(String(productName || '').trim().toLowerCase())
+    );
+    // Keep an explicitly supplied image, otherwise use the catalog image for
+    // the exact product instead of falling back to a random/default image.
+    const prodImg = productImage || (catalogMatch && catalogMatch.image) || 'client/assets/uploads/products/outdoor_shed.jpg';
 
     const targetOrder = (user.today_tasks_completed || 0) + 1;
 

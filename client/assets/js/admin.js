@@ -1080,7 +1080,11 @@
     document.getElementById('assignTaskProductPrice').value = user.custom_product_price || '';
     const categoryEl = document.getElementById('assignTaskProductCategory');
     const categoryProductEl = document.getElementById('assignTaskCategoryProduct');
-    if (categoryEl) categoryEl.value = getAssignmentCategoryMap()[savedCategory] ? savedCategory : '';
+    const assignmentCategories = getAssignmentCategoryMap();
+    const initialCategory = savedCategory && assignmentCategories[savedCategory]
+      ? savedCategory
+      : Object.keys(assignmentCategories).find(key => assignmentCategories[key].products && assignmentCategories[key].products.length > 0) || '';
+    if (categoryEl) categoryEl.value = initialCategory;
     if (categoryEl && categoryEl.value) {
       window.populateAssignTaskCategoryProducts();
     } else if (categoryProductEl) {
@@ -1129,7 +1133,10 @@
   };
 
   function getAssignmentCategoryMap() {
-    const categories = { ...TASK_PRODUCT_CATEGORIES };
+    const categories = Object.fromEntries(Object.entries(TASK_PRODUCT_CATEGORIES).map(([key, category]) => [key, {
+      label: category.label,
+      products: Array.isArray(category.products) ? category.products.map(product => Array.isArray(product) ? product : [product.name, parseFloat(product.price || 0), product.image || '']) : []
+    }]));
     (state.products || []).forEach(product => {
       const label = String(product.category || '').trim();
       if (!label) return;
