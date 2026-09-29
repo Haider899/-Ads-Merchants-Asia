@@ -58,6 +58,37 @@
   z-index: 1;
   pointer-events: none;
 }
+.start-product-orbit{
+  --orbit-radius: 114px;
+  position: absolute;
+  inset: 0;
+  display: none;
+  width: min(100%, 300px);
+  height: min(100%, 300px);
+  margin: auto;
+  pointer-events: none;
+  z-index: 2;
+}
+.start-product-orbit.is-active{display:block; animation:start-product-orbit-spin 12s linear infinite;}
+.start-product-orbit-item{
+  position:absolute;
+  top:50%; left:50%;
+  width:48px; height:48px;
+  margin:-24px 0 0 -24px;
+  padding:3px;
+  border:2px solid rgba(255,255,255,.95);
+  border-radius:13px;
+  background:#fff;
+  box-shadow:0 4px 14px rgba(15,23,42,.2);
+  object-fit:contain;
+  transform:rotate(var(--orbit-angle)) translateY(calc(-1 * var(--orbit-radius)));
+}
+@keyframes start-product-orbit-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@media(max-width:480px){
+  .start-product-orbit{--orbit-radius:min(31vw,108px)}
+  .start-product-orbit-item{width:42px;height:42px;margin:-21px 0 0 -21px}
+}
+@media(prefers-reduced-motion:reduce){.start-product-orbit.is-active{animation-duration:60s}}
 .start-button {
     display: flex;
     flex-direction: column;

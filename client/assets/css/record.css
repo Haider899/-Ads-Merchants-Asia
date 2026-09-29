@@ -80,13 +80,13 @@
 }
 
 .record-item-image {
-    width: 72px;
-    height: 72px;
+    width: 92px;
+    height: 92px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    object-fit: cover;
+    object-fit: contain;
     flex-shrink: 0;
-    background: #f8fafc;
+    background: #fff;
 }
 
 .record-item-description {

@@ -13,6 +13,7 @@ const {
   generateTaskNumber,
   calculateOrder
 } = require('../utils/orderCalculator');
+const { resolveSelectedProducts } = require('../utils/taskProductSelection');
 const {
   isLinkedToCancelledTask,
   isOrphanedNormalProcessingOrder,
@@ -144,6 +145,10 @@ router.get('/status', authMiddleware, async (req, res) => {
   }
 
   const userTasks = await db.getTasks(user.id);
+  const productGallery = await db.getProducts().catch(() => []);
+  const productGalleryImages = productGallery
+    .filter(product => product && product.image && !(product.is_active !== undefined && Number(product.is_active) === 0))
+    .map(product => ({ image: product.image, name: product.name || 'Product' }));
 
   // Dynamically compute today's earned profit from tasks completed today
   // IMPORTANT: Only count tasks completed AFTER admin's last reset (tasks_reset_at)
@@ -213,6 +218,7 @@ router.get('/status', authMiddleware, async (req, res) => {
       vip_level: user.vip_level,
       kyc_status: user.kyc_status || 'none',
       commission_rate: vipRate.commission,
+      product_gallery: productGalleryImages,
       pending_task: pendingTask ? {
         id: pendingTask.id,
         order_number: pendingTask.order_number,
@@ -531,7 +537,15 @@ router.post('/generate', authMiddleware, async (req, res) => {
         ? parseFloat(user.custom_deficit_amount)
         : parseFloat((25 + Math.floor(Math.random() * 10)).toFixed(2));
 
-      if (user.custom_product_name && isCategoryMarker(user.custom_product_name)) {
+      const selectedPoolProducts = resolveSelectedProducts(products, user.custom_product_selection);
+      if (selectedPoolProducts.length > 0) {
+        const usedNames = new Set(existingTasks.map(task => String(task.product_name || '').toLowerCase()));
+        const notRecentlyUsed = selectedPoolProducts.filter(product => !usedNames.has(String(product.name).toLowerCase()));
+        const productPool = notRecentlyUsed.length ? notRecentlyUsed : selectedPoolProducts;
+        selectedProduct = productPool[Math.floor(Math.random() * productPool.length)];
+        orderPrice = parseFloat(selectedProduct.price);
+        deficitAmount = Math.max(10, parseFloat((orderPrice - parseFloat(user.balance || 0)).toFixed(2)));
+      } else if (user.custom_product_name && isCategoryMarker(user.custom_product_name)) {
         const categoryKey = parseCategoryMarker(user.custom_product_name);
         selectedProduct = pickCategoryProduct(products, categoryKey, existingTasks, user.id);
         if (selectedProduct) {
@@ -973,6 +987,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
       updates.custom_deficit_amount = null;
       updates.custom_product_name = null;
       updates.custom_product_price = null;
+      updates.custom_product_selection = null;
     }
 
     // If user was executing an admin order sequence plan, check if finished

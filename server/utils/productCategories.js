@@ -54,7 +54,12 @@ const TASK_PRODUCT_CATEGORIES = [
 ];
 
 function getCategory(key) {
-  return TASK_PRODUCT_CATEGORIES.find(category => category.key === key) || null;
+  if (typeof key !== 'string' || !key.trim()) return null;
+  return TASK_PRODUCT_CATEGORIES.find(category => category.key === key) || {
+    key: key.trim(),
+    label: key.trim(),
+    customCategory: true
+  };
 }
 
 function getCatalogCategory(key) {
@@ -63,6 +68,7 @@ function getCatalogCategory(key) {
   return {
     key: String(key).trim(),
     label: String(key).trim(),
+    customCategory: true,
     catalogOnly: true,
     matchesProduct: product => String(product && product.category || '').trim().toLowerCase() === normalized
   };
@@ -82,11 +88,16 @@ function parseCategoryMarker(value) {
 
 function productMatchesCategory(product, category) {
   if (!product || !category) return false;
+  if (product.is_active !== undefined && product.is_active !== null && Number(product.is_active) === 0) return false;
   if (category.catalogOnly && typeof category.matchesProduct === 'function') {
     return category.matchesProduct(product);
   }
   const price = parseFloat(product.price || 0);
   const name = String(product.name || '').toLowerCase();
+  const productCategory = String(product.category || '').trim().toLowerCase();
+  const categoryNames = [category.key, category.label].filter(Boolean).map(value => String(value).trim().toLowerCase());
+  if (productCategory && categoryNames.includes(productCategory)) return true;
+  if (category.customCategory) return false;
 
   if (category.minPrice !== undefined && price >= category.minPrice) {
     return true;

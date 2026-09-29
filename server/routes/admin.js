@@ -18,6 +18,7 @@ const {
   generateTaskNumber,
   calculateOrder
 } = require('../utils/orderCalculator');
+const { normalizeProductSelection } = require('../utils/taskProductSelection');
 
 // Role-based permission guard helper
 function checkRole(...allowedRoles) {
@@ -574,7 +575,7 @@ router.post('/users/:id/toggle-status', adminAuthMiddleware, checkRole('sub_admi
 // POST /api/admin/users/assign-task - Assign / push task with forced deficit or schedule custom task
 router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
-    const { userId, orderNum, deficitAmount, productName, productPrice, productCategory, categoryProduct, pushImmediate, clearCustom } = req.body;
+    const { userId, orderNum, deficitAmount, productName, productPrice, productCategory, categoryProduct, pushImmediate, clearCustom, selectedProducts } = req.body;
 
     if (!userId) {
       return res.status(400).json({ success: false, message: 'User ID is required.' });
@@ -590,7 +591,8 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
         custom_order_num: null,
         custom_deficit_amount: null,
         custom_product_name: null,
-        custom_product_price: null
+        custom_product_price: null,
+        custom_product_selection: null
       });
       return res.json({ success: true, message: 'Custom task override successfully cleared for this user.' });
     }
@@ -604,6 +606,12 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     // Get catalog products to match images or fallback
     const products = await db.getProducts();
     const allTasks = await db.getTasks().catch(() => []);
+    let validatedSelection = [];
+    if (Array.isArray(selectedProducts) && selectedProducts.length > 0) {
+      const validation = normalizeProductSelection(products, selectedProducts);
+      if (!validation.ok) return res.status(400).json({ success: false, message: validation.error });
+      validatedSelection = validation.selection;
+    }
     // Built-in categories use keyword matching; catalog categories use the product.category field.
     const selectedCategory = getCategory(productCategory) || (
       productCategory && String(productCategory).trim()
@@ -681,8 +689,9 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     await db.updateUser(userId, {
       custom_order_num: targetOrder,
       custom_deficit_amount: defAmount,
-      custom_product_name: assignedProdName,
-      custom_product_price: pPrice
+      custom_product_name: validatedSelection.length ? null : assignedProdName,
+      custom_product_price: validatedSelection.length ? null : pPrice,
+      custom_product_selection: validatedSelection.length ? validatedSelection : null
     });
 
     await db.createAuditLog({
@@ -697,7 +706,7 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
 
     return res.json({
       success: true,
-      message: `Task assigned successfully for Order #${targetOrder} (${pName || 'Item'}, Price: $${pPrice.toFixed(2)}, Deficit: $${defAmount.toFixed(2)}). The task will appear when the user starts work. Balance will deduct when user starts the order.`,
+      message: `Task #${targetOrder} assigned with ${validatedSelection.length ? `${validatedSelection.length} selected product option(s)` : `${pName || 'Item'} at $${pPrice.toFixed(2)}`}. It will appear when the user starts work. Balance changes only when the order starts.`,
       target_order: targetOrder,
       product_name: pName,
       product_price: pPrice,
@@ -1524,7 +1533,8 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
       custom_order_num: targetOrder,
       custom_deficit_amount: calc.funding_shortfall,
       custom_product_name: productName || 'Amazon Asia Merchant Order',
-      custom_product_price: calc.gross_amount
+      custom_product_price: calc.gross_amount,
+      custom_product_selection: null
     });
 
     // Record audit log
@@ -1562,6 +1572,9 @@ router.post('/orders/:id/status', adminAuthMiddleware, checkRole('sub_admin'), a
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+    const linkedTask = order.task_id
+      ? (await db.getTasks(order.user_id).catch(() => [])).find(task => String(task.id) === String(order.task_id))
+      : null;
 
     const updates = { order_status: status };
     if (status === 'COMPLETED') {
@@ -1605,6 +1618,15 @@ router.post('/orders/:id/status', adminAuthMiddleware, checkRole('sub_admin'), a
       } else if (status === 'COMPLETED') {
         await db.updateTask(order.task_id, { status: 'completed' }).catch(() => {});
       }
+    }
+
+    if (status === 'CANCELLED' && order.order_status !== 'CANCELLED') {
+      await db.createNotification({
+        user_id: order.user_id,
+        type: 'warning',
+        title: `${linkedTask ? `Task #${linkedTask.order_num} / ` : ''}Order ${order.order_number} Cancelled`,
+        message: `Admin cancelled ${linkedTask ? `Task #${linkedTask.order_num} (Order ${order.order_number})` : `Order ${order.order_number}`}${refundUser ? ' and returned any reserved balance' : ''}.`
+      }).catch(() => {});
     }
 
     await db.createAuditLog({
@@ -1801,6 +1823,13 @@ router.delete('/tasks/:id', adminAuthMiddleware, checkRole('sub_admin'), async (
           payment_status: 'CANCELLED'
         }).catch(() => {});
       }
+
+      await db.createNotification({
+        user_id: task.user_id,
+        type: 'warning',
+        title: `Task #${task.order_num || task.id} Cancelled`,
+        message: `Admin cancelled your pending Task #${task.order_num || task.id}${task.order_number ? ` (Order ${task.order_number})` : ''} for ${task.product_name || 'a product'}. Any reserved amount has been refunded.`
+      }).catch(() => {});
     }
 
     await db.query('DELETE FROM tasks WHERE id = ?', [task.id]);

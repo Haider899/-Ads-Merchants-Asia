@@ -56,6 +56,38 @@
       : 'Your current balance is insufficient to complete this order. Please recharge your account to proceed with the order.';
   }
 
+  function renderStartProductOrbit(products) {
+    const orbit = document.getElementById('startProductOrbit');
+    if (!orbit || !Array.isArray(products)) return;
+    const uniqueProducts = [];
+    const seenImages = new Set();
+    products.forEach(product => {
+      const image = typeof product === 'string' ? product : (product && product.image);
+      if (!image || seenImages.has(image)) return;
+      seenImages.add(image);
+      uniqueProducts.push({ image, name: (product && product.name) || 'Product' });
+    });
+    orbit.replaceChildren();
+    uniqueProducts.slice(0, 12).forEach((product, index, items) => {
+      const image = document.createElement('img');
+      const source = String(product.image);
+      image.src = /^(https?:|data:|\/)/i.test(source) ? source : `/${source.replace(/^\.\//, '')}`;
+      image.alt = '';
+      image.title = product.name;
+      image.className = 'start-product-orbit-item';
+      image.style.setProperty('--orbit-angle', `${(360 / items.length) * index}deg`);
+      image.onerror = () => image.remove();
+      orbit.appendChild(image);
+    });
+  }
+
+  function setStartProductOrbitActive(isActive) {
+    const orbit = document.getElementById('startProductOrbit');
+    const announcement = document.getElementById('startMatchingAnnouncement');
+    if (orbit) orbit.classList.toggle('is-active', Boolean(isActive) && orbit.childElementCount > 0);
+    if (announcement) announcement.textContent = isActive ? 'Matching your product order.' : '';
+  }
+
   // Global API Helper with Automatic Token & Credentials Integration
   window.API = {
     async get(endpoint) {
@@ -795,6 +827,7 @@
   async function initStartPage(user) {
     const taskStatus = await API.get('/api/tasks/status');
     if (taskStatus && taskStatus.success) {
+      renderStartProductOrbit(taskStatus.data && taskStatus.data.product_gallery);
       if (window.__currentUser && taskStatus.data) {
         window.__currentUser.balance = taskStatus.data.balance;
         window.__currentUser.commission_balance = taskStatus.data.commission_balance;
@@ -856,9 +889,14 @@
         const textEl = document.getElementById('start-button-text') || startBtn;
         const originalText = textEl.textContent;
         textEl.textContent = 'Matching...';
+        setStartProductOrbitActive(true);
 
         try {
-          const res = await API.post('/api/tasks/generate', {});
+          const [res] = await Promise.all([
+            API.post('/api/tasks/generate', {}),
+            new Promise(resolve => setTimeout(resolve, 1100))
+          ]);
+          setStartProductOrbitActive(false);
           startBtn.removeAttribute('data-processing');
           textEl.textContent = originalText;
 
@@ -934,6 +972,7 @@
             showBridgeToast('Optimization Notice', (res && res.message) || 'Unable to grab order at this time.', 'error');
           }
         } catch (err) {
+          setStartProductOrbitActive(false);
           startBtn.removeAttribute('data-processing');
           textEl.textContent = originalText;
           showBridgeToast('Error', 'Could not match task.', 'error');

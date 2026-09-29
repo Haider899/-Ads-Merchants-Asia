@@ -71,6 +71,7 @@ async function ensureUserTaskSettingColumns() {
       { name: 'custom_deficit_amount', type: 'DECIMAL(15,2) DEFAULT NULL' },
       { name: 'custom_product_name', type: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'custom_product_price', type: 'DECIMAL(15,2) DEFAULT NULL' },
+      { name: 'custom_product_selection', type: 'TEXT DEFAULT NULL' },
       { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
       { name: 'custom_min_withdraw', type: 'DECIMAL(15,2) DEFAULT NULL' },
       { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
@@ -203,6 +204,13 @@ const db = {
       custom_order_num: u.custom_order_num ? parseInt(u.custom_order_num, 10) : null,
       custom_deficit_amount: u.custom_deficit_amount !== null && u.custom_deficit_amount !== undefined ? parseFloat(u.custom_deficit_amount) : null,
       custom_product_price: u.custom_product_price !== null && u.custom_product_price !== undefined ? parseFloat(u.custom_product_price) : null,
+      custom_product_selection: (() => {
+        if (!u.custom_product_selection) return [];
+        try {
+          const parsed = typeof u.custom_product_selection === 'string' ? JSON.parse(u.custom_product_selection) : u.custom_product_selection;
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (_) { return []; }
+      })(),
       custom_daily_limit: u.custom_daily_limit !== null && u.custom_daily_limit !== undefined ? parseInt(u.custom_daily_limit, 10) : null,
       custom_min_withdraw: u.custom_min_withdraw !== null && u.custom_min_withdraw !== undefined ? parseFloat(u.custom_min_withdraw) : null,
       task_sequence_plan: (() => {
@@ -355,7 +363,7 @@ const db = {
       'vip_level', 'balance', 'frozen_balance', 'today_profit', 
       'today_tasks_completed', 'total_tasks_completed', 'current_set', 
       'invite_code', 'kyc_status', 'kyc_notes', 'status',
-      'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price',
+      'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price', 'custom_product_selection',
       'custom_daily_limit', 'custom_min_withdraw', 'task_sequence_plan', 'last_reset_date', 'tasks_reset_at',
       'commission_balance', 'country_code', 'country_name', 'last_ip'
     ];
@@ -367,7 +375,7 @@ const db = {
           continue;
         }
         let val = updates[key];
-        if (key === 'task_sequence_plan' && typeof val === 'object' && val !== null) {
+        if ((key === 'task_sequence_plan' || key === 'custom_product_selection') && typeof val === 'object' && val !== null) {
           val = JSON.stringify(val);
         } else if (key === 'tasks_reset_at' && val) {
           val = formatMySQLDate(val);

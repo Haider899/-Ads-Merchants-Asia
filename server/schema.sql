@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
   custom_deficit_amount DECIMAL(15,2) DEFAULT NULL,
   custom_product_name VARCHAR(255) DEFAULT NULL,
   custom_product_price DECIMAL(15,2) DEFAULT NULL,
+  custom_product_selection TEXT DEFAULT NULL,
   custom_daily_limit INT DEFAULT NULL,
   custom_min_withdraw DECIMAL(15,2) DEFAULT NULL,
   task_sequence_plan TEXT DEFAULT NULL,

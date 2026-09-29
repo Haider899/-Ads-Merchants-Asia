@@ -325,6 +325,9 @@
     chatConversations: [],
     activeChatUserId: null
   };
+  let selectedAssignmentProductIds = new Set();
+  let selectedProductPriceOverrides = new Map();
+  let selectedProductCategories = new Set();
 
   // ==========================================
   // REAL-TIME AUDIO ALERTS & RINGING ENGINE
@@ -1115,6 +1118,7 @@
     window.switchAssignTaskTab('single');
 
     AdminUI.openModal('assignTaskModal');
+    renderAdminMultiProductPicker(Array.isArray(user.custom_product_selection) ? user.custom_product_selection : []);
     // Initialize the 10-category tab preset UI
     setTimeout(() => window.initCategoryPresetTabs(savedCategory || 'outdoor'), 50);
   };
@@ -1157,6 +1161,127 @@
     select.innerHTML = '<option value="">Manual / No Category</option>' + Object.entries(categories)
       .map(([key, category]) => `<option value="${escapeHtml(key)}">${escapeHtml(category.label || key)}</option>`).join('');
     if (current && categories[current]) select.value = current;
+  }
+
+  function renderAdminMultiProductPicker(savedSelection = null) {
+    const categoryHost = document.getElementById('assignTaskMultiCategoryChecks');
+    const productsHost = document.getElementById('assignTaskMultiProductRows');
+    const summary = document.getElementById('assignTaskMultiSelectionSummary');
+    if (!categoryHost || !productsHost || !summary) return;
+
+    if (Array.isArray(savedSelection)) {
+      selectedAssignmentProductIds = new Set(savedSelection.map(item => String(item.product_id)));
+      selectedProductPriceOverrides = new Map(savedSelection.map(item => [String(item.product_id), String(item.price)]));
+      selectedProductCategories = new Set((state.products || [])
+        .filter(product => selectedAssignmentProductIds.has(String(product.id)))
+        .map(product => String(product.category || 'General').trim() || 'General'));
+    }
+
+    const activeProducts = (state.products || []).filter(product => product && product.id !== undefined &&
+      (product.is_active === undefined || Number(product.is_active) !== 0));
+    const categories = Array.from(new Set(activeProducts.map(product => String(product.category || 'General').trim() || 'General')))
+      .sort((a, b) => a.localeCompare(b));
+
+    categoryHost.replaceChildren();
+    categories.forEach(category => {
+      const label = document.createElement('label');
+      Object.assign(label.style, { display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 9px', border: '1px solid #cbd5e1', borderRadius: '18px', background: '#fff', color: '#334155', fontSize: '12px', fontWeight: '650', cursor: 'pointer' });
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = selectedProductCategories.has(category);
+      checkbox.dataset.category = category;
+      checkbox.style.accentColor = '#2563eb';
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) selectedProductCategories.add(category);
+        else {
+          selectedProductCategories.delete(category);
+          activeProducts.filter(product => (String(product.category || 'General').trim() || 'General') === category)
+            .forEach(product => selectedAssignmentProductIds.delete(String(product.id)));
+        }
+        renderAdminMultiProductPicker();
+      });
+      const text = document.createElement('span');
+      text.textContent = category;
+      label.append(checkbox, text);
+      categoryHost.appendChild(label);
+    });
+
+    productsHost.replaceChildren();
+    const visibleProducts = activeProducts.filter(product => selectedProductCategories.has(String(product.category || 'General').trim() || 'General'));
+    if (!categories.length || !selectedProductCategories.size || !visibleProducts.length) {
+      const empty = document.createElement('small');
+      empty.textContent = !categories.length ? 'No active catalog products are available.' : 'Select one or more categories above to see their products.';
+      empty.style.color = '#64748b';
+      productsHost.appendChild(empty);
+    }
+
+    visibleProducts.forEach(product => {
+      const id = String(product.id);
+      const row = document.createElement('div');
+      Object.assign(row.style, { display: 'grid', gridTemplateColumns: '24px 48px minmax(0,1fr) 112px', gap: '9px', alignItems: 'center', padding: '7px 9px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '9px' });
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = selectedAssignmentProductIds.has(id);
+      checkbox.dataset.productId = id;
+      checkbox.setAttribute('aria-label', `Select ${product.name}`);
+      checkbox.style.accentColor = '#2563eb';
+      const image = document.createElement('img');
+      const imageUrl = String(product.image || '');
+      image.src = /^(https?:|data:|\/)/i.test(imageUrl) ? imageUrl : `/${imageUrl.replace(/^\.\//, '')}`;
+      image.alt = '';
+      image.loading = 'lazy';
+      Object.assign(image.style, { width: '46px', height: '46px', objectFit: 'contain', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '7px', padding: '2px' });
+      image.onerror = () => { image.style.visibility = 'hidden'; };
+      const details = document.createElement('div');
+      details.style.minWidth = '0';
+      const name = document.createElement('div');
+      name.textContent = product.name || 'Product';
+      name.title = product.name || '';
+      Object.assign(name.style, { color: '#1e293b', fontSize: '12px', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+      const category = document.createElement('small');
+      category.textContent = String(product.category || 'General');
+      category.style.color = '#64748b';
+      details.append(name, category);
+      const price = document.createElement('input');
+      price.type = 'number';
+      price.min = '0.01';
+      price.step = '0.01';
+      price.value = selectedProductPriceOverrides.get(id) || String(parseFloat(product.price || 0).toFixed(2));
+      price.disabled = !checkbox.checked;
+      price.dataset.productPrice = id;
+      price.setAttribute('aria-label', `Price for ${product.name}`);
+      price.className = 'form-control';
+      Object.assign(price.style, { width: '112px', padding: '5px 7px', fontSize: '12px' });
+      checkbox.addEventListener('change', () => {
+        price.disabled = !checkbox.checked;
+        if (checkbox.checked) selectedAssignmentProductIds.add(id);
+        else selectedAssignmentProductIds.delete(id);
+        updateSelectedProductSummary();
+      });
+      price.addEventListener('input', () => {
+        selectedProductPriceOverrides.set(id, price.value);
+        updateSelectedProductSummary();
+      });
+      row.append(checkbox, image, details, price);
+      productsHost.appendChild(row);
+    });
+    updateSelectedProductSummary();
+
+    function updateSelectedProductSummary() {
+      const selectedCount = productsHost.querySelectorAll('input[type="checkbox"]:checked').length;
+      summary.textContent = selectedCount
+        ? `${selectedCount} product option${selectedCount === 1 ? '' : 's'} selected. One option will be used at its edited price.`
+        : 'No multi-product selection yet. You can still use a single preset or manual product below.';
+    }
+  }
+
+  function collectSelectedAssignmentProducts() {
+    const productsHost = document.getElementById('assignTaskMultiProductRows');
+    if (!productsHost) return [];
+    return Array.from(productsHost.querySelectorAll('input[type="checkbox"][data-product-id]:checked')).map(checkbox => {
+      const price = checkbox.parentElement.querySelector('input[data-product-price]');
+      return { productId: checkbox.dataset.productId, price: price ? price.value : '' };
+    });
   }
 
   // Category preset tab definitions
@@ -3364,6 +3489,17 @@
         const productCategory = document.getElementById('assignTaskProductCategory')?.value || '';
         const categoryProduct = document.getElementById('assignTaskCategoryProduct')?.value || '';
         const pushImmediate = document.getElementById('assignTaskPushImmediate')?.checked || false;
+        const selectedProducts = collectSelectedAssignmentProducts();
+        const checkedProductCategories = document.querySelectorAll('#assignTaskMultiCategoryChecks input[type="checkbox"]:checked').length;
+
+        if (checkedProductCategories > 0 && selectedProducts.length === 0) {
+          AdminUI.toast('Select Products', 'You checked product categories. Please also check at least one product, or clear the category checkboxes to use a quick preset.', 'warning');
+          return;
+        }
+        if (selectedProducts.some(product => !/^\d+(?:\.\d{1,2})?$/.test(String(product.price)) || Number(product.price) <= 0)) {
+          AdminUI.toast('Invalid Product Price', 'Each selected product needs a valid price greater than zero with no more than two decimals.', 'warning');
+          return;
+        }
 
         const res = await AdminAPI.post('/api/admin/users/assign-task', {
           userId,
@@ -3373,7 +3509,8 @@
           productPrice,
           productCategory,
           categoryProduct,
-          pushImmediate
+          pushImmediate,
+          selectedProducts
         });
 
         if (res && res.success) {
