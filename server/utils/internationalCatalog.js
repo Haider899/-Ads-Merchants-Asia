@@ -1,8 +1,9 @@
 const image = name => `client/assets/uploads/products/${name}.jpg`;
+const { EXPANDED_CATALOG } = require('./catalogExpansion');
 
 // Common international marketplace products. Images point to the local product-photo
 // library so admin assignments and user task cards render consistently offline.
-const INTERNATIONAL_CATALOG = [
+const INITIAL_CATALOG = [
   // Budget Accessories
   ['Stanley Quencher Reusable Straw Replacement Pack, 4-Pack', 9.99, 'budget', image('stanley_straws')],
   ['Logitech M185 Wireless Compact Mouse with Nano USB Receiver', 12.99, 'budget', image('logitech_mouse')],
@@ -132,5 +133,7 @@ const INTERNATIONAL_CATALOG = [
   commission_rate: 0.20,
   reward_rate: 0.20
 }));
+
+const INTERNATIONAL_CATALOG = [...INITIAL_CATALOG, ...EXPANDED_CATALOG];
 
 module.exports = { INTERNATIONAL_CATALOG };
