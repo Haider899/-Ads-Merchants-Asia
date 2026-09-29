@@ -2,6 +2,7 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { calculateDepositContractMatch } = require('./utils/depositContractMatch');
+const { INTERNATIONAL_CATALOG } = require('./utils/internationalCatalog');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -37,6 +38,7 @@ let _tasksTableEnsured = false;
 let _adminsTableEnsured = false;
 let _chatMessagesTableEnsured = false;
 let _notificationsTableEnsured = false;
+let _catalogSeeded = false;
 let _userTaskSettingColsEnsured = false;
 let _financialTablesEnsured = false;
 let _cachedUserCols = null;
@@ -1133,43 +1135,53 @@ const db = {
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         price DECIMAL(15,2) NOT NULL,
-        image VARCHAR(255)
+        image VARCHAR(255),
+        category VARCHAR(100) DEFAULT 'General',
+        sku VARCHAR(100) DEFAULT NULL,
+        is_active TINYINT(1) DEFAULT 1,
+        commission_rate DECIMAL(5,4) DEFAULT 0.2000,
+        reward_rate DECIMAL(5,4) DEFAULT 0.2000
       )`);
       _productsTableEnsured = true;
     }
-    const rows = await query(`SELECT * FROM products WHERE image NOT LIKE '%icon.png%' AND image NOT LIKE '%logo%'`);
-    if (rows.length === 0) {
-      const defaultProducts = [
-        ['Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)', 3674.00, 'client/assets/uploads/products/outdoor_shed.jpg'],
-        ['Bulk 15000 PCS Foam Glow Sticks with 3 Modes Colorful Flashing, Glow in Dark Party Supplies', 1856.00, 'client/assets/uploads/products/glow_sticks.jpg'],
-        ['Sony WH-1000XM5 Wireless Noise-Canceling Over-Ear Headphones, Black', 398.00, 'client/assets/uploads/products/sony_headphones.jpg'],
-        ['Apple iPhone 16 Pro Max 256GB - Desert Titanium, 5G Unlocked', 1199.00, 'client/assets/uploads/products/iphone_16.jpg'],
-        ['Dyson V15 Detect Cordless Vacuum Cleaner with Laser Dust Detection, Yellow/Iron', 749.99, 'client/assets/uploads/products/dyson_vacuum.jpg'],
-        ['Samsung 65-Inch Class OLED 4K S90D Series HDR+ Smart TV with Dolby Atmos', 1597.99, 'client/assets/uploads/products/samsung_tv.jpg'],
-        ['KitchenAid Artisan Series 5-Quart Tilt-Head Stand Mixer, Stainless Steel Bowl, Empire Red', 449.95, 'client/assets/uploads/products/kitchenaid_mixer.jpg'],
-        ['DeWalt 20V MAX Cordless Drill and Impact Driver Combo Kit, 2-Tool with 2.0Ah Batteries', 229.00, 'client/assets/uploads/products/dewalt_drill.jpg'],
-        ['Breville Barista Touch Espresso Machine, Brushed Stainless Steel, Touch Screen', 999.95, 'client/assets/uploads/products/espresso_machine.jpg'],
-        ['DJI Mini 4 Pro Fly More Combo Drone with DJI RC 2, 4K HDR Video', 1099.00, 'client/assets/uploads/products/dji_drone.jpg'],
-        ['Apple MacBook Air 15-inch Laptop with M3 chip, 16GB Memory, 512GB SSD, Midnight', 1499.00, 'client/assets/uploads/products/macbook_air.jpg'],
-        ['Bose Smart Ultra Soundbar with Dolby Atmos and Voice Control, Black Wireless', 899.00, 'client/assets/uploads/products/soundbar.jpg'],
-        ['Ninja Foodi 10-in-1 DualZone 2-Basket Air Fryer XL, 10-Qt Capacity', 249.99, 'client/assets/uploads/products/air_fryer.jpg'],
-        ['Segway Ninebot KickScooter MAX G2, 22 mph Max Speed, 43 Miles Long Range', 899.99, 'client/assets/uploads/products/scooter.jpg'],
-        ['Sony PlayStation 5 Slim Console (PS5 Disc Edition) 1TB SSD with DualSense Controller', 499.99, 'client/assets/uploads/products/ps5_console.jpg'],
-        ['Anker SOLIX C1000 Portable Power Station, 1800W Solar Generator, 1056Wh LiFePO4', 649.00, 'client/assets/uploads/products/power_station.jpg'],
-        ['Canon EOS R6 Mark II Mirrorless Camera with 24-105mm STM Lens, 24.2 MP, 4K60p', 2399.00, 'client/assets/uploads/products/canon_camera.jpg'],
-        ['LG 34-Inch UltraWide Curved Gaming Monitor 144Hz 1ms Nano IPS QHD, G-SYNC', 799.99, 'client/assets/uploads/products/gaming_monitor.jpg'],
-        ['EcoFlow Glacier Portable Refrigerator 40L with Integrated Ice Maker Dual Zone', 849.00, 'client/assets/uploads/products/cooler.jpg'],
-        ['Coleman WeatherMaster 10-Person Outdoor Camping Tent with Screen Room', 329.99, 'client/assets/uploads/products/camping_tent.jpg']
+    // Older installations created products before category/SKU metadata existed.
+    // Add the columns before inserting the expanded catalog so the migration is safe.
+    try {
+      const prodCols = await query(`SHOW COLUMNS FROM products`);
+      const colNames = new Set(prodCols.map(c => c.Field.toLowerCase()));
+      const missingColumns = [
+        ['category', "VARCHAR(100) DEFAULT 'General'"],
+        ['sku', 'VARCHAR(100) DEFAULT NULL'],
+        ['is_active', 'TINYINT(1) DEFAULT 1'],
+        ['commission_rate', 'DECIMAL(5,4) DEFAULT 0.2000'],
+        ['reward_rate', 'DECIMAL(5,4) DEFAULT 0.2000']
       ];
-      await query(`DELETE FROM products WHERE image LIKE '%icon.png%' OR image LIKE '%logo%'`);
-      for (const [name, price, img] of defaultProducts) {
-        await query(`INSERT INTO products (name, price, image) VALUES (?, ?, ?)`, [name, price, img]);
+      for (const [name, definition] of missingColumns) {
+        if (!colNames.has(name)) await query(`ALTER TABLE products ADD COLUMN ${name} ${definition}`);
       }
-      const seeded = await query(`SELECT * FROM products`);
-      _cachedProducts = seeded;
-      _lastProductsFetch = Date.now();
-      return seeded;
+    } catch (_) {}
+
+    if (!_catalogSeeded) {
+      const existingRows = await query(`SELECT name FROM products`);
+      const existingNames = new Set(existingRows.map(row => String(row.name || '').trim().toLowerCase()));
+      for (const product of INTERNATIONAL_CATALOG) {
+        if (existingNames.has(product.name.toLowerCase())) continue;
+        await query(`INSERT INTO products (name, price, image, category, sku, is_active, commission_rate, reward_rate)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+          product.name,
+          product.price,
+          product.image,
+          product.category,
+          product.sku,
+          product.is_active,
+          product.commission_rate,
+          product.reward_rate
+        ]);
+      }
+      _catalogSeeded = true;
     }
+
+    const rows = await query(`SELECT * FROM products WHERE image NOT LIKE '%icon.png%' AND image NOT LIKE '%logo%'`);
     _cachedProducts = rows;
     _lastProductsFetch = now;
     return rows;

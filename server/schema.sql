@@ -111,7 +111,12 @@ CREATE TABLE IF NOT EXISTS products (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255),
   price DECIMAL(15,2),
-  image TEXT
+  image TEXT,
+  category VARCHAR(100) DEFAULT 'General',
+  sku VARCHAR(100) DEFAULT NULL,
+  is_active TINYINT(1) DEFAULT 1,
+  commission_rate DECIMAL(5,4) DEFAULT 0.2000,
+  reward_rate DECIMAL(5,4) DEFAULT 0.2000
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
