@@ -654,13 +654,7 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
       custom_product_price: pPrice
     });
 
-    // Send push notification to user so they see the task notification
-    await db.createNotification({
-      user_id: user.id,
-      type: 'ORDER_PUSH',
-      title: 'New Task Assigned!',
-      message: `Admin has assigned task #${targetOrder} (${pName || 'Custom Task'}). Please proceed to the Start page to start your order.`
-    }).catch(() => {});
+    // Assignment is queued silently; the user sees the real order only after tapping Start.
 
     await db.createAuditLog({
       adminId: req.admin.id,
