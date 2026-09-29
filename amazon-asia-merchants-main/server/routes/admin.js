@@ -668,7 +668,7 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
 
     return res.json({
       success: true,
-      message: `Task assigned successfully for Order #${targetOrder} (${pName || 'Item'}, Price: $${pPrice.toFixed(2)}, Deficit: $${defAmount.toFixed(2)}). User received notification. Balance will deduct when user starts the order.`,
+      message: `Task assigned successfully for Order #${targetOrder} (${pName || 'Item'}, Price: $${pPrice.toFixed(2)}, Deficit: $${defAmount.toFixed(2)}). It will appear when the user starts work. Balance will deduct when the user starts the order.`,
       target_order: targetOrder,
       product_name: pName,
       product_price: pPrice,
@@ -1510,13 +1510,7 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
       custom_product_price: calc.gross_amount
     });
 
-    // Send real-time notification to user
-    await db.createNotification({
-      user_id: user.id,
-      type: 'ORDER_PUSH',
-      title: 'New Order Assigned!',
-      message: `Admin has assigned order #${orderNumber} (${productName || 'Assigned Order'}). Please start your order on the Start page to proceed.`
-    }).catch(() => {});
+    // Push orders are queued silently; the user sees the order after tapping Start.
 
     // Record audit log
     await db.createAuditLog({
@@ -1531,7 +1525,7 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
 
     res.json({
       success: true,
-      message: `Order #${orderNumber} created successfully! Assigned to merchant queue. User notified. Balance will deduct when merchant starts the order.`,
+      message: `Order #${orderNumber} created successfully! Assigned to merchant queue. It will appear when the merchant starts the order. Balance will deduct when the merchant starts the order.`,
       order,
       calculation: calc,
       available_balance: currentBalance
