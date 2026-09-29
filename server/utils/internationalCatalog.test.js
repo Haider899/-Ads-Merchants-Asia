@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { INTERNATIONAL_CATALOG } = require('./internationalCatalog');
 
-test('international catalog has 500 active products with 50 in every assignment category', () => {
-  assert.equal(INTERNATIONAL_CATALOG.length, 500);
+test('international catalog has 600 active products with multi-product coverage in every category', () => {
+  assert.equal(INTERNATIONAL_CATALOG.length, 600);
   const counts = new Map();
   const names = new Set();
   const skus = new Set();
@@ -30,7 +30,17 @@ test('international catalog has 500 active products with 50 in every assignment 
     outdoor: 50,
     gaming_entertainment: 50,
     premium_electronics: 50,
-    high_ticket: 50
+    high_ticket: 50,
+    mobile_accessories: 10,
+    toiletry_bags: 10,
+    home_garden: 10,
+    handheld_vacuums: 10,
+    pet_supplies: 10,
+    massage_relaxation: 10,
+    electric_clippers: 10,
+    portable_speakers: 10,
+    storage_shed: 10,
+    nursing_feeding: 10
   });
 });
 

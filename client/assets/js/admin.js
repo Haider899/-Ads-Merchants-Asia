@@ -1141,14 +1141,19 @@
       label: category.label,
       products: Array.isArray(category.products) ? category.products.map(product => Array.isArray(product) ? product : [product.name, parseFloat(product.price || 0), product.image || '']) : []
     }]));
-    (state.products || []).forEach(product => {
+    const catalogProductsByCategory = new Map();
+    (state.products || []).filter(product => product && (product.is_active === undefined || Number(product.is_active) !== 0)).forEach(product => {
       const label = String(product.category || '').trim();
       if (!label) return;
       const key = label;
-      if (!categories[key]) categories[key] = { label, products: [] };
-      if (!categories[key].products.some(([name]) => name === product.name)) {
-        categories[key].products.push([product.name, parseFloat(product.price || 0), product.image || '']);
-      }
+      if (!catalogProductsByCategory.has(key)) catalogProductsByCategory.set(key, []);
+      catalogProductsByCategory.get(key).push([product.name, parseFloat(product.price || 0), product.image || '']);
+    });
+    catalogProductsByCategory.forEach((products, key) => {
+      if (!categories[key]) categories[key] = { label: key, products: [] };
+      // The database catalog is authoritative: it includes every newly added
+      // product, its correct image, and the current active/inactive state.
+      categories[key].products = products;
     });
     return categories;
   }
@@ -1201,7 +1206,8 @@
         renderAdminMultiProductPicker();
       });
       const text = document.createElement('span');
-      text.textContent = category;
+      const categoryProductCount = activeProducts.filter(product => (String(product.category || 'General').trim() || 'General') === category).length;
+      text.textContent = `${category} (${categoryProductCount})`;
       label.append(checkbox, text);
       categoryHost.appendChild(label);
     });
@@ -1295,7 +1301,17 @@
     { key: 'fashion_travel',      emoji: '👜', label: 'Fashion' },
     { key: 'beauty_health',       emoji: '💄', label: 'Beauty' },
     { key: 'tools',               emoji: '🔧', label: 'Tools' },
-    { key: 'budget',              emoji: '🛒', label: 'Budget' }
+    { key: 'budget',              emoji: '🛒', label: 'Budget' },
+    { key: 'mobile_accessories',  emoji: '📱', label: 'Mobile Phones & Accessories' },
+    { key: 'toiletry_bags',       emoji: '🧳', label: 'Toiletry Bags' },
+    { key: 'home_garden',         emoji: '🏡', label: 'Home & Garden' },
+    { key: 'handheld_vacuums',    emoji: '🧹', label: 'Handheld Vacuums' },
+    { key: 'pet_supplies',        emoji: '🐾', label: 'Pet Supplies' },
+    { key: 'massage_relaxation',  emoji: '🧘', label: 'Massage & Relaxation' },
+    { key: 'electric_clippers',   emoji: '✂️', label: 'Electric Clippers & Blades' },
+    { key: 'portable_speakers',   emoji: '🔊', label: 'Portable Bluetooth Speakers' },
+    { key: 'storage_shed',        emoji: '🏚️', label: 'Storage Shed' },
+    { key: 'nursing_feeding',     emoji: '🍼', label: 'Nursing & Feeding' }
   ];
 
   window.initCategoryPresetTabs = function(defaultCat) {
@@ -1345,15 +1361,17 @@
       row.innerHTML = '<span style="color:#94a3b8;font-size:12px;">No products in this category.</span>';
       return;
     }
-    row.innerHTML = cat.products.map(([name, price]) => {
+    row.innerHTML = cat.products.map(([name, price, image]) => {
       const shortName = name.length > 40 ? name.slice(0, 40) + '…' : name;
-      const encoded = encodeURIComponent(JSON.stringify([name, price]));
+      const source = String(image || '');
+      const imageUrl = source ? (/^(https?:|data:|\/)/i.test(source) ? source : `/${source.replace(/^\.\//, '')}`) : '/client/assets/uploads/products/outdoor_shed.jpg';
       return `<button type="button" onclick="window._applyPreset(${JSON.stringify([name, price])})"
-        style="padding:5px 10px;font-size:11.5px;border-radius:8px;border:1px solid #f59e0b;background:#fff;
-        color:#b45309;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;"
+        style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;font-size:11.5px;border-radius:8px;border:1px solid #f59e0b;background:#fff;
+        color:#b45309;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;max-width:100%;"
         onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#fff'"
-        title="${name.replace(/"/g,'&quot;')}">
-        $${price.toFixed(2)} &mdash; ${shortName}
+        title="${escapeHtml(name)}">
+        <img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" style="width:24px;height:24px;object-fit:contain;border-radius:5px;background:#fff;" onerror="this.style.visibility='hidden';">
+        <span>$${price.toFixed(2)} &mdash; ${escapeHtml(shortName)}</span>
       </button>`;
     }).join('');
 

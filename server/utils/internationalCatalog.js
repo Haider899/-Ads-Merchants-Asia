@@ -1,5 +1,6 @@
 const image = name => `client/assets/uploads/products/${name}.jpg`;
 const { EXPANDED_CATALOG } = require('./catalogExpansion');
+const { ADDITIONAL_CATALOG } = require('./additionalCategoryCatalog');
 
 // Common international marketplace products. Images point to the local product-photo
 // library so admin assignments and user task cards render consistently offline.
@@ -134,6 +135,6 @@ const INITIAL_CATALOG = [
   reward_rate: 0.20
 }));
 
-const INTERNATIONAL_CATALOG = [...INITIAL_CATALOG, ...EXPANDED_CATALOG];
+const INTERNATIONAL_CATALOG = [...INITIAL_CATALOG, ...EXPANDED_CATALOG, ...ADDITIONAL_CATALOG];
 
 module.exports = { INTERNATIONAL_CATALOG };

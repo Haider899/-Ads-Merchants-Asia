@@ -46,6 +46,16 @@ const TASK_PRODUCT_CATEGORIES = [
     label: 'Premium Electronics',
     keywords: ['iPhone', 'MacBook', 'Samsung', 'Canon', 'DJI']
   },
+  { key: 'mobile_accessories', label: 'Mobile Phones & Accessories', keywords: ['Smartphone', 'Phone Case', 'USB-C', 'Wireless Charger', 'microSD'] },
+  { key: 'toiletry_bags', label: 'Toiletry Bags', keywords: ['Toiletry', 'Cosmetic', 'Makeup', 'Travel Bottle', 'Shaving Kit'] },
+  { key: 'home_garden', label: 'Home & Garden', keywords: ['Garden', 'Lawn', 'Steam Mop', 'Air Purifier', 'Storage Rack'] },
+  { key: 'handheld_vacuums', label: 'Handheld Vacuums', keywords: ['Handheld Vacuum', 'Dustbuster', 'Wandvac', 'Cordless Vacuum'] },
+  { key: 'pet_supplies', label: 'Pet Supplies', keywords: ['Pet', 'Dog', 'Cat', 'Puppy', 'Kitten'] },
+  { key: 'massage_relaxation', label: 'Massage & Relaxation', keywords: ['Massage', 'Yoga', 'Heated Throw', 'White Noise', 'Wellness'] },
+  { key: 'electric_clippers', label: 'Electric Clippers & Blades', keywords: ['Clipper', 'Trimmer', 'Shaver', 'Grooming'] },
+  { key: 'portable_speakers', label: 'Portable Bluetooth Speakers', keywords: ['Portable Bluetooth Speaker', 'SoundLink', 'WONDERBOOM', 'Speaker'] },
+  { key: 'storage_shed', label: 'Storage Shed', keywords: ['Storage Shed', 'Garden Shed', 'Utility Shed'] },
+  { key: 'nursing_feeding', label: 'Nursing & Feeding', keywords: ['Baby Bottle', 'Nursing', 'Formula', 'Trainer Cup', 'Breast Pump'] },
   {
     key: 'high_ticket',
     label: 'High Ticket Deficit',
