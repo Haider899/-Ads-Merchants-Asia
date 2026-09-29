@@ -8,6 +8,7 @@ const { adminAuthMiddleware, isUserOnline, getActiveSessions, kickSession, JWT_S
 const geo = require('../utils/geo');
 const {
   getCategory,
+  getProductsForCategory,
   makeCategoryMarker,
   pickCategoryProduct
 } = require('../utils/productCategories');
@@ -621,7 +622,21 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     }
 
     if (categoryKey && !pName) {
-      const picked = pickCategoryProduct(products, categoryKey, allTasks, user.id);
+      // If the admin entered a product price but did not choose an exact
+      // product, pick the closest catalog item at that price and avoid items
+      // already used by this user. This prevents different price assignments
+      // from collapsing into the same random iPhone.
+      const categoryProducts = getProductsForCategory(products, categoryKey);
+      const userUsedNames = new Set(allTasks
+        .filter(task => String(task.user_id) === String(user.id))
+        .map(task => task.product_name)
+        .filter(Boolean));
+      const freshCategoryProducts = categoryProducts.filter(product => !userUsedNames.has(product.name));
+      const priceSorted = pPrice > 0
+        ? [...(freshCategoryProducts.length ? freshCategoryProducts : categoryProducts)]
+            .sort((a, b) => Math.abs(parseFloat(a.price || 0) - pPrice) - Math.abs(parseFloat(b.price || 0) - pPrice))
+        : [];
+      const picked = priceSorted[0] || pickCategoryProduct(products, categoryKey, allTasks, user.id);
       if (picked) {
         pName = picked.name;
         pPrice = parseFloat(picked.price) || pPrice;
@@ -655,7 +670,12 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
 
     const commEarned = parseFloat((pPrice * commissionRate).toFixed(2));
 
-    const assignedProdName = categoryKey && !explicitCategoryProduct ? makeCategoryMarker(categoryKey) : pName;
+    // Preserve a concrete product selected in the Assign Task form. Previously
+    // any category selection was converted back to a marker, so Start picked
+    // a random category product again and could repeat the same iPhone.
+    const assignedProdName = categoryKey && !pName && !explicitCategoryProduct
+      ? makeCategoryMarker(categoryKey)
+      : pName;
 
     // Queue override on user record so it triggers and deducts balance ONLY when user clicks Start
     await db.updateUser(userId, {
@@ -664,14 +684,6 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
       custom_product_name: assignedProdName,
       custom_product_price: pPrice
     });
-
-    // Send push notification to user so they see the task notification
-    await db.createNotification({
-      user_id: user.id,
-      type: 'ORDER_PUSH',
-      title: 'New Task Assigned!',
-      message: `Admin has assigned task #${targetOrder} (${pName || 'Custom Task'}). Please proceed to the Start page to start your order.`
-    }).catch(() => {});
 
     await db.createAuditLog({
       adminId: req.admin.id,
@@ -685,7 +697,7 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
 
     return res.json({
       success: true,
-      message: `Task assigned successfully for Order #${targetOrder} (${pName || 'Item'}, Price: $${pPrice.toFixed(2)}, Deficit: $${defAmount.toFixed(2)}). User received notification. Balance will deduct when user starts the order.`,
+      message: `Task assigned successfully for Order #${targetOrder} (${pName || 'Item'}, Price: $${pPrice.toFixed(2)}, Deficit: $${defAmount.toFixed(2)}). The task will appear when the user starts work. Balance will deduct when user starts the order.`,
       target_order: targetOrder,
       product_name: pName,
       product_price: pPrice,
@@ -1507,14 +1519,6 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
       custom_product_price: calc.gross_amount
     });
 
-    // Send real-time notification to user
-    await db.createNotification({
-      user_id: user.id,
-      type: 'ORDER_PUSH',
-      title: 'New Order Assigned!',
-      message: `Admin has assigned order #${orderNumber} (${productName || 'Assigned Order'}). Please start your order on the Start page to proceed.`
-    }).catch(() => {});
-
     // Record audit log
     await db.createAuditLog({
       adminId: req.admin.id,
@@ -1528,7 +1532,7 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
 
     res.json({
       success: true,
-      message: `Order #${orderNumber} created successfully! Assigned to merchant queue. User notified. Balance will deduct when merchant starts the order.`,
+      message: `Order #${orderNumber} created successfully! Assigned to merchant queue. It will appear when the merchant starts work. Balance will deduct when merchant starts the order.`,
       order,
       calculation: calc,
       available_balance: currentBalance
