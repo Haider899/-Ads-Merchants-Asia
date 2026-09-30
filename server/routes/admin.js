@@ -369,14 +369,14 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
       }
     }
 
-    // Empty clears the per-user override and restores the global minimum (currently $10).
+    // Empty clears the per-user override and restores the global minimum (currently $1).
     if (custom_min_deposit !== undefined) {
       if (custom_min_deposit === '' || custom_min_deposit === null) {
         updates.custom_min_deposit = null;
       } else {
         const cmd = positiveAmount(custom_min_deposit);
         if (cmd === null || cmd < DEFAULT_MINIMUM_DEPOSIT) {
-          return res.status(400).json({ success: false, message: 'User minimum deposit must be at least $10.00.' });
+          return res.status(400).json({ success: false, message: 'User minimum deposit must be at least $1.00.' });
         }
         updates.custom_min_deposit = Number(cmd.toFixed(2));
       }
@@ -1308,7 +1308,7 @@ router.post('/settings', adminAuthMiddleware, checkRole('super_admin'), async (r
   if (min_deposit !== undefined && min_deposit !== '') {
     const parsedMinimum = positiveAmount(min_deposit);
     if (parsedMinimum === null || parsedMinimum < DEFAULT_MINIMUM_DEPOSIT) {
-      return res.status(400).json({ success: false, message: 'System minimum deposit must be at least $10.00.' });
+      return res.status(400).json({ success: false, message: 'System minimum deposit must be at least $1.00.' });
     }
     updates.min_deposit = Number(parsedMinimum.toFixed(2));
   }

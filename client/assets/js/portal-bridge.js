@@ -1336,7 +1336,7 @@
 
         const amount = parseFloat(amountInput ? amountInput.value : 0);
         const userDepositMinimum = Number(user && user.custom_min_deposit);
-        const minimumDeposit = Number.isFinite(userDepositMinimum) && userDepositMinimum > 0 ? userDepositMinimum : 10;
+        const minimumDeposit = Number.isFinite(userDepositMinimum) && userDepositMinimum > 0 ? userDepositMinimum : 1;
         if (isNaN(amount) || amount < minimumDeposit) {
           showBridgeToast('Invalid Amount', `Minimum deposit is $${minimumDeposit.toFixed(2)}`, 'error');
           return;

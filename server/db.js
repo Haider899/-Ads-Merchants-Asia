@@ -276,6 +276,19 @@ const db = {
     await query('INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, ?)', [migrationKey, new Date().toISOString()]);
     return true;
   },
+  migrateDefaultDepositMinimumToOne: async () => {
+    const migrationKey = 'migration_default_deposit_minimum_1_v1';
+    const completed = await query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', [migrationKey]);
+    if (completed.length) return false;
+    const current = await query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['min_deposit']);
+    if (!current.length) {
+      await query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['min_deposit', '1']);
+    } else if (Number(current[0].setting_value) === 10) {
+      await query('UPDATE settings SET setting_value = ? WHERE setting_key = ? AND setting_value = ?', ['1', 'min_deposit', current[0].setting_value]);
+    }
+    await query('INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, ?)', [migrationKey, new Date().toISOString()]);
+    return true;
+  },
 
   formatUser: (u) => {
     if (!u) return null;

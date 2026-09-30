@@ -1,4 +1,4 @@
-const DEFAULT_MINIMUM_DEPOSIT = 10;
+const DEFAULT_MINIMUM_DEPOSIT = 1;
 
 function positiveAmount(value) {
   const amount = Number(value);
