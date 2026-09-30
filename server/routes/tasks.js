@@ -872,13 +872,24 @@ router.post('/submit', authMiddleware, async (req, res) => {
       ? task.commission_amount
       : (task.commission_earned || 0));
     const taskIsDeficit = isDeficitFlag(task.is_deficit);
+    const reserveRows = taskIsDeficit ? await db.query(
+      'SELECT balance_before, balance_after FROM wallet_transactions WHERE user_id = ? AND task_id = ? AND transaction_type = "ORDER_RESERVE" ORDER BY created_at DESC LIMIT 10',
+      [user.id, task.id]
+    ).catch(() => []) : [];
+    const reserveAlreadyApplied = (reserveRows || []).some(row =>
+      Number(row.balance_after) < Number(row.balance_before)
+    );
 
     // Never mark an order completed or credit commission before verifying that
     // its principal is funded. This is especially important for admin-pushed
     // high-value orders assigned to users with only a few dollars available.
-    const funding = evaluateTaskCompletionFunding(userBalance, taskPrice, taskIsDeficit, {
-      frozenBalance: user.frozen_balance
-    });
+    const funding = reserveAlreadyApplied && taskIsDeficit
+      ? (userBalance < 0
+        ? { ok: false, code: 'unfunded_deficit', deficit: Math.abs(userBalance), userBalance, taskPrice }
+        : { ok: true, userBalance, taskPrice })
+      : evaluateTaskCompletionFunding(userBalance, taskPrice, taskIsDeficit, {
+        frozenBalance: user.frozen_balance
+      });
     if (!funding.ok && funding.code === 'unfunded_deficit') {
       const deficit = round(Math.abs(userBalance));
       await db.updateUser(user.id, { frozen_balance: deficit });
@@ -896,13 +907,44 @@ router.post('/submit', authMiddleware, async (req, res) => {
 
     if (!funding.ok) {
       const shortfall = round(Math.max(0, taskPrice - userBalance));
+      let displayedBalance = userBalance;
+
+      // Reserve the principal once for a shortfall submission so the Working
+      // Balance reflects the real deficit (for example, $14 - $16 = -$2),
+      // while the task/order stays pending and no commission is credited.
+      // Generation may already have written an informational reserve row with
+      // an unchanged balance, so only a negative reserve counts as applied.
+      if (taskIsDeficit && userBalance >= 0 && shortfall > 0) {
+        if (!reserveAlreadyApplied) {
+          displayedBalance = round(userBalance - taskPrice);
+          await db.updateUser(user.id, {
+            balance: displayedBalance,
+            frozen_balance: round(Math.abs(displayedBalance))
+          });
+          await db.createLedgerTransaction({
+            userId: user.id,
+            taskId: task.id,
+            type: 'ORDER_RESERVE',
+            amount: -taskPrice,
+            balanceBefore: userBalance,
+            balanceAfter: displayedBalance,
+            currency: 'USD',
+            reference: task.order_number || task.id,
+            description: `Shortfall reserve applied; order remains pending for ${task.product_name}`
+          }).catch(() => {});
+        }
+      }
+
       return res.status(400).json({
         success: false,
+        insufficient_balance: true,
         reachedLimit: true,
-        message: 'Insufficient working balance to complete this order. Please fund the order principal before submitting it.',
+        message: 'Insufficient working balance. The order remains pending until the full principal is funded.',
         deficit_amount: shortfall,
         product_price: taskPrice,
-        user_balance: userBalance
+        user_balance: displayedBalance,
+        new_balance: displayedBalance,
+        frozen_balance: displayedBalance < 0 ? Math.abs(displayedBalance) : 0
       });
     }
 
@@ -945,19 +987,23 @@ router.post('/submit', authMiddleware, async (req, res) => {
       }, 0);
       prevCommBalance = round(priorSum);
     }
-    const finalWorkingBalance = round(userBalance - taskPrice);
-    await db.createLedgerTransaction({
-      userId: user.id,
-      taskId: task.id,
-      adminId: null,
-      type: 'ORDER_RESERVE',
-      amount: -taskPrice,
-      balanceBefore: round(userBalance),
-      balanceAfter: finalWorkingBalance,
-      currency: 'USD',
-      reference: task.order_number || task.id,
-      description: `Order deduction upon submission for ${task.product_name}`
-    }).catch(() => {});
+    const finalWorkingBalance = reserveAlreadyApplied
+      ? round(userBalance)
+      : round(userBalance - taskPrice);
+    if (!reserveAlreadyApplied) {
+      await db.createLedgerTransaction({
+        userId: user.id,
+        taskId: task.id,
+        adminId: null,
+        type: 'ORDER_RESERVE',
+        amount: -taskPrice,
+        balanceBefore: round(userBalance),
+        balanceAfter: finalWorkingBalance,
+        currency: 'USD',
+        reference: task.order_number || task.id,
+        description: `Order deduction upon submission for ${task.product_name}`
+      }).catch(() => {});
+    }
 
     const newCommBalance = round(prevCommBalance + taskPrice + commAmount);
     const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
