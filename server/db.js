@@ -42,6 +42,7 @@ let _notificationsTableEnsured = false;
 let _catalogSeeded = false;
 let _userTaskSettingColsEnsured = false;
 let _financialTablesEnsured = false;
+let _legacyVerifiedDepositsMigrated = false;
 let _cachedUserCols = null;
 let _productsTableEnsured = false;
 let _cachedProducts = null;
@@ -160,6 +161,59 @@ const db = {
       if (!names.has('funding_source')) await query("ALTER TABLE kyc_submissions ADD COLUMN funding_source VARCHAR(30) DEFAULT 'deposit'");
       if (!names.has('funded_amount')) await query('ALTER TABLE kyc_submissions ADD COLUMN funded_amount DECIMAL(15,2) DEFAULT 0.00');
     } catch (_) {}
+    await db.migrateLegacyVerifiedDeposits();
+  },
+
+  migrateLegacyVerifiedDeposits: async () => {
+    if (_legacyVerifiedDepositsMigrated) return;
+    _legacyVerifiedDepositsMigrated = true;
+    try {
+      const legacyDeposits = await query("SELECT id FROM deposits WHERE LOWER(status) = 'verified'");
+      for (const legacy of legacyDeposits) {
+        const connection = await pool.getConnection();
+        try {
+          await connection.beginTransaction();
+          const [rows] = await connection.execute(
+            `SELECT d.*, u.balance, u.frozen_balance
+             FROM deposits d JOIN users u ON u.id = d.user_id
+             WHERE d.id = ? AND LOWER(d.status) = 'verified' FOR UPDATE`,
+            [legacy.id]
+          );
+          const deposit = rows[0];
+          if (!deposit) {
+            await connection.rollback();
+            continue;
+          }
+          const amountCents = Math.max(0, Math.round(Number(deposit.amount || 0) * 100));
+          const beforeCents = Math.round(Number(deposit.balance || 0) * 100);
+          const afterCents = beforeCents + amountCents;
+          await connection.execute(
+            'UPDATE users SET balance = ? WHERE id = ?',
+            [(afterCents / 100).toFixed(2), deposit.user_id]
+          );
+          await connection.execute(
+            "UPDATE deposits SET status = 'approved', admin_notes = CONCAT(COALESCE(admin_notes, ''), ' | Legacy verified deposit credited automatically') WHERE id = ? AND LOWER(status) = 'verified'",
+            [deposit.id]
+          );
+          await connection.execute(
+            `INSERT INTO wallet_transactions
+              (id, user_id, transaction_type, amount, balance_before, balance_after, currency, reference, description, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [`txn_legacy_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`, deposit.user_id, 'DEPOSIT',
+              (amountCents / 100).toFixed(2), (beforeCents / 100).toFixed(2), (afterCents / 100).toFixed(2), 'USD', deposit.txid || deposit.id,
+              'Legacy verified deposit credited to Working Balance', formatMySQLDate(new Date())]
+          );
+          await connection.commit();
+        } catch (err) {
+          try { await connection.rollback(); } catch (_) {}
+          console.error('[DB] Legacy verified deposit migration notice:', err.message);
+        } finally {
+          connection.release();
+        }
+      }
+    } catch (err) {
+      console.error('[DB] Legacy verified deposit migration notice:', err.message);
+    }
   },
   getSettings: async () => {
     const rows = await query('SELECT * FROM settings');
@@ -453,6 +507,7 @@ const db = {
   },
 
   getDeposits: async (userId) => {
+    await db.ensureProductionSchema();
     let sql = `
       SELECT d.*, u.username, u.fullname, u.phone, u.kyc_status
       FROM deposits d 
