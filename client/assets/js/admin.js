@@ -299,6 +299,19 @@
     },
     get(url) { return this.request(url, { method: 'GET' }); },
     post(url, data) { return this.request(url, { method: 'POST', body: JSON.stringify(data) }); },
+    async postForm(url, formData) {
+      try {
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+        const res = await fetch(url, { method: 'POST', headers, body: formData, credentials: 'same-origin' });
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) return await res.json();
+        return { success: false, message: `Server error (${res.status})` };
+      } catch (err) {
+        console.error('Admin multipart API Error:', err);
+        return { success: false, message: err.message || 'Network connection failed' };
+      }
+    },
     put(url, data) { return this.request(url, { method: 'PUT', body: JSON.stringify(data) }); },
     delete(url) { return this.request(url, { method: 'DELETE' }); }
   };
@@ -2456,12 +2469,16 @@
         } else {
           container.innerHTML = res.messages.map(m => {
             const isUser = m.sender === 'user';
+            const attachmentUrl = String(m.attachment_url || '');
+            const attachmentHtml = /^(https?:\/\/|\/|client\/|assets\/)/i.test(attachmentUrl)
+              ? `<a href="${escapeHtml(attachmentUrl)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(attachmentUrl)}" alt="Attached image" style="display:block; max-width:240px; max-height:200px; object-fit:contain; border-radius:8px; margin-top:6px; background:#fff;" /></a>`
+              : '';
             return `
               <div style="align-self: ${isUser ? 'flex-start' : 'flex-end'}; max-width: 75%; background: ${isUser ? '#ffffff' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}; color: ${isUser ? '#1e293b' : '#ffffff'}; padding: 10px 14px; border-radius: 14px; ${isUser ? 'border-bottom-left-radius: 4px; border: 1px solid #e2e8f0;' : 'border-bottom-right-radius: 4px;'}; box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-size: 13.5px;">
                 <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; color: ${isUser ? '#0284c7' : '#dcfce7'};">
                   ${isUser ? escapeHtml(m.sender_name || 'Customer') : 'Support Desk'}
                 </div>
-                <div>${escapeHtml(m.text || '')}</div>
+                <div>${escapeHtml(m.text || '')}</div>${attachmentHtml}
                 <div style="font-size: 10px; color: ${isUser ? '#94a3b8' : '#e2e8f0'}; text-align: right; margin-top: 4px;">
                   ${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
@@ -2480,18 +2497,24 @@
     if (!state.activeChatUserId) return;
     const input = document.getElementById('adminReplyInput');
     const text = input.value.trim();
-    if (!text) return;
+    const imageInput = document.getElementById('adminChatImageInput');
+    const file = imageInput && imageInput.files ? imageInput.files[0] : null;
+    if (!text && !file) return;
 
     input.value = '';
+    if (imageInput) imageInput.value = '';
     const container = document.getElementById('adminChatMessagesContainer');
 
     const tempBubble = document.createElement('div');
     tempBubble.style.cssText = 'align-self:flex-end;max-width:75%;background:#10b981;color:#fff;padding:10px 14px;border-radius:14px;border-bottom-right-radius:4px;font-size:13.5px;';
-    tempBubble.innerHTML = `<div style="font-weight:700;font-size:11px;color:#dcfce7;">Support Desk</div><div>${escapeHtml(text)}</div><div style="font-size:10px;color:#e2e8f0;text-align:right;">Sending...</div>`;
+    tempBubble.innerHTML = `<div style="font-weight:700;font-size:11px;color:#dcfce7;">Support Desk</div><div>${escapeHtml(text)}</div>${file ? `<img src="${URL.createObjectURL(file)}" alt="Attached image" style="display:block;max-width:240px;max-height:200px;object-fit:contain;border-radius:8px;margin-top:6px;background:#fff;" />` : ''}<div style="font-size:10px;color:#e2e8f0;text-align:right;">Sending...</div>`;
     container.appendChild(tempBubble);
     container.scrollTop = container.scrollHeight;
 
-    const res = await AdminAPI.post(`/api/admin/chat/${state.activeChatUserId}`, { text });
+    const formData = new FormData();
+    formData.append('text', text);
+    if (file) formData.append('image', file);
+    const res = await AdminAPI.postForm(`/api/admin/chat/${state.activeChatUserId}`, formData);
     if (res && res.success) {
       await loadActiveUserMessages();
       loadChatConversations();

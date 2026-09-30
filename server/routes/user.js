@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { parseInvestmentAmount } = require('../utils/investmentAmount');
+const { handleChatUpload, getAttachmentUrl } = require('../utils/chatUpload');
 
 // GET /api/user/profile
 router.get('/profile', authMiddleware, async (req, res) => {
@@ -251,16 +252,17 @@ router.post('/chat/read', authMiddleware, async (req, res) => {
 const geo = require('../utils/geo');
 
 // POST /api/user/chat - Send message from user to admin
-router.post('/chat', authMiddleware, async (req, res) => {
+router.post('/chat', authMiddleware, handleChatUpload, async (req, res) => {
   try {
     const { text } = req.body;
+    const attachment = req.file;
     const user = await db.findUserById(req.user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (!text || !text.trim()) {
-      return res.status(400).json({ success: false, message: 'Message text cannot be empty' });
+    if ((!text || !text.trim()) && !attachment) {
+      return res.status(400).json({ success: false, message: 'Write a message or attach an image.' });
     }
 
     const clientIp = geo.extractClientIp(req);
@@ -270,9 +272,12 @@ router.post('/chat', authMiddleware, async (req, res) => {
     const message = await db.createChatMessage({
       userId: user.id,
       sender: 'user',
-      text: text.trim(),
+      text: (text || '').trim(),
       userName: user.fullname || user.username,
       userEmail: user.email,
+      attachmentUrl: getAttachmentUrl(attachment),
+      attachmentName: attachment ? attachment.originalname : null,
+      attachmentMime: attachment ? attachment.mimetype : null,
       ipAddress: geoInfo.ip,
       countryCode: geoInfo.countryCode,
       countryName: geoInfo.countryName
@@ -289,7 +294,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
     const messages = await db.getChatMessages(user.id);
     res.json({
       success: true,
-      message: 'Message sent',
+      message: attachment && (!text || !text.trim()) ? 'Image sent' : 'Message sent',
       newMessage: message,
       messages: messages || []
     });

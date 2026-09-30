@@ -1516,6 +1516,10 @@
 
                             <!-- Room Input -->
                             <div style="padding: 14px 16px; border-top: 1px solid #e2e8f0; background: #ffffff; display: flex; gap: 10px; align-items: center;">
+                                <label for="adminChatImageInput" title="Attach an image" style="width: 42px; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #059669; cursor: pointer; flex-shrink: 0;">
+                                    <i class="fa fa-paperclip"></i>
+                                    <input type="file" id="adminChatImageInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
+                                </label>
                                 <input type="text" id="adminReplyInput" class="form-control" placeholder="Type your response to the user here... (Press Enter to send)" />
                                 <button type="button" id="adminSendReplyBtn" class="btn-action btn-approve" style="padding: 11px 22px; font-size: 14px;">
                                     <i class="fa fa-paper-plane"></i> <span>Send</span>

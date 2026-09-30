@@ -139,8 +139,14 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   user_email VARCHAR(255),
   sender VARCHAR(20) DEFAULT 'user',
   message_text TEXT,
+  attachment_url VARCHAR(500),
+  attachment_name VARCHAR(255),
+  attachment_mime VARCHAR(100),
   read_by_admin BOOLEAN DEFAULT FALSE,
   read_by_user BOOLEAN DEFAULT FALSE,
+  ip_address VARCHAR(60) DEFAULT NULL,
+  country_code VARCHAR(10) DEFAULT NULL,
+  country_name VARCHAR(100) DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

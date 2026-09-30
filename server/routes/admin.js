@@ -19,6 +19,7 @@ const {
   calculateOrder
 } = require('../utils/orderCalculator');
 const { normalizeProductSelection } = require('../utils/taskProductSelection');
+const { handleChatUpload, getAttachmentUrl } = require('../utils/chatUpload');
 
 // Role-based permission guard helper
 function checkRole(...allowedRoles) {
@@ -1230,12 +1231,13 @@ router.post('/chat/:userId/silence', adminAuthMiddleware, checkRole('sub_admin',
 });
 
 // POST /api/admin/chat/:userId - Send admin reply to a user
-router.post('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support'), async (req, res) => {
+router.post('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'support'), handleChatUpload, async (req, res) => {
   const { userId } = req.params;
   const { text } = req.body;
+  const attachment = req.file;
 
-  if (!text || !text.trim()) {
-    return res.status(400).json({ success: false, message: 'Reply text cannot be empty.' });
+  if ((!text || !text.trim()) && !attachment) {
+    return res.status(400).json({ success: false, message: 'Write a reply or attach an image.' });
   }
 
   const user = await db.findUserById(userId);
@@ -1246,9 +1248,12 @@ router.post('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'suppor
   const message = await db.createChatMessage({
     userId,
     sender: 'admin',
-    text: text.trim(),
+    text: (text || '').trim(),
     userName: user.fullname || user.username,
-    userEmail: user.email
+    userEmail: user.email,
+    attachmentUrl: getAttachmentUrl(attachment),
+    attachmentName: attachment ? attachment.originalname : null,
+    attachmentMime: attachment ? attachment.mimetype : null
   });
 
   // Mark all previous customer messages in this thread as handled/read by admin
@@ -1258,7 +1263,7 @@ router.post('/chat/:userId', adminAuthMiddleware, checkRole('sub_admin', 'suppor
   await db.createNotification({
     user_id: user.id,
     title: 'Support Message 💬',
-    message: text.trim().length > 60 ? (text.trim().substring(0, 57) + '...') : text.trim(),
+    message: text && text.trim() ? (text.trim().length > 60 ? (text.trim().substring(0, 57) + '...') : text.trim()) : 'Support sent an image attachment.',
     type: 'info'
   });
 

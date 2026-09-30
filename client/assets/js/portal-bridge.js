@@ -142,6 +142,20 @@
         console.error('API POST Error:', err);
         return { success: false, message: 'Network error occurred' };
       }
+    },
+    async postForm(endpoint, formData) {
+      try {
+        const tz = (window.Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
+        const token = localStorage.getItem('ama_token') || '';
+        const headers = { 'Accept': 'application/json', 'x-client-timezone': tz };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const res = await fetch(endpoint, { method: 'POST', headers, credentials: 'include', body: formData });
+        if (res.status === 401) { handleUnauthorized(); return null; }
+        return await res.json();
+      } catch (err) {
+        console.error('API multipart POST Error:', err);
+        return { success: false, message: 'Network error occurred' };
+      }
     }
   };
 
@@ -2806,6 +2820,10 @@
         <div class="text-center text-muted py-3" style="font-size: 12px;">Loading chat history...</div>
       </div>
       <div class="native-chat-footer">
+        <label for="nativeChatImageInput" title="Attach an image" style="width: 38px; height: 38px; border: 1px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #00875a; cursor: pointer; flex-shrink: 0;">
+          <span style="font-size: 18px;">📎</span>
+          <input type="file" id="nativeChatImageInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
+        </label>
         <input type="text" id="nativeChatTextInput" class="native-chat-input" placeholder="Type here and press enter..." />
         <button id="nativeChatSendBtn" class="native-chat-send-btn" title="Send Message">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2816,6 +2834,10 @@
       </div>
     `;
     document.body.appendChild(chatWin);
+    const userImageInput = document.getElementById('nativeChatImageInput');
+    if (userImageInput) userImageInput.addEventListener('change', () => {
+      if (userImageInput.files[0]) userImageInput.parentElement.title = userImageInput.files[0].name;
+    });
 
     let chatOpen = false;
     let pollInterval = null;
@@ -2846,6 +2868,11 @@
         const welcomeBanner = container.querySelector('div[style*="text-align: center"]');
         if (welcomeBanner) welcomeBanner.remove();
 
+        const attachmentHtml = (message) => {
+          const url = String(message.attachment_url || '');
+          if (!url || !/^(https?:\/\/|\/|client\/|assets\/)/i.test(url)) return '';
+          return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(url)}" alt="Attached image" style="display:block; max-width:210px; max-height:180px; object-fit:contain; border-radius:8px; margin-top:6px; background:#fff;" /></a>`;
+        };
         let addedNew = false;
         res.messages.forEach(m => {
           const msgId = `chat-msg-${m.id}`;
@@ -2861,14 +2888,14 @@
                 <img src="/client/assets/img/icons/customer-service1.svg" style="width: 20px; height: 20px; border-radius: 50%; background: #fff; padding: 1px; flex-shrink: 0;" onerror="this.style.display='none'" />
                 <div style="flex: 1;">
                   <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px; opacity: 0.9;">Amazon Support</div>
-                  <div>${escapeHtml(m.text || m.message_text || '')}</div>
+                  <div>${escapeHtml(m.text || m.message_text || '')}</div>${attachmentHtml(m)}
                   <div class="native-bubble-time" style="text-align: left; color: #e2e8f0;">${time}</div>
                 </div>
               `;
             } else {
               bubble.className = 'native-chat-bubble native-bubble-user';
               bubble.innerHTML = `
-                <div>${escapeHtml(m.text || m.message_text || '')}</div>
+                <div>${escapeHtml(m.text || m.message_text || '')}</div>${attachmentHtml(m)}
                 <div class="native-bubble-time" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
                   <span>${time}</span>
                   <span style="font-size: 11px; color: #00875a; font-weight: bold;">✓</span>
@@ -2950,9 +2977,12 @@
     async function sendMessage() {
       const input = document.getElementById('nativeChatTextInput');
       const text = input.value.trim();
-      if (!text) return;
+      const imageInput = document.getElementById('nativeChatImageInput');
+      const file = imageInput && imageInput.files ? imageInput.files[0] : null;
+      if (!text && !file) return;
 
       input.value = '';
+      if (imageInput) imageInput.value = '';
       const container = document.getElementById('nativeChatMsgContainer');
 
       // Clear any initial greeting placeholder
@@ -2966,6 +2996,7 @@
       tempBubble.className = 'native-chat-bubble native-bubble-user';
       tempBubble.innerHTML = `
         <div>${escapeHtml(text)}</div>
+        ${file ? `<img src="${URL.createObjectURL(file)}" alt="Attached image" style="display:block; max-width:210px; max-height:180px; object-fit:contain; border-radius:8px; margin-top:6px; background:#fff;" />` : ''}
         <div class="native-bubble-time" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
           <span>${timeStr}</span>
           <span style="font-size: 11px; color: #00875a; font-weight: bold;">✓</span>
@@ -2977,7 +3008,11 @@
       // Send in background asynchronously without blocking UI
       try {
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        API.post('/api/user/chat', { text, timezone }).then(res => {
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('timezone', timezone);
+        if (file) formData.append('image', file);
+        API.postForm('/api/user/chat', formData).then(res => {
           if (res && res.newMessage && res.newMessage.id) {
             tempBubble.id = `chat-msg-${res.newMessage.id}`;
           }

@@ -54,6 +54,9 @@ async function runMigration() {
       user_email VARCHAR(255),
       sender VARCHAR(20) DEFAULT 'user',
       message_text TEXT,
+      attachment_url VARCHAR(500) DEFAULT NULL,
+      attachment_name VARCHAR(255) DEFAULT NULL,
+      attachment_mime VARCHAR(100) DEFAULT NULL,
       read_by_admin BOOLEAN DEFAULT FALSE,
       read_by_user BOOLEAN DEFAULT FALSE,
       ip_address VARCHAR(60) DEFAULT NULL,
@@ -67,7 +70,10 @@ async function runMigration() {
     const chatColumns = [
       { name: 'ip_address', type: 'VARCHAR(60) DEFAULT NULL' },
       { name: 'country_code', type: 'VARCHAR(10) DEFAULT NULL' },
-      { name: 'country_name', type: 'VARCHAR(100) DEFAULT NULL' }
+      { name: 'country_name', type: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'attachment_url', type: 'VARCHAR(500) DEFAULT NULL' },
+      { name: 'attachment_name', type: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'attachment_mime', type: 'VARCHAR(100) DEFAULT NULL' }
     ];
 
     for (const col of chatColumns) {

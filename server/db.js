@@ -976,12 +976,21 @@ const db = {
         user_email VARCHAR(255),
         sender VARCHAR(20) DEFAULT 'user',
         message_text TEXT,
+        attachment_url VARCHAR(500),
+        attachment_name VARCHAR(255),
+        attachment_mime VARCHAR(100),
         read_by_admin BOOLEAN DEFAULT FALSE,
         read_by_user BOOLEAN DEFAULT FALSE,
+        ip_address VARCHAR(60) DEFAULT NULL,
+        country_code VARCHAR(10) DEFAULT NULL,
+        country_name VARCHAR(100) DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX (user_id),
         INDEX (created_at)
       )`);
+      await query('ALTER TABLE chat_messages ADD COLUMN attachment_url VARCHAR(500)').catch(() => {});
+      await query('ALTER TABLE chat_messages ADD COLUMN attachment_name VARCHAR(255)').catch(() => {});
+      await query('ALTER TABLE chat_messages ADD COLUMN attachment_mime VARCHAR(100)').catch(() => {});
       _chatMessagesTableEnsured = true;
     } catch (err) {
       console.error('[DB] Chat messages table ensure notice:', err.message);
@@ -995,6 +1004,7 @@ const db = {
   },
 
   getChatMessages: async (userId) => {
+    await db.ensureChatMessagesTable();
     return await query(`
       SELECT 
         id, 
@@ -1004,6 +1014,9 @@ const db = {
         sender, 
         message_text, 
         message_text AS text, 
+        attachment_url,
+        attachment_name,
+        attachment_mime,
         read_by_admin, 
         read_by_user, 
         created_at 
@@ -1013,14 +1026,15 @@ const db = {
     `, [userId]);
   },
 
-  createChatMessage: async ({ userId, sender, text, userName, userEmail, ipAddress, countryCode, countryName }) => {
+  createChatMessage: async ({ userId, sender, text, userName, userEmail, ipAddress, countryCode, countryName, attachmentUrl, attachmentName, attachmentMime }) => {
+    await db.ensureChatMessagesTable();
     const id = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     const readByAdmin = sender === 'admin';
     const readByUser = sender === 'user';
     const cleanText = (text || '').trim();
-    await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, read_by_admin, read_by_user, ip_address, country_code, country_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, userId, userName || 'User', userEmail || '', sender || 'user', cleanText, readByAdmin, readByUser, ipAddress || null, countryCode || null, countryName || null]);
-    return { id, user_id: userId, sender, text: cleanText, message_text: cleanText, ip_address: ipAddress, country_code: countryCode, country_name: countryName, created_at: new Date().toISOString() };
+    await query(`INSERT INTO chat_messages (id, user_id, user_name, user_email, sender, message_text, attachment_url, attachment_name, attachment_mime, read_by_admin, read_by_user, ip_address, country_code, country_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, userId, userName || 'User', userEmail || '', sender || 'user', cleanText, attachmentUrl || null, attachmentName || null, attachmentMime || null, readByAdmin, readByUser, ipAddress || null, countryCode || null, countryName || null]);
+    return { id, user_id: userId, sender, text: cleanText, message_text: cleanText, attachment_url: attachmentUrl || null, attachment_name: attachmentName || null, attachment_mime: attachmentMime || null, ip_address: ipAddress, country_code: countryCode, country_name: countryName, created_at: new Date().toISOString() };
   },
 
   getChatConversations: async () => {
