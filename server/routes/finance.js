@@ -125,16 +125,27 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
 
     const userOrders = await db.getOrders({ user_id: user.id });
     const pendingOrder = (userOrders || []).find(o => 
-      ['PENDING', 'PROCESSING', 'SHORTFALL'].includes((o.order_status || '').toUpperCase())
+      ['ASSIGNED', 'PENDING', 'PROCESSING', 'SHORTFALL'].includes((o.order_status || '').toUpperCase())
     );
+    const assignedOrderCount = (userOrders || []).filter(o =>
+      (o.order_status || '').toUpperCase() === 'ASSIGNED'
+    ).length;
 
-    const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
+    let maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
       ? user.custom_daily_limit
       : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
         ? user.task_sequence_plan.total_orders
         : 5);
 
     const completedTasks = parseInt(user.today_tasks_completed || 0, 10);
+    // Admin may add order #6/#7 or queue multiple extra orders. Include those
+    // orders in the completion target instead of allowing early withdrawal.
+    if (assignedOrderCount > 0) {
+      maxTasks = Math.max(maxTasks, completedTasks + assignedOrderCount);
+    }
+    if (user.custom_order_num) {
+      maxTasks = Math.max(maxTasks, parseInt(user.custom_order_num, 10) || 0);
+    }
 
     if (isNegative || pendingTask || pendingOrder || completedTasks < maxTasks) {
       let reason = 'You have to complete your pending order before requesting a withdrawal.';
