@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS kyc_submissions (
   investment_amount DECIMAL(15,2),
   status VARCHAR(50) DEFAULT 'pending',
   rejection_reason TEXT,
+  funding_source VARCHAR(30) DEFAULT 'deposit',
+  funded_amount DECIMAL(15,2) DEFAULT 0.00,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

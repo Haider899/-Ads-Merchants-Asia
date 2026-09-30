@@ -2,6 +2,7 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { calculateDepositContractMatch } = require('./utils/depositContractMatch');
+const { calculateSecondContractFunding } = require('./utils/contractFunding');
 const { INTERNATIONAL_CATALOG } = require('./utils/internationalCatalog');
 
 const pool = mysql.createPool({
@@ -153,6 +154,12 @@ const db = {
     await ensureUserTaskSettingColumns();
     await db.ensureFinancialTables();
     await db.ensureAdminsTable();
+    try {
+      const cols = await query('SHOW COLUMNS FROM kyc_submissions');
+      const names = new Set(cols.map(c => c.Field.toLowerCase()));
+      if (!names.has('funding_source')) await query("ALTER TABLE kyc_submissions ADD COLUMN funding_source VARCHAR(30) DEFAULT 'deposit'");
+      if (!names.has('funded_amount')) await query('ALTER TABLE kyc_submissions ADD COLUMN funded_amount DECIMAL(15,2) DEFAULT 0.00');
+    } catch (_) {}
   },
   getSettings: async () => {
     const rows = await query('SELECT * FROM settings');
@@ -396,6 +403,49 @@ const db = {
     return await db.findUserById(id);
   },
 
+  transferTotalBalanceToWorking: async (userId, amount) => {
+    await db.ensureProductionSchema();
+    const user = await db.findUserById(userId);
+    const funding = calculateSecondContractFunding(amount, user && user.commission_balance, user && user.balance);
+    if (!funding.ok) return { success: false, ...funding };
+    const numAmount = Number(funding.amount);
+    const [result] = await pool.execute(
+      'UPDATE users SET commission_balance = commission_balance - ?, balance = balance + ? WHERE id = ? AND commission_balance >= ?',
+      [numAmount.toFixed(2), numAmount.toFixed(2), userId, numAmount.toFixed(2)]
+    );
+    if (!result || result.affectedRows !== 1) {
+      const latest = await db.findUserById(userId);
+      return { success: false, ...calculateSecondContractFunding(amount, latest && latest.commission_balance, latest && latest.balance) };
+    }
+    const updated = await db.findUserById(userId);
+    await query(`INSERT INTO wallet_transactions
+      (id, user_id, transaction_type, amount, balance_before, balance_after, currency, reference, description, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [`txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`, userId, 'CONTRACT_FUNDING', (-numAmount).toFixed(2),
+        Number(user.balance || 0).toFixed(2), Number(updated.balance || 0).toFixed(2), 'USD', `second-contract-${Date.now()}`,
+        'Second contract funded from Total Balance to Working Balance', formatMySQLDate(new Date())]);
+    return { success: true, amount: numAmount.toFixed(2), totalBalanceAfter: Number(updated.commission_balance).toFixed(2), workingBalanceAfter: Number(updated.balance).toFixed(2) };
+  },
+
+  refundSecondContractFunding: async (userId, amount) => {
+    await db.ensureProductionSchema();
+    const numAmount = Number(amount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) return { success: false };
+    const [result] = await pool.execute(
+      'UPDATE users SET commission_balance = commission_balance + ?, balance = balance - ? WHERE id = ?',
+      [numAmount.toFixed(2), numAmount.toFixed(2), userId]
+    );
+    if (!result || result.affectedRows !== 1) return { success: false };
+    const updated = await db.findUserById(userId);
+    await query(`INSERT INTO wallet_transactions
+      (id, user_id, transaction_type, amount, balance_before, balance_after, currency, reference, description, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [`txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`, userId, 'CONTRACT_REFUND', numAmount.toFixed(2),
+        Number(updated.balance || 0).toFixed(2), Number(updated.balance || 0).toFixed(2), 'USD', `second-contract-refund-${Date.now()}`,
+        'Second contract funding returned after rejection', formatMySQLDate(new Date())]);
+    return { success: true };
+  },
+
   resetUserPassword: async (userId, newPlainPassword) => {
     const hash = bcrypt.hashSync(newPlainPassword, 10);
     await query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId]);
@@ -625,6 +675,26 @@ const db = {
         return { success: false, userNotFound: true };
       }
 
+      if (String(kyc.funding_source || '').toLowerCase() === 'total_balance') {
+        await connection.execute(
+          'UPDATE kyc_submissions SET status = ?, rejection_reason = ? WHERE id = ?',
+          ['approved', rejectionReason, kyc.id]
+        );
+        await connection.execute('UPDATE users SET kyc_status = ?, kyc_notes = ? WHERE id = ?', ['approved', rejectionReason, user.id]);
+        await connection.commit();
+        return {
+          success: true,
+          alreadyApproved: false,
+          user: db.formatUser({ ...user, kyc_status: 'approved', kyc_notes: rejectionReason }),
+          releaseAmount: 0,
+          fundingSource: 'total_balance',
+          balanceBefore: Number(user.balance || 0).toFixed(2),
+          balanceAfter: Number(user.balance || 0).toFixed(2),
+          releasedDeposits: [],
+          contractAmount: Number(kyc.investment_amount || 0).toFixed(2)
+        };
+      }
+
       const [deposits] = await connection.execute(
         `SELECT id, amount, status, method, txid
          FROM deposits
@@ -728,13 +798,14 @@ const db = {
   },
 
   createKycSubmission: async (kycData) => {
-    await query(`INSERT INTO kyc_submissions (id, user_id, user_email, name, front_id_image, back_id_image, signature_image, investment_amount, status, rejection_reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [kycData.id, kycData.user_id, kycData.user_email, kycData.name, kycData.front_id_image, kycData.back_id_image, kycData.signature_image, kycData.investment_amount, kycData.status || 'pending', kycData.rejection_reason || '', formatMySQLDate(kycData.created_at)]);
+    await db.ensureProductionSchema();
+    await query(`INSERT INTO kyc_submissions (id, user_id, user_email, name, front_id_image, back_id_image, signature_image, investment_amount, status, rejection_reason, funding_source, funded_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [kycData.id, kycData.user_id, kycData.user_email, kycData.name, kycData.front_id_image, kycData.back_id_image, kycData.signature_image, kycData.investment_amount, kycData.status || 'pending', kycData.rejection_reason || '', kycData.funding_source || 'deposit', kycData.funded_amount || 0, formatMySQLDate(kycData.created_at)]);
     return kycData;
   },
 
   updateKycSubmission: async (id, updates) => {
-    const allowed = ['user_id', 'user_email', 'name', 'front_id_image', 'back_id_image', 'signature_image', 'investment_amount', 'status', 'rejection_reason', 'created_at'];
+    const allowed = ['user_id', 'user_email', 'name', 'front_id_image', 'back_id_image', 'signature_image', 'investment_amount', 'status', 'rejection_reason', 'funding_source', 'funded_amount', 'created_at'];
     const filteredUpdates = {};
     for (const key of Object.keys(updates)) {
       if (allowed.includes(key)) {

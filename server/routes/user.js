@@ -79,6 +79,7 @@ router.post('/kyc', authMiddleware, async (req, res) => {
   const investmentAmount = parseInvestmentAmount(investment_amount);
   const user = await db.findUserById(req.user.id);
   const workingBalance = Number(user && user.balance);
+  const isSecondContract = String(user && user.kyc_status || '').toLowerCase() === 'approved';
 
   if (investmentAmount === null) {
     return res.status(400).json({
@@ -87,7 +88,7 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     });
   }
 
-  if (!Number.isFinite(workingBalance) || workingBalance < 0) {
+  if (!isSecondContract && (!Number.isFinite(workingBalance) || workingBalance < 0)) {
     return res.status(400).json({
       success: false,
       negative_balance: true,
@@ -95,7 +96,7 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     });
   }
 
-  if (Math.round(investmentAmount * 100) !== Math.round(workingBalance * 100)) {
+  if (!isSecondContract && Math.round(investmentAmount * 100) !== Math.round(workingBalance * 100)) {
     return res.status(400).json({
       success: false,
       balance_mismatch: true,
@@ -110,6 +111,20 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     });
   }
 
+  let fundingSource = 'deposit';
+  let fundedAmount = 0;
+  if (isSecondContract) {
+    const transfer = await db.transferTotalBalanceToWorking(user.id, investmentAmount);
+    if (!transfer.success) {
+      const message = transfer.code === 'insufficient_total_balance'
+        ? `Insufficient Total Balance. Available: $${transfer.available}; requested: $${transfer.requested}.`
+        : 'Enter a valid positive investment amount.';
+      return res.status(400).json({ success: false, insufficient_total_balance: transfer.code === 'insufficient_total_balance', message });
+    }
+    fundingSource = 'total_balance';
+    fundedAmount = Number(transfer.amount);
+  }
+
   const kycSubmission = {
     id: 'kyc_' + Date.now(),
     user_id: user.id,
@@ -119,6 +134,8 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     back_id_image: back_id,
     signature_image: signature,
     investment_amount: investmentAmount,
+    funding_source: fundingSource,
+    funded_amount: fundedAmount,
     status: 'pending',
     rejection_reason: '',
     created_at: new Date().toISOString()

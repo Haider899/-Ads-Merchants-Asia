@@ -875,7 +875,9 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
         await db.createNotification({
           user_id: user.id,
           title: 'Contract Approved! ✅',
-          message: releasedAmount > 0
+          message: result.fundingSource === 'total_balance'
+            ? 'Your second contract has been approved. The selected amount was already moved from Total Balance to Working Balance.'
+            : releasedAmount > 0
             ? `Your contract has been approved and $${releasedAmount.toFixed(2)} in verified deposits has been credited to your Working Balance.`
             : 'Your contract has been approved. Your verified deposits were already credited; no funds were credited a second time.',
           type: 'success'
@@ -895,7 +897,9 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
         success: true,
         message: result.alreadyApproved
           ? 'This contract was already approved; no funds were credited again.'
-          : `Contract approved. $${Number(result.releaseAmount || 0).toFixed(2)} in newly verified deposits released to Working Balance.`
+          : result.fundingSource === 'total_balance'
+            ? 'Second contract approved. Total Balance funding is already in Working Balance.'
+            : `Contract approved. $${Number(result.releaseAmount || 0).toFixed(2)} in newly verified deposits released to Working Balance.`
       });
     }
 
@@ -908,6 +912,9 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
 
     const newStatus = action === 'reject' ? 'rejected' : 'reupload_required';
     const userKycStatus = newStatus;
+    if (String(kyc.funding_source || '').toLowerCase() === 'total_balance' && Number(kyc.funded_amount || kyc.investment_amount || 0) > 0 && user) {
+      await db.refundSecondContractFunding(user.id, Number(kyc.funded_amount || kyc.investment_amount));
+    }
     await db.updateKycSubmission(kyc.id, { status: newStatus, rejection_reason: reason });
 
     if (user) {

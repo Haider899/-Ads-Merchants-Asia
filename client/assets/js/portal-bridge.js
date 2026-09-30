@@ -2031,18 +2031,21 @@
 
     const investmentInput = document.getElementById('investmentAmount');
     const workingBalanceAmount = Number(user && user.balance !== undefined ? user.balance : 0);
+    const isSecondContract = String(user && user.kyc_status || '').toLowerCase() === 'approved';
+    const totalBalanceAmount = Number(user && user.commission_balance !== undefined ? user.commission_balance : 0);
     let canonicalInvestmentAmount = workingBalanceAmount;
     if (investmentInput) {
-      investmentInput.readOnly = true;
-      investmentInput.setAttribute('readonly', 'readonly');
+      investmentInput.readOnly = !isSecondContract;
+      if (isSecondContract) investmentInput.removeAttribute('readonly');
+      else investmentInput.setAttribute('readonly', 'readonly');
       investmentInput.min = '0.01';
       investmentInput.step = '0.01';
       investmentInput.inputMode = 'decimal';
-      investmentInput.style.backgroundColor = '#f1f5f9';
-      investmentInput.style.cursor = 'not-allowed';
+      investmentInput.style.backgroundColor = isSecondContract ? '#ffffff' : '#f1f5f9';
+      investmentInput.style.cursor = isSecondContract ? 'text' : 'not-allowed';
       investmentInput.style.fontWeight = '700';
       investmentInput.style.color = workingBalanceAmount < 0 ? '#dc2626' : '#0284c7';
-      investmentInput.value = workingBalanceAmount.toFixed(2);
+      investmentInput.value = (isSecondContract ? totalBalanceAmount : workingBalanceAmount).toFixed(2);
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');
