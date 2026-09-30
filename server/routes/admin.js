@@ -621,7 +621,7 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
 
     let pName = (productName || '').trim();
     let pPrice = parseFloat(productPrice) || 0;
-    let pImage = 'client/assets/uploads/products/outdoor_shed.jpg';
+    let pImage = null;
     let categoryKey = selectedCategory ? productCategory : '';
     const explicitCategoryProduct = categoryProduct && categoryProduct !== '__random__' ? String(categoryProduct).trim() : '';
 
@@ -656,16 +656,18 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
       // Default to high-value deficit product matching client screenshots
       if (pPrice > 2000 || defAmount >= 1000) {
         pName = 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)';
-        pImage = 'client/assets/uploads/products/outdoor_shed.jpg';
+        pImage = null;
       } else if (pPrice > 1000 || defAmount >= 500) {
         pName = '100 Pcs Glow Sticks Bulk Party Favors 8 Inch Glow in the Dark Party Supplies';
-        pImage = 'client/assets/uploads/products/glow_sticks.jpg';
+        pImage = null;
       } else {
         pName = 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)';
-        pImage = 'client/assets/uploads/products/outdoor_shed.jpg';
+        pImage = null;
       }
     } else {
-      const match = products.find(p => p.name.toLowerCase().includes(pName.toLowerCase()));
+      const normalizedName = pName.toLowerCase();
+      const exactMatches = products.filter(p => p.name.toLowerCase() === normalizedName);
+      const match = exactMatches.length === 1 ? exactMatches[0] : null;
       if (match) {
         if (match.image) pImage = match.image;
         if (!pPrice || pPrice <= 0) pPrice = parseFloat(match.price) || pPrice;
@@ -1489,14 +1491,14 @@ router.post('/orders/create', adminAuthMiddleware, checkRole('super_admin', 'adm
     const taskId = generateTaskNumber();
     const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
     const catalogProducts = await db.getProducts().catch(() => []);
-    const catalogMatch = catalogProducts.find(product =>
-      String(product.name || '').trim().toLowerCase() === String(productName || '').trim().toLowerCase()
-    ) || catalogProducts.find(product =>
-      String(product.name || '').toLowerCase().includes(String(productName || '').trim().toLowerCase())
+    const normalizedProductName = String(productName || '').trim().toLowerCase();
+    const exactCatalogProduct = catalogProducts.find(product =>
+      String(product.name || '').trim().toLowerCase() === normalizedProductName
     );
-    // Keep an explicitly supplied image, otherwise use the catalog image for
-    // the exact product instead of falling back to a random/default image.
-    const prodImg = productImage || (catalogMatch && catalogMatch.image) || 'client/assets/uploads/products/outdoor_shed.jpg';
+    const exactCatalogImage = exactCatalogProduct && String(exactCatalogProduct.image || '').trim();
+    // The catalog identity wins; a manual URL is only accepted when the name is
+    // not a catalog product. Never borrow an image through fuzzy name matching.
+    const prodImg = exactCatalogImage || String(productImage || '').trim() || null;
 
     const targetOrder = (user.today_tasks_completed || 0) + 1;
 
@@ -1872,15 +1874,21 @@ router.get('/products', adminAuthMiddleware, checkRole('sub_admin', 'support'), 
 router.post('/products', adminAuthMiddleware, checkRole('sub_admin'), async (req, res) => {
   try {
     const { name, price, image, category } = req.body;
-    if (!name || price === undefined || price === '') {
-      return res.status(400).json({ success: false, message: 'Product name and price are required' });
+    const productName = String(name || '').trim();
+    const productPrice = Number(price);
+    const productImage = String(image || '').trim();
+    if (!productName || !Number.isFinite(productPrice) || productPrice <= 0) {
+      return res.status(400).json({ success: false, message: 'Product name and a valid price greater than zero are required' });
+    }
+    if (productImage && !/^(https?:\/\/|\/|client\/|data:image\/)/i.test(productImage)) {
+      return res.status(400).json({ success: false, message: 'Image must be a valid http(s) URL or an approved local image path' });
     }
 
     const created = await db.createProduct({
-      name: name.trim(),
-      price: parseFloat(price),
-      image: image || 'client/assets/uploads/products/outdoor_shed.jpg',
-      category: category || 'General',
+      name: productName,
+      price: productPrice,
+      image: productImage || null,
+      category: String(category || 'General').trim() || 'General',
       is_active: 1
     });
 
@@ -1908,10 +1916,23 @@ router.put('/products/:id', adminAuthMiddleware, checkRole('sub_admin'), async (
     const { name, price, image, category, is_active } = req.body;
 
     const updates = {};
-    if (name !== undefined) updates.name = name.trim();
-    if (price !== undefined && price !== '') updates.price = parseFloat(price);
-    if (image !== undefined) updates.image = image;
-    if (category !== undefined) updates.category = category;
+    if (name !== undefined) {
+      updates.name = String(name).trim();
+      if (!updates.name) return res.status(400).json({ success: false, message: 'Product name cannot be empty' });
+    }
+    if (price !== undefined && price !== '') {
+      const parsedPrice = Number(price);
+      if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) return res.status(400).json({ success: false, message: 'Product price must be greater than zero' });
+      updates.price = parsedPrice;
+    }
+    if (image !== undefined) {
+      const productImage = String(image || '').trim();
+      if (productImage && !/^(https?:\/\/|\/|client\/|data:image\/)/i.test(productImage)) {
+        return res.status(400).json({ success: false, message: 'Image must be a valid http(s) URL or an approved local image path' });
+      }
+      updates.image = productImage || null;
+    }
+    if (category !== undefined) updates.category = String(category || 'General').trim() || 'General';
     if (is_active !== undefined) updates.is_active = is_active ? 1 : 0;
 
     await db.updateProduct(id, updates);

@@ -1829,7 +1829,7 @@
 
     function renderTaskCard(task) {
       const isCompleted = task.status === 'completed' || task.status === 'approved';
-      let imgUrl = task.product_image || 'client/assets/uploads/products/outdoor_shed.jpg';
+      let imgUrl = task.product_image || 'client/assets/uploads/logo/1742595477_icon.png';
       if (!imgUrl.startsWith('/') && !imgUrl.startsWith('http')) {
         imgUrl = '/' + imgUrl;
       }
@@ -1866,7 +1866,7 @@
       return `
         <div class="record-item-tab-field" id="record-${task.id}" style="background: #ffffff; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #f1f5f9;">
           <div class="record-item-tab-field-up" style="display: flex; gap: 14px; align-items: flex-start;">
-            <img src="${imgUrl}" alt="" class="record-item-image" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" style="width: 76px; height: 76px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0; background: #f8fafc;">
+            <img src="${imgUrl}" alt="" class="record-item-image" onerror="this.onerror=null;this.src='/client/assets/uploads/logo/1742595477_icon.png';" style="width: 76px; height: 76px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0; background: #f8fafc;">
             <div class="record-item-description" style="font-size: 13.5px; font-weight: 700; color: #0f172a; line-height: 1.35; flex: 1; word-break: break-word;">${escapeHtml(task.product_name || task.title)}</div>
           </div>
           <div class="record-item-tab-field-down" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; margin-top: 12px; padding-top: 10px;">

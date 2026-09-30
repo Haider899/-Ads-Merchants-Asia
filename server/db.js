@@ -3,7 +3,6 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { calculateDepositContractMatch } = require('./utils/depositContractMatch');
 const { calculateSecondContractFunding } = require('./utils/contractFunding');
-const { INTERNATIONAL_CATALOG } = require('./utils/internationalCatalog');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -39,12 +38,12 @@ let _tasksTableEnsured = false;
 let _adminsTableEnsured = false;
 let _chatMessagesTableEnsured = false;
 let _notificationsTableEnsured = false;
-let _catalogSeeded = false;
 let _userTaskSettingColsEnsured = false;
 let _financialTablesEnsured = false;
 let _legacyVerifiedDepositsMigrated = false;
 let _cachedUserCols = null;
 let _productsTableEnsured = false;
+let _generatedCatalogRemoved = false;
 let _cachedProducts = null;
 let _lastProductsFetch = 0;
 
@@ -57,6 +56,16 @@ async function getUserColumns() {
     }
   } catch (_) {}
   return _cachedUserCols || new Set();
+}
+
+async function removeGeneratedCatalogProducts() {
+  if (_generatedCatalogRemoved) return;
+  try {
+    await query("DELETE FROM products WHERE sku LIKE 'INTL-%'");
+  } catch (_) {
+    // The table/sku column may not exist until product setup completes.
+  }
+  _generatedCatalogRemoved = true;
 }
 
 async function ensureUserTaskSettingColumns() {
@@ -1283,27 +1292,8 @@ const db = {
       }
     } catch (_) {}
 
-    if (!_catalogSeeded) {
-      const existingRows = await query(`SELECT name FROM products`);
-      const existingNames = new Set(existingRows.map(row => String(row.name || '').trim().toLowerCase()));
-      for (const product of INTERNATIONAL_CATALOG) {
-        if (existingNames.has(product.name.toLowerCase())) continue;
-        await query(`INSERT INTO products (name, price, image, category, sku, is_active, commission_rate, reward_rate)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
-          product.name,
-          product.price,
-          product.image,
-          product.category,
-          product.sku,
-          product.is_active,
-          product.commission_rate,
-          product.reward_rate
-        ]);
-      }
-      _catalogSeeded = true;
-    }
-
-    const rows = await query(`SELECT * FROM products WHERE image NOT LIKE '%icon.png%' AND image NOT LIKE '%logo%'`);
+    await removeGeneratedCatalogProducts();
+    const rows = await query(`SELECT * FROM products`);
     _cachedProducts = rows;
     _lastProductsFetch = now;
     return rows;
@@ -1669,7 +1659,7 @@ const db = {
     [
       productData.name,
       productData.price,
-      productData.image || 'client/assets/uploads/products/outdoor_shed.jpg',
+      productData.image || null,
       productData.category || 'General',
       productData.sku || ('SKU-' + Date.now()),
       productData.is_active !== undefined ? (productData.is_active ? 1 : 0) : 1,

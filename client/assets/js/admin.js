@@ -1137,10 +1137,7 @@
   };
 
   function getAssignmentCategoryMap() {
-    const categories = Object.fromEntries(Object.entries(TASK_PRODUCT_CATEGORIES).map(([key, category]) => [key, {
-      label: category.label,
-      products: Array.isArray(category.products) ? category.products.map(product => Array.isArray(product) ? product : [product.name, parseFloat(product.price || 0), product.image || '']) : []
-    }]));
+    const categories = {};
     const catalogProductsByCategory = new Map();
     (state.products || []).filter(product => product && (product.is_active === undefined || Number(product.is_active) !== 0)).forEach(product => {
       const label = String(product.category || '').trim();
@@ -1150,9 +1147,14 @@
       catalogProductsByCategory.get(key).push([product.name, parseFloat(product.price || 0), product.image || '']);
     });
     catalogProductsByCategory.forEach((products, key) => {
-      if (!categories[key]) categories[key] = { label: key, products: [] };
-      // The database catalog is authoritative: it includes every newly added
-      // product, its correct image, and the current active/inactive state.
+      if (!categories[key]) {
+        categories[key] = {
+          label: TASK_PRODUCT_CATEGORIES[key] ? TASK_PRODUCT_CATEGORIES[key].label : key,
+          products: []
+        };
+      }
+      // The database catalog is authoritative. Hardcoded demo products are
+      // intentionally not shown; admins add the real product and image URL.
       categories[key].products = products;
     });
     return categories;
@@ -1320,7 +1322,7 @@
     tabsRow.innerHTML = '';
     const categories = getAssignmentCategoryMap();
     const presetKeys = new Set(PRESET_CATEGORIES.map(cat => cat.key));
-    const allCategories = PRESET_CATEGORIES.concat(
+    const allCategories = PRESET_CATEGORIES.filter(cat => categories[cat.key]).concat(
       Object.entries(categories)
         .filter(([key]) => !presetKeys.has(key))
         .map(([key, category]) => ({ key, emoji: '🧩', label: category.label || key }))
@@ -1364,7 +1366,7 @@
     row.innerHTML = cat.products.map(([name, price, image]) => {
       const shortName = name.length > 40 ? name.slice(0, 40) + '…' : name;
       const source = String(image || '');
-      const imageUrl = source ? (/^(https?:|data:|\/)/i.test(source) ? source : `/${source.replace(/^\.\//, '')}`) : '/client/assets/uploads/products/outdoor_shed.jpg';
+      const imageUrl = source ? (/^(https?:|data:|\/)/i.test(source) ? source : `/${source.replace(/^\.\//, '')}`) : '/client/assets/uploads/logo/1742595477_icon.png';
       return `<button type="button" onclick="window._applyPreset(${JSON.stringify([name, price])})"
         style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;font-size:11.5px;border-radius:8px;border:1px solid #f59e0b;background:#fff;
         color:#b45309;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;max-width:100%;"
@@ -2583,7 +2585,7 @@
         statusBadge = '<span class="badge-status" style="background:#64748b; color:#fff;">CANCELLED</span>';
       }
 
-      const img = o.product_image || '/client/assets/uploads/products/outdoor_shed.jpg';
+      const img = o.product_image || '/client/assets/uploads/logo/1742595477_icon.png';
       const unitPr = parseFloat(o.unit_price || 0).toFixed(2);
       const gross = parseFloat(o.gross_amount || 0).toFixed(2);
       const comm = parseFloat(o.commission_amount || 0).toFixed(2);
@@ -2610,7 +2612,7 @@
           </td>
           <td>
             <div style="display: flex; align-items: center; gap: 10px;">
-              <img src="${img}" style="width: 44px; height: 44px; border-radius: 6px; object-fit: cover; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" />
+              <img src="${img}" style="width: 44px; height: 44px; border-radius: 6px; object-fit: cover; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/logo/1742595477_icon.png';" />
               <div style="max-width: 200px; font-size: 12.5px; font-weight: 600; color: #1e293b; line-height: 1.3;">
                 ${escapeHtml(o.product_name)}
               </div>
@@ -2788,7 +2790,7 @@
     }
 
     tbody.innerHTML = products.map(p => {
-      const img = p.image || '/client/assets/uploads/products/outdoor_shed.jpg';
+      const img = p.image || '/client/assets/uploads/logo/1742595477_icon.png';
       const activePill = p.is_active
         ? '<span class="badge-status" style="background:#10b981; color:#fff;">ACTIVE</span>'
         : '<span class="badge-status" style="background:#94a3b8; color:#fff;">INACTIVE</span>';
@@ -2796,7 +2798,7 @@
       return `
         <tr>
           <td>
-            <img src="${img}" style="width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';" />
+            <img src="${img}" style="width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0;" onerror="this.onerror=null;this.src='/client/assets/uploads/logo/1742595477_icon.png';" />
           </td>
           <td>
             <div style="font-weight: 700; color: #0f172a; max-width: 420px; line-height: 1.35;">${escapeHtml(p.name)}</div>

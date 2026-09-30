@@ -86,7 +86,7 @@ function renderTaskCard(task, activeTabContext = 'all', userDeficitInfo = {}) {
     const isDeficit = Boolean(task.is_deficit || parseFloat(task.deficit_amount || 0) > 0 || (!isCompleted && userDeficitInfo.is_deficit));
     const deficitAmt = parseFloat(task.deficit_amount || userDeficitInfo.deficit_amount || 0).toFixed(2);
 
-    let imgUrl = task.product_image || '/client/assets/uploads/products/outdoor_shed.jpg';
+    let imgUrl = task.product_image || '/client/assets/uploads/logo/1742595477_icon.png';
     if (!imgUrl.startsWith('/') && !imgUrl.startsWith('http')) {
         imgUrl = '/' + imgUrl;
     }
@@ -134,7 +134,7 @@ function renderTaskCard(task, activeTabContext = 'all', userDeficitInfo = {}) {
             ${deficitBannerHtml}
 
             <div class="record-item-tab-field-up">
-                <img src="${imgUrl}" alt="" class="record-item-image" onerror="this.onerror=null;this.src='/client/assets/uploads/products/outdoor_shed.jpg';">
+                <img src="${imgUrl}" alt="" class="record-item-image" onerror="this.onerror=null;this.src='/client/assets/uploads/logo/1742595477_icon.png';">
                 <div class="record-item-description">${escapeHtml(task.product_name || task.title)}</div>
             </div>
 

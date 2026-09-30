@@ -345,7 +345,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
         order_number: sfo.order_number,
         user_id: user.id,
         product_name: sfo.product_name,
-        product_image: sfo.product_image || 'client/assets/uploads/products/outdoor_shed.jpg',
+        product_image: sfo.product_image || null,
         product_price: sfoPrice,
         commission_rate: parseFloat(sfo.commission_rate || 0.20),
         commission_amount: sfoComm,
@@ -399,7 +399,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
         order_number: ao.order_number,
         user_id: user.id,
         product_name: ao.product_name,
-        product_image: ao.product_image || 'client/assets/uploads/products/outdoor_shed.jpg',
+        product_image: ao.product_image || null,
         product_price: orderPrice,
         commission_rate: commRate,
         commission_amount: commAmount,
@@ -517,7 +517,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
           id: matched ? matched.id : null,
           name: matched ? matched.name : 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)',
           price: orderPrice,
-          image: matched && matched.image ? matched.image : 'client/assets/uploads/products/outdoor_shed.jpg',
+          image: matched && matched.image ? matched.image : null,
           category: matched ? (matched.category || 'General') : 'General'
         };
       } else {
@@ -528,7 +528,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
           id: matched ? matched.id : null,
           name: matched ? matched.name : 'Standard Optimization Item',
           price: orderPrice,
-          image: matched && matched.image ? matched.image : 'client/assets/uploads/products/glow_sticks.jpg',
+          image: matched && matched.image ? matched.image : null,
           category: matched ? (matched.category || 'General') : 'General'
         };
       }
@@ -558,7 +558,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
         selectedProduct = {
           name: user.custom_product_name,
           price: orderPrice,
-          image: 'client/assets/uploads/products/outdoor_shed.jpg',
+          image: null,
           category: 'General'
         };
         const customName = String(user.custom_product_name).trim().toLowerCase();
@@ -585,7 +585,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
           selectedProduct = sortedDesc[0] || {
             name: 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)',
             price: 3674.00,
-            image: 'client/assets/uploads/products/outdoor_shed.jpg'
+            image: null
           };
           orderPrice = parseFloat(selectedProduct.price);
           deficitAmount = parseFloat((orderPrice - user.balance).toFixed(2));
@@ -597,7 +597,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
         selectedProduct = sortedDesc[0] || {
           name: 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)',
           price: 3674.00,
-          image: 'client/assets/uploads/products/outdoor_shed.jpg'
+          image: null
         };
         orderPrice = parseFloat(selectedProduct.price);
         deficitAmount = parseFloat((orderPrice - user.balance).toFixed(2));
@@ -633,7 +633,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
       if (matching.length === 0) {
         // Safe fallback: scale safely within available balance so balance NEVER goes negative on normal order
         const sortedAsc = [...availableProducts].sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-        const baseProd = sortedAsc[0] || { name: 'Standard Optimization Item', image: 'client/assets/uploads/products/glow_sticks.jpg' };
+        const baseProd = sortedAsc[0] || { name: 'Standard Optimization Item', image: null };
         const safePrice = round(Math.max(5.00, userBal * 0.30));
         selectedProduct = {
           id: baseProd.id || null,
@@ -667,7 +667,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
     });
 
     const productName = selectedProduct.name;
-    const productImage = selectedProduct.image || 'client/assets/uploads/products/outdoor_shed.jpg';
+    const productImage = selectedProduct.image || null;
     const orderNumber = generateOrderNumber();
     const taskId = generateTaskNumber();
     const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
@@ -837,7 +837,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
           order_number: matchedOrder.order_number,
           user_id: user.id,
           product_name: matchedOrder.product_name,
-          product_image: matchedOrder.product_image || 'client/assets/uploads/products/outdoor_shed.jpg',
+          product_image: matchedOrder.product_image || null,
           product_price: price,
           commission_rate: matchedOrder.commission_rate || 0.20,
           commission_amount: commAmt,
@@ -1143,10 +1143,10 @@ router.get('/records', authMiddleware, async (req, res) => {
     const formattedTasks = userTasks.filter(t => !isCancelledStatus(t.status)).map(t => {
       let prodImage = t.product_image;
       if (!prodImage || prodImage.includes('undefined') || String(prodImage).trim() === '') {
-        const match = allProducts.find(p => p.name && t.product_name && (p.name.toLowerCase().includes(t.product_name.substring(0, 15).toLowerCase()) || t.product_name.toLowerCase().includes(p.name.substring(0, 15).toLowerCase())));
-        prodImage = (match && match.image) ? match.image : 'client/assets/uploads/products/outdoor_shed.jpg';
+        const match = allProducts.find(p => p.name && t.product_name && p.name.trim().toLowerCase() === String(t.product_name).trim().toLowerCase());
+        prodImage = (match && match.image) ? match.image : null;
       }
-      if (!prodImage.startsWith('/') && !prodImage.startsWith('http')) {
+      if (prodImage && !prodImage.startsWith('/') && !prodImage.startsWith('http')) {
         prodImage = '/' + prodImage;
       }
 
@@ -1220,7 +1220,7 @@ router.get('/records', authMiddleware, async (req, res) => {
           type: 'order',
           title: o.product_name,
           product_name: o.product_name,
-          product_image: o.product_image || '/client/assets/uploads/products/outdoor_shed.jpg',
+          product_image: o.product_image || null,
           product_price: price.toFixed(2),
           total_amount: price.toFixed(2),
           commission_amount: comm.toFixed(2),
