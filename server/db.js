@@ -62,10 +62,10 @@ async function removeGeneratedCatalogProducts() {
   if (_generatedCatalogRemoved) return;
   try {
     await query("DELETE FROM products WHERE sku LIKE 'INTL-%'");
+    _generatedCatalogRemoved = true;
   } catch (_) {
     // The table/sku column may not exist until product setup completes.
   }
-  _generatedCatalogRemoved = true;
 }
 
 async function ensureUserTaskSettingColumns() {
@@ -1258,7 +1258,7 @@ const db = {
 
   getProducts: async () => {
     const now = Date.now();
-    if (_cachedProducts && (now - _lastProductsFetch) < 45000) {
+    if (_cachedProducts && _generatedCatalogRemoved && (now - _lastProductsFetch) < 45000) {
       return _cachedProducts;
     }
     if (!_productsTableEnsured) {
@@ -1276,7 +1276,7 @@ const db = {
       _productsTableEnsured = true;
     }
     // Older installations created products before category/SKU metadata existed.
-    // Add the columns before inserting the expanded catalog so the migration is safe.
+    // Add the columns before applying the generated-product cleanup migration.
     try {
       const prodCols = await query(`SHOW COLUMNS FROM products`);
       const colNames = new Set(prodCols.map(c => c.Field.toLowerCase()));
@@ -1293,7 +1293,8 @@ const db = {
     } catch (_) {}
 
     await removeGeneratedCatalogProducts();
-    const rows = await query(`SELECT * FROM products`);
+    // Keep generated INTL rows hidden even if DELETE is temporarily blocked.
+    const rows = await query(`SELECT * FROM products WHERE COALESCE(sku, '') NOT LIKE 'INTL-%'`);
     _cachedProducts = rows;
     _lastProductsFetch = now;
     return rows;
