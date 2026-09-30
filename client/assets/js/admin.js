@@ -2503,6 +2503,8 @@
 
     input.value = '';
     if (imageInput) imageInput.value = '';
+    const attachmentPreview = document.getElementById('adminChatAttachmentPreview');
+    if (attachmentPreview) attachmentPreview.style.display = 'none';
     const container = document.getElementById('adminChatMessagesContainer');
 
     const tempBubble = document.createElement('div');
@@ -2526,7 +2528,18 @@
   const adminChatImageInput = document.getElementById('adminChatImageInput');
   if (adminChatImageInput) {
     adminChatImageInput.addEventListener('change', () => {
-      adminChatImageInput.parentElement.title = adminChatImageInput.files[0] ? adminChatImageInput.files[0].name : 'Attach an image';
+      const file = adminChatImageInput.files[0];
+      adminChatImageInput.parentElement.title = file ? file.name : 'Attach an image';
+      const preview = document.getElementById('adminChatAttachmentPreview');
+      const thumb = document.getElementById('adminChatAttachmentThumb');
+      const name = document.getElementById('adminChatAttachmentName');
+      if (file && preview && thumb && name) {
+        thumb.src = URL.createObjectURL(file);
+        name.textContent = file.name;
+        preview.style.display = 'flex';
+      } else if (preview) {
+        preview.style.display = 'none';
+      }
     });
   }
 

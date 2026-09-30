@@ -1520,6 +1520,10 @@
                                     <i class="fa fa-paperclip"></i>
                                     <input type="file" id="adminChatImageInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
                                 </label>
+                                <div id="adminChatAttachmentPreview" style="display:none; align-items:center; gap:6px; max-width:180px; min-width:0; padding:4px 8px; border:1px solid #bbf7d0; border-radius:8px; background:#f0fdf4; color:#166534; font-size:11px;">
+                                    <img id="adminChatAttachmentThumb" alt="Selected attachment" style="width:34px; height:34px; object-fit:cover; border-radius:5px; background:#fff;" />
+                                    <span id="adminChatAttachmentName" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                                </div>
                                 <input type="text" id="adminReplyInput" class="form-control" placeholder="Type your response to the user here... (Press Enter to send)" />
                                 <button type="button" id="adminSendReplyBtn" class="btn-action btn-approve" style="padding: 11px 22px; font-size: 14px;">
                                     <i class="fa fa-paper-plane"></i> <span>Send</span>

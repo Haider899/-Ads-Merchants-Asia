@@ -2817,7 +2817,7 @@
         </div>
       </div>
       <div class="native-chat-messages" id="nativeChatMsgContainer">
-        <div class="text-center text-muted py-3" style="font-size: 12px;">Loading chat history...</div>
+        <div class="text-center text-muted py-3" style="font-size: 12px;">Start a new chat with Amazon Support.</div>
       </div>
       <div class="native-chat-footer">
         <label for="nativeChatImageInput" title="Attach an image" style="width: 38px; height: 38px; border: 1px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #00875a; cursor: pointer; flex-shrink: 0;">
