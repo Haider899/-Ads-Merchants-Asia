@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { MIN_WITHDRAWAL_AMOUNT, parseWholeDollarAmount } = require('../utils/withdrawalAmount');
+const { positiveAmount, DEFAULT_MINIMUM_DEPOSIT } = require('../utils/depositAmount');
 const { adminAuthMiddleware, isUserOnline, getActiveSessions, kickSession, JWT_SECRET } = require('../middleware/auth');
 const geo = require('../utils/geo');
 const {
@@ -332,7 +333,7 @@ router.post('/users/delete', adminAuthMiddleware, checkRole('sub_admin'), async 
 // POST /api/admin/users/update
 router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'finance'), async (req, res) => {
   try {
-    const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit, custom_min_withdraw, kyc_status } = req.body;
+    const { userId, balance, frozen_balance, vip_level, status, add_balance, deduct_balance, reset_tasks, reinvest_profit, custom_daily_limit, custom_min_withdraw, custom_min_deposit, kyc_status } = req.body;
     const user = await db.findUserById(userId);
 
     if (!user) {
@@ -365,6 +366,19 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
           return res.status(400).json({ success: false, message: 'User minimum withdrawal must be a whole-dollar amount of at least $10.' });
         }
         updates.custom_min_withdraw = cmw;
+      }
+    }
+
+    // Empty clears the per-user override and restores the global minimum (currently $10).
+    if (custom_min_deposit !== undefined) {
+      if (custom_min_deposit === '' || custom_min_deposit === null) {
+        updates.custom_min_deposit = null;
+      } else {
+        const cmd = positiveAmount(custom_min_deposit);
+        if (cmd === null || cmd < DEFAULT_MINIMUM_DEPOSIT) {
+          return res.status(400).json({ success: false, message: 'User minimum deposit must be at least $10.00.' });
+        }
+        updates.custom_min_deposit = Number(cmd.toFixed(2));
       }
     }
 
@@ -1291,7 +1305,13 @@ router.post('/settings', adminAuthMiddleware, checkRole('super_admin'), async (r
   if (trc20_address) updates.trc20_address = trc20_address.trim();
   if (erc20_address) updates.erc20_address = erc20_address.trim();
   if (btc_address) updates.btc_address = btc_address.trim();
-  if (min_deposit) updates.min_deposit = parseFloat(min_deposit);
+  if (min_deposit !== undefined && min_deposit !== '') {
+    const parsedMinimum = positiveAmount(min_deposit);
+    if (parsedMinimum === null || parsedMinimum < DEFAULT_MINIMUM_DEPOSIT) {
+      return res.status(400).json({ success: false, message: 'System minimum deposit must be at least $10.00.' });
+    }
+    updates.min_deposit = Number(parsedMinimum.toFixed(2));
+  }
   if (min_withdraw !== undefined && min_withdraw !== '') {
     const parsedMinimum = parseWholeDollarAmount(String(min_withdraw));
     if (parsedMinimum === null || parsedMinimum < MIN_WITHDRAWAL_AMOUNT) {

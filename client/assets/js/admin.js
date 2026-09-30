@@ -1052,6 +1052,17 @@
         currentMinWithdrawBadge.style.display = 'none';
       }
     }
+    const minDepositEl = document.getElementById('editUserMinDeposit');
+    const currentMinDepositBadge = document.getElementById('editCurrentMinDeposit');
+    if (minDepositEl) minDepositEl.value = user.custom_min_deposit || '';
+    if (currentMinDepositBadge) {
+      if (user.custom_min_deposit) {
+        currentMinDepositBadge.textContent = `Active: $${parseFloat(user.custom_min_deposit).toFixed(2)}`;
+        currentMinDepositBadge.style.display = 'inline-block';
+      } else {
+        currentMinDepositBadge.style.display = 'none';
+      }
+    }
     AdminUI.openModal('editUserModal');
   };
 
@@ -1066,6 +1077,13 @@
     const el = document.getElementById('editUserMinWithdraw');
     if (el) el.value = '';
     const badge = document.getElementById('editCurrentMinWithdraw');
+    if (badge) badge.style.display = 'none';
+  };
+
+  window.clearMinDeposit = function() {
+    const el = document.getElementById('editUserMinDeposit');
+    if (el) el.value = '';
+    const badge = document.getElementById('editCurrentMinDeposit');
     if (badge) badge.style.display = 'none';
   };
 
@@ -3453,12 +3471,14 @@
           const custom_daily_limit = customDailyEl ? customDailyEl.value.trim() : '';
           const customMinWithdrawEl = document.getElementById('editUserMinWithdraw');
           const custom_min_withdraw = customMinWithdrawEl ? customMinWithdrawEl.value.trim() : '';
+          const customMinDepositEl = document.getElementById('editUserMinDeposit');
+          const custom_min_deposit = customMinDepositEl ? customMinDepositEl.value.trim() : '';
 
           const kycStatusEl = document.getElementById('editUserKycStatus');
           const kyc_status = kycStatusEl ? kycStatusEl.value : undefined;
 
           const res = await AdminAPI.post('/api/admin/users/update', {
-            userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit, custom_min_withdraw, kyc_status
+            userId, vip_level, balance, frozen_balance, add_balance, deduct_balance, status, reset_tasks, custom_daily_limit, custom_min_withdraw, custom_min_deposit, kyc_status
           });
 
           if (res && res.success) {

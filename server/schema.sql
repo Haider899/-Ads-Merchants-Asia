@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
   custom_product_selection TEXT DEFAULT NULL,
   custom_daily_limit INT DEFAULT NULL,
   custom_min_withdraw DECIMAL(15,2) DEFAULT NULL,
+  custom_min_deposit DECIMAL(15,2) DEFAULT NULL,
   task_sequence_plan TEXT DEFAULT NULL,
   last_reset_date DATE DEFAULT NULL,
   tasks_reset_at DATETIME DEFAULT NULL,
@@ -244,7 +245,7 @@ INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
 ('btc_address', 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
 ('telegram_support', 'https://t.me/adsmerchantsasia_support'),
 ('whatsapp_support', '+60112345678'),
-('min_deposit', '20'),
+('min_deposit', '10'),
 ('min_withdraw', '10'),
 ('daily_tasks_limit', '38'),
 ('vip_rates', '{"Bronze":{"commission":0.20,"min_balance":0,"max_tasks":38},"Silver":{"commission":0.30,"min_balance":500,"max_tasks":45},"Gold":{"commission":0.40,"min_balance":2000,"max_tasks":55},"Diamond":{"commission":0.50,"min_balance":5000,"max_tasks":65},"Platinum":{"commission":0.50,"min_balance":5000,"max_tasks":65}}');

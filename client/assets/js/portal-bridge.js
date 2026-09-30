@@ -1335,8 +1335,10 @@
         const submitBtn = form.querySelector('button[type="submit"], input[type="submit"], .withdraw-btn');
 
         const amount = parseFloat(amountInput ? amountInput.value : 0);
-        if (isNaN(amount) || amount < 20) {
-          showBridgeToast('Invalid Amount', 'Minimum deposit is $20.00', 'error');
+        const userDepositMinimum = Number(user && user.custom_min_deposit);
+        const minimumDeposit = Number.isFinite(userDepositMinimum) && userDepositMinimum > 0 ? userDepositMinimum : 10;
+        if (isNaN(amount) || amount < minimumDeposit) {
+          showBridgeToast('Invalid Amount', `Minimum deposit is $${minimumDeposit.toFixed(2)}`, 'error');
           return;
         }
 

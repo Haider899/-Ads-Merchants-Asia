@@ -3,29 +3,31 @@ const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { MIN_WITHDRAWAL_AMOUNT, parseWholeDollarAmount, effectiveWithdrawalMinimum } = require('../utils/withdrawalAmount');
+const { effectiveDepositMinimum, DEFAULT_MINIMUM_DEPOSIT } = require('../utils/depositAmount');
 
 // GET /api/finance/wallets - Retrieve current crypto deposit addresses
 router.get('/wallets', async (req, res) => {
   const settings = await db.getSettings();
+  const minimum = Number(settings.min_deposit) > 0 ? Number(settings.min_deposit) : DEFAULT_MINIMUM_DEPOSIT;
   res.json({
     success: true,
     wallets: {
       TRC20: {
         network: 'USDT (TRC20)',
         address: settings.trc20_address || 'TJ8Yg9pKaV8vU3mQ2jN5xL7wE1tZ4dC6bA',
-        min_deposit: settings.min_deposit || 20,
+        min_deposit: minimum,
         confirmations: '1 Network Confirmation'
       },
       ERC20: {
         network: 'USDT (ERC20)',
         address: settings.erc20_address || '0x88922C0A5A901F1aA719d3f1FeA6bA34B20C888A',
-        min_deposit: settings.min_deposit || 20,
+        min_deposit: minimum,
         confirmations: '12 Network Confirmations'
       },
       BTC: {
         network: 'Bitcoin (BTC)',
         address: settings.btc_address || 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-        min_deposit: settings.min_deposit || 20,
+        min_deposit: minimum,
         confirmations: '2 Network Confirmations'
       }
     },
@@ -47,10 +49,11 @@ router.post('/deposit', authMiddleware, async (req, res) => {
     const settings = await db.getSettings();
 
     const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount < (settings.min_deposit || 20)) {
+    const minimum = effectiveDepositMinimum(user, settings);
+    if (isNaN(numAmount) || numAmount < minimum) {
       return res.status(400).json({
         success: false,
-        message: `Minimum deposit amount is $${settings.min_deposit || 20}.00`
+        message: `Minimum deposit amount is $${minimum.toFixed(2)}`
       });
     }
 

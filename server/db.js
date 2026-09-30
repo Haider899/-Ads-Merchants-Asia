@@ -87,6 +87,7 @@ async function ensureUserTaskSettingColumns() {
       { name: 'custom_product_selection', type: 'TEXT DEFAULT NULL' },
       { name: 'custom_daily_limit', type: 'INT DEFAULT NULL' },
       { name: 'custom_min_withdraw', type: 'DECIMAL(15,2) DEFAULT NULL' },
+      { name: 'custom_min_deposit', type: 'DECIMAL(15,2) DEFAULT NULL' },
       { name: 'task_sequence_plan', type: 'TEXT DEFAULT NULL' },
       { name: 'last_reset_date', type: 'DATE DEFAULT NULL' },
       { name: 'tasks_reset_at', type: 'DATETIME DEFAULT NULL' },
@@ -262,6 +263,20 @@ const db = {
     return true;
   },
 
+  migrateDefaultDepositMinimumToTen: async () => {
+    const migrationKey = 'migration_default_deposit_minimum_10_v1';
+    const completed = await query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', [migrationKey]);
+    if (completed.length) return false;
+    const current = await query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['min_deposit']);
+    if (!current.length) {
+      await query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['min_deposit', '10']);
+    } else if (Number(current[0].setting_value) === 20) {
+      await query('UPDATE settings SET setting_value = ? WHERE setting_key = ? AND setting_value = ?', ['10', 'min_deposit', current[0].setting_value]);
+    }
+    await query('INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, ?)', [migrationKey, new Date().toISOString()]);
+    return true;
+  },
+
   formatUser: (u) => {
     if (!u) return null;
     return {
@@ -285,6 +300,7 @@ const db = {
       })(),
       custom_daily_limit: u.custom_daily_limit !== null && u.custom_daily_limit !== undefined ? parseInt(u.custom_daily_limit, 10) : null,
       custom_min_withdraw: u.custom_min_withdraw !== null && u.custom_min_withdraw !== undefined ? parseFloat(u.custom_min_withdraw) : null,
+      custom_min_deposit: u.custom_min_deposit !== null && u.custom_min_deposit !== undefined ? parseFloat(u.custom_min_deposit) : null,
       task_sequence_plan: (() => {
         if (!u.task_sequence_plan) return null;
         try {
@@ -436,7 +452,7 @@ const db = {
       'today_tasks_completed', 'total_tasks_completed', 'current_set', 
       'invite_code', 'kyc_status', 'kyc_notes', 'status',
       'custom_order_num', 'custom_deficit_amount', 'custom_product_name', 'custom_product_price', 'custom_product_selection',
-      'custom_daily_limit', 'custom_min_withdraw', 'task_sequence_plan', 'last_reset_date', 'tasks_reset_at',
+      'custom_daily_limit', 'custom_min_withdraw', 'custom_min_deposit', 'task_sequence_plan', 'last_reset_date', 'tasks_reset_at',
       'commission_balance', 'country_code', 'country_name', 'last_ip'
     ];
     const filteredUpdates = {};

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test test_deleted_user_session.test.js server/utils/orderTaskLink.test.js server/utils/investmentAmount.test.js server/utils/depositContractMatch.test.js server/utils/withdrawalAmount.test.js server/utils/productCategories.test.js server/utils/taskProductSelection.test.js server/utils/assignmentNotifications.test.js server/utils/startCarousel.test.js server/utils/contractFunding.test.js server/utils/chatUpload.test.js server/utils/depositNotifications.test.js"
+    "test": "node --test test_deleted_user_session.test.js server/utils/orderTaskLink.test.js server/utils/investmentAmount.test.js server/utils/depositContractMatch.test.js server/utils/withdrawalAmount.test.js server/utils/depositAmount.test.js server/utils/productCategories.test.js server/utils/taskProductSelection.test.js server/utils/assignmentNotifications.test.js server/utils/startCarousel.test.js server/utils/contractFunding.test.js server/utils/chatUpload.test.js server/utils/depositNotifications.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

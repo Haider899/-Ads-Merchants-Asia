@@ -238,6 +238,10 @@ app.listen(PORT, () => {
       return db.migrateDefaultWithdrawalMinimumToTen
         ? db.migrateDefaultWithdrawalMinimumToTen()
         : undefined;
+    }).then(() => {
+      return db.migrateDefaultDepositMinimumToTen
+        ? db.migrateDefaultDepositMinimumToTen()
+        : undefined;
     }).catch(err => {
       console.log('Production schema migration notice:', err.message);
     });
