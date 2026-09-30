@@ -1736,7 +1736,8 @@ router.post('/tasks/:id/complete', adminAuthMiddleware, checkRole('sub_admin'), 
     const funding = evaluateTaskCompletionFunding(
       parseFloat(user.balance || 0),
       taskPrice,
-      isDeficitFlag(task.is_deficit)
+      isDeficitFlag(task.is_deficit),
+      { frozenBalance: user.frozen_balance }
     );
     if (!funding.ok) {
       return res.status(400).json({

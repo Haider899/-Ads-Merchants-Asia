@@ -884,7 +884,9 @@ router.post('/submit', authMiddleware, async (req, res) => {
     // Never mark an order completed or credit commission before verifying that
     // its principal is funded. This is especially important for admin-pushed
     // high-value orders assigned to users with only a few dollars available.
-    const funding = evaluateTaskCompletionFunding(userBalance, taskPrice, taskIsDeficit);
+    const funding = evaluateTaskCompletionFunding(userBalance, taskPrice, taskIsDeficit, {
+      frozenBalance: user.frozen_balance
+    });
     if (!funding.ok && funding.code === 'unfunded_deficit') {
       const deficit = round(Math.abs(userBalance));
       await db.updateUser(user.id, { frozen_balance: deficit });
