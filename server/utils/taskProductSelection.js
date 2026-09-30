@@ -66,10 +66,34 @@ function resolveSelectedProducts(catalog, storedSelection) {
   }).filter(Boolean);
 }
 
+function selectClosestUnusedProduct(catalog, targetPrice, usedNames = new Set(), usedImages = new Set()) {
+  const products = (catalog || []).filter(product => product &&
+    (product.is_active === undefined || Number(product.is_active) !== 0));
+  const normalizedNames = usedNames instanceof Set ? usedNames : new Set(usedNames);
+  const normalizedImages = usedImages instanceof Set ? usedImages : new Set(usedImages);
+  const isUnused = product => {
+    const name = String(product.name || '').trim().toLowerCase();
+    const image = String(product.image || '').trim().toLowerCase();
+    return !normalizedNames.has(name) && (!image || !normalizedImages.has(image));
+  };
+  const unusedProducts = products.filter(isUnused);
+  const unusedNameProducts = products.filter(product => {
+    const name = String(product.name || '').trim().toLowerCase();
+    return !normalizedNames.has(name);
+  });
+  const pool = unusedProducts.length ? unusedProducts : (unusedNameProducts.length ? unusedNameProducts : products);
+  if (!pool.length) return null;
+  const amount = Number(targetPrice) || 0;
+  return [...pool].sort((a, b) =>
+    Math.abs(Number(a.price || 0) - amount) - Math.abs(Number(b.price || 0) - amount)
+  )[0];
+}
+
 module.exports = {
   MAX_SELECTION_ITEMS,
   MAX_PRODUCT_PRICE,
   normalizeProductSelection,
   parseProductSelection,
-  resolveSelectedProducts
+  resolveSelectedProducts,
+  selectClosestUnusedProduct
 };

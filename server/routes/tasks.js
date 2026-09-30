@@ -13,7 +13,7 @@ const {
   generateTaskNumber,
   calculateOrder
 } = require('../utils/orderCalculator');
-const { resolveSelectedProducts } = require('../utils/taskProductSelection');
+const { resolveSelectedProducts, selectClosestUnusedProduct } = require('../utils/taskProductSelection');
 const {
   isLinkedToCancelledTask,
   isOrphanedNormalProcessingOrder,
@@ -465,12 +465,21 @@ router.post('/generate', authMiddleware, async (req, res) => {
       .filter(task => String(task.user_id) === String(user.id))
       .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     const recentTaskHistory = userTaskHistory.slice(0, 5);
-    const recentProductNames = new Set(recentTaskHistory.map(t => t.product_name).filter(Boolean));
+    const recentProductNames = new Set(recentTaskHistory
+      .map(task => String(task.product_name || '').trim().toLowerCase())
+      .filter(Boolean));
+    const recentProductImages = new Set(recentTaskHistory
+      .map(task => String(task.product_image || '').trim().toLowerCase())
+      .filter(Boolean));
     const productCategoryByName = new Map((products || []).map(product => [String(product.name), String(product.category || '').trim()]));
     const recentCategories = new Set(recentTaskHistory
       .map(task => String(task.category || productCategoryByName.get(String(task.product_name)) || '').trim())
       .filter(Boolean));
-    let availableProducts = products.filter(p => !recentProductNames.has(p.name));
+    let availableProducts = products.filter(p => {
+      const name = String(p.name || '').trim();
+      const image = String(p.image || '').trim().toLowerCase();
+      return !recentProductNames.has(name.toLowerCase()) && (!image || !recentProductImages.has(image));
+    });
     if (availableProducts.length === 0) {
       availableProducts = [...products];
     }
@@ -511,8 +520,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
           ? parseFloat(plannedStep.deficit_amount)
           : Math.max(10, parseFloat((orderPrice - parseFloat(user.balance || 0)).toFixed(2)));
         
-        const sortedDesc = [...products].sort((a, b) => Math.abs(parseFloat(a.price) - orderPrice) - Math.abs(parseFloat(b.price) - orderPrice));
-        const matched = sortedDesc[0];
+        const matched = selectClosestUnusedProduct(products, orderPrice, recentProductNames, recentProductImages);
         selectedProduct = {
           id: matched ? matched.id : null,
           name: matched ? matched.name : 'Lifetime 9446 Outdoor Storage Shed, 12x 16 Foot, Desert Sand Black&Brown (2 in set)',
@@ -522,8 +530,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
         };
       } else {
         deficitAmount = 0;
-        const sortedAsc = [...availableProducts].sort((a, b) => Math.abs(parseFloat(a.price) - orderPrice) - Math.abs(parseFloat(b.price) - orderPrice));
-        const matched = sortedAsc[0] || availableProducts[0];
+        const matched = selectClosestUnusedProduct(availableProducts, orderPrice, recentProductNames, recentProductImages)
+          || selectClosestUnusedProduct(products, orderPrice, recentProductNames, recentProductImages);
         selectedProduct = {
           id: matched ? matched.id : null,
           name: matched ? matched.name : 'Standard Optimization Item',

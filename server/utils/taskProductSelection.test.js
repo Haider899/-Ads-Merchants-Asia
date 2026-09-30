@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const {
   normalizeProductSelection,
   parseProductSelection,
-  resolveSelectedProducts
+  resolveSelectedProducts,
+  selectClosestUnusedProduct
 } = require('./taskProductSelection');
 
 const catalog = [
@@ -68,4 +69,13 @@ test('resolves the exact selected product so its catalog image cannot be borrowe
   assert.equal(products[0].image, 'watch.jpg');
   assert.equal(products[0].category, 'Fashion');
   assert.equal(products[0].price, 77.25);
+});
+
+test('sequence selection avoids a previously used product image before matching price', () => {
+  const next = selectClosestUnusedProduct([
+    { id: 1, name: 'First Product', price: 5, image: 'same-image.jpg', is_active: 1 },
+    { id: 2, name: 'Second Product', price: 5.25, image: 'second-image.jpg', is_active: 1 }
+  ], 5, new Set(['first product']), new Set(['same-image.jpg']));
+  assert.equal(next.id, 2);
+  assert.equal(next.image, 'second-image.jpg');
 });
