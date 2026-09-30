@@ -11,11 +11,11 @@ function evaluateTaskCompletionFunding(balance, price, isDeficit, options = {}) 
   if (userBalance < 0) {
     return { ok: false, code: 'unfunded_deficit', deficit: Math.abs(userBalance), userBalance, taskPrice };
   }
-  // Assigned/deficit orders use the same submit-time accounting as the normal
-  // daily task flow. Their principal is deducted when the user submits, so an
-  // admin-assigned order may legitimately take Working Balance below zero.
-  // The caller still rejects an already-negative balance before another task.
-  if (!isDeficitFlag(isDeficit) && userBalance < taskPrice) {
+  // A deficit/shortfall order remains pending until its full principal is
+  // funded. It must never be completed by deducting more than the available
+  // Working Balance; the caller will show the recharge/insufficient-funds
+  // popup and leave the task/order in its shortfall state.
+  if (userBalance < taskPrice) {
     return { ok: false, code: 'insufficient_balance', shortfall: taskPrice - userBalance, userBalance, taskPrice };
   }
   return { ok: true, userBalance, taskPrice };

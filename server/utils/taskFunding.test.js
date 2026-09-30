@@ -15,14 +15,18 @@ test('string zero cannot bypass the normal-order balance requirement', () => {
   assert.equal(result.code, 'insufficient_balance');
 });
 
-test('deficit orders are allowed to post their shortfall at submission', () => {
+test('deficit orders stay pending when the principal is not funded', () => {
   const result = evaluateTaskCompletionFunding(1.9, 4000, 1, { frozenBalance: 0 });
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'insufficient_balance');
+  assert.equal(result.shortfall, 3998.1);
 });
 
-test('a deficit task may complete after its reserve shortfall is cleared', () => {
+test('a deficit task may complete only after its reserve shortfall is cleared', () => {
   const result = evaluateTaskCompletionFunding(1.9, 4000, 1, { frozenBalance: 3998.1 });
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'insufficient_balance');
+  assert.equal(evaluateTaskCompletionFunding(4000, 4000, 1).ok, true);
 });
 
 test('blocks a high-value normal order when working balance is too low', () => {
@@ -40,7 +44,7 @@ test('blocks every order while the working balance is negative', () => {
 });
 
 test('allows a deficit order only after its shortfall is cleared', () => {
-  assert.equal(evaluateTaskCompletionFunding(0, 4000, true, { frozenBalance: 4000 }).ok, true);
+  assert.equal(evaluateTaskCompletionFunding(0, 4000, true, { frozenBalance: 4000 }).ok, false);
   assert.equal(evaluateTaskCompletionFunding(4000, 4000, true).ok, true);
 });
 
