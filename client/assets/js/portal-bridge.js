@@ -991,7 +991,12 @@
               }
               return;
             }
-            showBridgeToast('Optimization Notice', (res && res.message) || 'Unable to grab order at this time.', 'error');
+            const ordersCompleted = res && res.code === 'orders_completed';
+            showBridgeToast(
+              ordersCompleted ? (res.title || 'Merchant Orders Completed') : 'Optimization Notice',
+              (res && res.message) || 'Unable to grab order at this time.',
+              ordersCompleted ? 'success' : 'error'
+            );
           }
         } catch (err) {
           setStartProductOrbitActive(false);

@@ -305,7 +305,9 @@ router.post('/generate', authMiddleware, async (req, res) => {
     if (!hasPushedOrders && effectiveCompleted >= maxTasks) {
       return res.status(400).json({
         success: false,
-        message: `You have completed all ${maxTasks} daily optimization tasks. Please return tomorrow!`
+        code: 'orders_completed',
+        title: 'Merchant Orders Completed',
+        message: 'All current orders are complete. Activate a new merchant contract to continue earning commissions.'
       });
     }
 
