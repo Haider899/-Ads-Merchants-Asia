@@ -1393,11 +1393,11 @@
             }
             const amt = parseFloat(d.amount || 0).toFixed(2);
             const st = (d.status || 'Pending').toLowerCase();
-            const statusLabel = st === 'approved' ? 'Approved — credited' : (st === 'verified' ? 'Verified — on hold for contract approval' : (st === 'rejected' ? 'Rejected' : 'Pending verification'));
-            const statusBg = st === 'approved' ? '#dcfce7' : (st === 'verified' ? '#fef3c7' : (st === 'rejected' ? '#fee2e2' : '#fef3c7'));
-            const statusColor = st === 'approved' ? '#15803d' : (st === 'verified' ? '#a16207' : (st === 'rejected' ? '#b91c1c' : '#b45309'));
-            const amountLabel = st === 'approved' ? `USD +${amt}` : (st === 'verified' ? `USD ${amt} (held)` : `USD ${amt}`);
-            const amountColor = st === 'approved' ? '#16a34a' : (st === 'rejected' ? '#b91c1c' : '#a16207');
+            const statusLabel = st === 'approved' || st === 'verified' ? 'Approved — credited' : (st === 'rejected' ? 'Rejected' : 'Pending verification');
+            const statusBg = st === 'approved' || st === 'verified' ? '#dcfce7' : (st === 'rejected' ? '#fee2e2' : '#fef3c7');
+            const statusColor = st === 'approved' || st === 'verified' ? '#15803d' : (st === 'rejected' ? '#b91c1c' : '#b45309');
+            const amountLabel = st === 'approved' || st === 'verified' ? `USD +${amt}` : `USD ${amt}`;
+            const amountColor = st === 'approved' || st === 'verified' ? '#16a34a' : (st === 'rejected' ? '#b91c1c' : '#a16207');
             const txid = d.txid ? (d.txid.length > 16 ? d.txid.substring(0, 16) + '...' : d.txid) : 'Blockchain Deposit';
             return `
               <div style="background: white; border-radius: 12px; padding: 14px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #f1f5f9;">

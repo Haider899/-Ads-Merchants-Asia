@@ -2047,9 +2047,7 @@
           <td>
             ${['pending', 'verified'].includes(String(d.status || '').toLowerCase()) ? `
               <div style="display: flex; gap: 6px;">
-                ${String(d.status || '').toLowerCase() === 'verified'
-                  ? '<small style="color:#a16207; font-weight:700;">Verified — held for contract approval</small>'
-                  : `<button class="btn-action btn-approve" onclick="confirmDepositAction('${d.id}', 'approve')"><i class="fa fa-check"></i> ${String(d.kyc_status || '').toLowerCase() === 'approved' ? 'Verify & Credit' : 'Verify (Hold)'}</button>`}
+                <button class="btn-action btn-approve" onclick="confirmDepositAction('${d.id}', 'approve')"><i class="fa fa-check"></i> Verify & Credit</button>
                 <button class="btn-action btn-reject" onclick="confirmDepositAction('${d.id}', 'reject')"><i class="fa fa-times"></i> Reject</button>
               </div>
             ` : `<small style="color: #64748b; font-weight: 600;">Resolved (${d.status})</small>`}
@@ -2091,12 +2089,9 @@
       </div>
       ${['pending', 'verified'].includes(String(dep.status || '').toLowerCase()) ? `
         <div style="display: flex; gap: 10px;">
-          ${String(dep.status || '').toLowerCase() === 'verified'
-            ? '<span style="color:#a16207;font-weight:700;">Verified — held for contract approval</span>'
-            : `<button class="btn-action btn-approve" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'approve');">
-            <i class="fa fa-check"></i> ${String(dep.kyc_status || '').toLowerCase() === 'approved' ? 'Verify & Credit Balance' : 'Verify & Hold'}
+          <button class="btn-action btn-approve" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'approve');">
+            <i class="fa fa-check"></i> Verify & Credit Balance
           </button>
-          `}
           <button class="btn-action btn-reject" style="flex: 1; justify-content: center; padding: 12px; font-size: 14px;" onclick="AdminUI.closeModal('receiptInspectorModal'); confirmDepositAction('${dep.id}', 'reject');">
             <i class="fa fa-times"></i> Reject Deposit
           </button>
@@ -2114,11 +2109,9 @@
     if (action === 'approve') {
       const confirmed = await AdminUI.confirm({
         title: `Verify Deposit of ${amountStr}?`,
-        message: dep && String(dep.kyc_status || '').toLowerCase() === 'approved'
-          ? `${amountStr} will be credited to the user's Working Balance because the contract is already approved.`
-          : `The payment will be marked as verified and held. It will not enter Working Balance unless the contract is approved with an exact match to all verified and already-credited deposits.`,
+        message: `${amountStr} will be verified and credited directly to the user's Working Balance.`,
         type: 'success',
-        confirmText: dep && String(dep.kyc_status || '').toLowerCase() === 'approved' ? 'Verify & Credit' : 'Verify & Hold'
+        confirmText: 'Verify & Credit'
       });
       if (!confirmed) return;
 

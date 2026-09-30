@@ -954,16 +954,16 @@ router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'fin
     const user = result.user;
     const amount = Number(result.amount || 0);
     if (result.alreadyProcessed) {
-      const message = result.status === 'verified'
-        ? 'Deposit is already verified and held until contract approval.'
-        : (result.status === 'approved' ? 'Deposit was already credited; it will not be credited again.' : 'Deposit is already rejected.');
+      const message = result.status === 'approved'
+        ? 'Deposit was already credited; it will not be credited again.'
+        : 'Deposit is already rejected.';
       return res.json({ success: true, status: result.status, creditedAmount: '0.00', message });
     }
 
     const creditedAmount = Number(result.creditedAmount || 0);
     await db.createAuditLog({
       adminId: req.admin.id,
-      action: action === 'approve' ? (result.status === 'verified' ? 'DEPOSIT_VERIFY_HOLD' : 'DEPOSIT_APPROVE_CREDIT') : 'DEPOSIT_REJECT',
+      action: action === 'approve' ? 'DEPOSIT_APPROVE_CREDIT' : 'DEPOSIT_REJECT',
       entity: 'deposit',
       entityId: depositId,
       oldValue: { balance: result.balanceBefore, status: action === 'approve' ? 'pending' : 'previous' },
@@ -973,22 +973,17 @@ router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'fin
     }).catch(() => {});
 
     if (action === 'approve') {
-      const held = result.status === 'verified';
       await db.createNotification({
         user_id: user.id,
-        title: held ? 'Deposit Verified — On Hold' : 'Deposit Approved! 💳',
-        message: held
-          ? `Your deposit of $${amount.toFixed(2)} (${result.method || 'USDT'}) is verified. It will be credited after your contract is approved.`
-          : `Your deposit of $${amount.toFixed(2)} (${result.method || 'USDT'}) has been verified and credited to your Working Balance.`,
+        title: 'Deposit Approved! 💳',
+        message: `Your deposit of $${amount.toFixed(2)} (${result.method || 'USDT'}) has been verified and credited to your Working Balance.`,
         type: 'success'
       });
       return res.json({
         success: true,
         status: result.status,
         creditedAmount: creditedAmount.toFixed(2),
-        message: held
-          ? `Deposit of $${amount.toFixed(2)} verified and held until contract approval. No balance was credited.`
-          : `Deposit of $${amount.toFixed(2)} verified and credited. Working Balance is now $${result.balanceAfter}.`
+        message: `Deposit of $${amount.toFixed(2)} verified and credited. Working Balance is now $${result.balanceAfter}.`
       });
     }
 

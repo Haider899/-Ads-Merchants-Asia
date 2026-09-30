@@ -513,7 +513,7 @@ const db = {
       }
 
       const previousStatus = String(deposit.status || 'pending').toLowerCase();
-      if (action === 'approve' && ['approved', 'verified'].includes(previousStatus)) {
+      if (action === 'approve' && previousStatus === 'approved') {
         await connection.rollback();
         return { success: true, alreadyProcessed: true, status: previousStatus, amount: Number(deposit.amount || 0), creditedAmount: 0, user: db.formatUser(user) };
       }
@@ -532,12 +532,9 @@ const db = {
       let finalStatus;
       let creditedAmountCents = 0;
       if (action === 'approve') {
-        const contractApproved = String(user.kyc_status || '').toLowerCase() === 'approved';
-        finalStatus = contractApproved ? 'approved' : 'verified';
-        if (contractApproved) {
-          balanceAfterCents += amountCents;
-          creditedAmountCents = amountCents;
-        }
+        finalStatus = 'approved';
+        balanceAfterCents += amountCents;
+        creditedAmountCents = amountCents;
       } else {
         finalStatus = 'rejected';
         if (previousStatus === 'approved') balanceAfterCents = Math.max(0, balanceBeforeCents - amountCents);
@@ -545,7 +542,7 @@ const db = {
 
       await connection.execute(
         'UPDATE deposits SET status = ?, admin_notes = ? WHERE id = ?',
-        [finalStatus, notes || (finalStatus === 'verified' ? 'Verified; held until contract approval' : (action === 'approve' ? 'Verified on blockchain' : 'Invalid transaction hash / receipt')), depositId]
+        [finalStatus, notes || (action === 'approve' ? 'Verified on blockchain and credited to Working Balance' : 'Invalid transaction hash / receipt'), depositId]
       );
 
       if (balanceAfterCents !== balanceBeforeCents) {
@@ -570,7 +567,7 @@ const db = {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [transactionId, user.id, adminId || null, 'DEPOSIT', (ledgerAmountCents / 100).toFixed(2),
             (balanceBeforeCents / 100).toFixed(2), (balanceAfterCents / 100).toFixed(2), 'USD', deposit.txid || deposit.id,
-            action === 'approve' ? `Deposit credited after contract approval (${deposit.method || 'USDT'})` : 'Previously credited deposit reversed by admin',
+            action === 'approve' ? `Deposit verified and credited to Working Balance (${deposit.method || 'USDT'})` : 'Previously credited deposit reversed by admin',
             formatMySQLDate(new Date())]
         );
       }
