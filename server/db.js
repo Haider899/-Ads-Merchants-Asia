@@ -850,7 +850,6 @@ const db = {
   },
 
   createKycSubmission: async (kycData) => {
-    await db.ensureProductionSchema();
     await query(`INSERT INTO kyc_submissions (id, user_id, user_email, name, front_id_image, back_id_image, signature_image, investment_amount, status, rejection_reason, funding_source, funded_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [kycData.id, kycData.user_id, kycData.user_email, kycData.name, kycData.front_id_image, kycData.back_id_image, kycData.signature_image, kycData.investment_amount, kycData.status || 'pending', kycData.rejection_reason || '', kycData.funding_source || 'deposit', kycData.funded_amount || 0, formatMySQLDate(kycData.created_at)]);
     return kycData;
@@ -1444,6 +1443,14 @@ const db = {
 
       // 5. KYC Submissions table LONGTEXT enhancement for robust image uploads
       try {
+        const kycCols = await query(`SHOW COLUMNS FROM kyc_submissions`);
+        const kycColNames = new Set(kycCols.map(c => c.Field.toLowerCase()));
+        if (!kycColNames.has('funding_source')) {
+          await query(`ALTER TABLE kyc_submissions ADD COLUMN funding_source VARCHAR(30) DEFAULT 'deposit'`);
+        }
+        if (!kycColNames.has('funded_amount')) {
+          await query(`ALTER TABLE kyc_submissions ADD COLUMN funded_amount DECIMAL(15,2) DEFAULT 0.00`);
+        }
         await query(`ALTER TABLE kyc_submissions MODIFY COLUMN front_id_image LONGTEXT`);
         await query(`ALTER TABLE kyc_submissions MODIFY COLUMN back_id_image LONGTEXT`);
         await query(`ALTER TABLE kyc_submissions MODIFY COLUMN signature_image LONGTEXT`);
@@ -1451,6 +1458,7 @@ const db = {
 
       // 6. Ensure chat_messages table on startup
       await db.ensureChatMessagesTable().catch(() => {});
+      await db.migrateLegacyVerifiedDeposits();
 
       _productionSchemaEnsured = true;
     } catch (err) {

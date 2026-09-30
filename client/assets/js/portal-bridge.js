@@ -2033,7 +2033,7 @@
     const workingBalanceAmount = Number(user && user.balance !== undefined ? user.balance : 0);
     const isSecondContract = String(user && user.kyc_status || '').toLowerCase() === 'approved';
     const totalBalanceAmount = Number(user && user.commission_balance !== undefined ? user.commission_balance : 0);
-    let canonicalInvestmentAmount = workingBalanceAmount;
+    let canonicalInvestmentAmount = isSecondContract ? totalBalanceAmount : workingBalanceAmount;
     if (investmentInput) {
       investmentInput.readOnly = !isSecondContract;
       if (isSecondContract) investmentInput.removeAttribute('readonly');
@@ -2046,6 +2046,10 @@
       investmentInput.style.fontWeight = '700';
       investmentInput.style.color = workingBalanceAmount < 0 ? '#dc2626' : '#0284c7';
       investmentInput.value = (isSecondContract ? totalBalanceAmount : workingBalanceAmount).toFixed(2);
+      const amountNote = document.getElementById('investmentAmountNote');
+      if (amountNote) amountNote.innerHTML = isSecondContract
+        ? '<i class="fa fa-wallet mr-1"></i> Editable for your second contract. The amount will be deducted from Total Balance with Commission and added to Working Balance.'
+        : '<i class="fa fa-wallet mr-1"></i> Your first contract uses the current Working Balance. The amount is fixed to the verified deposit balance.';
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');
@@ -2094,7 +2098,7 @@
       if (kycRes.latest_submission) {
         const sub = kycRes.latest_submission;
         if (sub.name && nameInput) nameInput.value = sub.name;
-        if (investmentInput && Number.isFinite(canonicalInvestmentAmount)) {
+        if (investmentInput && !isSecondContract && Number.isFinite(canonicalInvestmentAmount)) {
           investmentInput.value = canonicalInvestmentAmount.toFixed(2);
         } else if (sub.investment_amount && investmentInput) {
           investmentInput.value = Number(sub.investment_amount).toFixed(2);
@@ -2205,7 +2209,7 @@
       let nameVal = nameEl ? nameEl.value.trim() : (user.fullname || user.username || '');
       let investmentVal = investmentEl ? investmentEl.value.trim() : '0.00';
 
-      if (!Number.isFinite(workingBalanceAmount) || workingBalanceAmount < 0) {
+      if (!isSecondContract && (!Number.isFinite(workingBalanceAmount) || workingBalanceAmount < 0)) {
         showBridgeToast('Contract Unavailable', 'Your Working Balance is negative. Please clear the deficit before submitting a contract.', 'error');
         return false;
       }
