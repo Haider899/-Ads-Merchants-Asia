@@ -1397,6 +1397,84 @@
       });
     }
 
+    // Fiat uses the same amount/receipt workflow as Crypto, with a separate
+    // form so switching tabs never submits the hidden Crypto form by mistake.
+    const fiatForm = document.getElementById('fiatDepositForm');
+    const fiatReceiptInput = document.getElementById('fiatDepositReceiptInput');
+    const fiatPlaceholder = document.getElementById('fiatReceiptUploadPlaceholder');
+    const fiatPreviewContainer = document.getElementById('fiatReceiptPreviewContainer');
+    const fiatPreviewImg = document.getElementById('fiatReceiptPreviewImg');
+    if (fiatReceiptInput) {
+      fiatReceiptInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          showBridgeToast('Invalid Receipt', 'Please select a JPG, PNG, or WEBP image.', 'error');
+          fiatReceiptInput.value = '';
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          showBridgeToast('File Too Large', 'Receipt images must be 10MB or smaller.', 'error');
+          fiatReceiptInput.value = '';
+          return;
+        }
+        if (fiatPlaceholder) fiatPlaceholder.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Optimizing receipt...';
+        const compressed = await compressImageFile(file, 1000, 0.75);
+        if (fiatPreviewImg && compressed) fiatPreviewImg.src = compressed;
+        if (fiatPlaceholder) fiatPlaceholder.style.display = 'none';
+        if (fiatPreviewContainer) fiatPreviewContainer.style.display = 'block';
+      });
+    }
+    if (fiatForm) {
+      fiatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amountInput = document.getElementById('fiat-deposit-amount');
+        const submitBtn = fiatForm.querySelector('button[type="submit"]');
+        const amount = parseFloat(amountInput ? amountInput.value : 0);
+        const customMinimum = Number(user && user.custom_min_deposit);
+        const minimumDeposit = Number.isFinite(customMinimum) && customMinimum > 0 ? customMinimum : 1;
+        if (!Number.isFinite(amount) || amount < minimumDeposit) {
+          showBridgeToast('Invalid Amount', `Minimum deposit is $${minimumDeposit.toFixed(2)}`, 'error');
+          return;
+        }
+        if (!fiatReceiptInput || !fiatReceiptInput.files || !fiatReceiptInput.files[0] || !fiatPreviewImg || !fiatPreviewImg.src) {
+          showBridgeToast('Receipt Required', 'Please upload your Fiat payment receipt before submitting.', 'error');
+          return;
+        }
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Submitting Deposit...';
+        }
+        try {
+          const res = await API.post('/api/finance/deposit', {
+            amount,
+            method: 'FIAT',
+            txid: 'FIAT-' + Date.now() + '-' + Math.random().toString(16).substring(2, 10),
+            proof_image: fiatPreviewImg.src
+          });
+          if (res && res.success) {
+            showBridgeToast('Deposit Submitted', res.message, 'success');
+            amountInput.value = '';
+            fiatReceiptInput.value = '';
+            fiatPreviewImg.src = '';
+            if (fiatPlaceholder) fiatPlaceholder.style.display = 'block';
+            if (fiatPreviewContainer) fiatPreviewContainer.style.display = 'none';
+            if (typeof loadDepositHistory === 'function') loadDepositHistory();
+          } else {
+            showBridgeToast('Deposit Failed', (res && res.message) || 'Error submitting deposit', 'error');
+          }
+        } catch (err) {
+          console.error('[Fiat Deposit Submit Error]', err);
+          showBridgeToast('Deposit Error', 'Failed to submit deposit. Please try again.', 'error');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+          }
+        }
+      });
+    }
+
     const historyBtn = document.getElementById('history-btn');
     async function loadDepositHistory() {
       const allRecords = document.querySelector('#history-section #allRecords') || document.getElementById('allRecords');
