@@ -101,10 +101,14 @@
         if (token) {
           headers['Authorization'] = 'Bearer ' + token;
         }
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
         const res = await fetch(endpoint, {
           headers,
-          credentials: 'include'
+          credentials: 'include',
+          signal: controller.signal
         });
+        clearTimeout(timeout);
         if (res.status === 401) {
           handleUnauthorized();
           return null;
@@ -112,7 +116,7 @@
         return await res.json();
       } catch (err) {
         console.error('API GET Error:', err);
-        return { success: false, message: 'Network error occurred' };
+        return { success: false, message: err.name === 'AbortError' ? 'Request timed out. Please try again.' : 'Network error occurred' };
       }
     },
     async post(endpoint, data) {
@@ -127,12 +131,16 @@
         if (token) {
           headers['Authorization'] = 'Bearer ' + token;
         }
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
         const res = await fetch(endpoint, {
           method: 'POST',
           headers,
           credentials: 'include',
-          body: JSON.stringify(data)
+          body: JSON.stringify(data),
+          signal: controller.signal
         });
+        clearTimeout(timeout);
         if (res.status === 401) {
           handleUnauthorized();
           return null;
@@ -140,7 +148,7 @@
         return await res.json();
       } catch (err) {
         console.error('API POST Error:', err);
-        return { success: false, message: 'Network error occurred' };
+        return { success: false, message: err.name === 'AbortError' ? 'Request timed out. Please try again.' : 'Network error occurred' };
       }
     },
     async postForm(endpoint, formData) {
