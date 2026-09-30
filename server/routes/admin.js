@@ -21,6 +21,7 @@ const {
 } = require('../utils/orderCalculator');
 const { normalizeProductSelection } = require('../utils/taskProductSelection');
 const { handleChatUpload, getAttachmentUrl } = require('../utils/chatUpload');
+const { evaluateTaskCompletionFunding } = require('../utils/taskFunding');
 
 // Role-based permission guard helper
 function checkRole(...allowedRoles) {
@@ -1731,6 +1732,24 @@ router.post('/tasks/:id/complete', adminAuthMiddleware, checkRole('sub_admin'), 
     const commAmount = parseFloat(task.commission_amount !== undefined && task.commission_amount !== null
       ? task.commission_amount
       : (task.commission_earned || 0));
+
+    const funding = evaluateTaskCompletionFunding(
+      parseFloat(user.balance || 0),
+      taskPrice,
+      Boolean(task.is_deficit)
+    );
+    if (!funding.ok) {
+      return res.status(400).json({
+        success: false,
+        message: funding.code === 'unfunded_deficit'
+          ? 'Task cannot be force-completed while the user has an uncleared deficit.'
+          : 'Task cannot be force-completed because the user does not have enough working balance for the order principal.',
+        deficit_amount: funding.code === 'unfunded_deficit'
+          ? round(funding.deficit)
+          : round(funding.shortfall || 0),
+        user_balance: round(funding.userBalance)
+      });
+    }
 
     // Update task
     await db.updateTask(task.id, {

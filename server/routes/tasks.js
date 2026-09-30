@@ -14,6 +14,7 @@ const {
   calculateOrder
 } = require('../utils/orderCalculator');
 const { resolveSelectedProducts, selectClosestUnusedProduct } = require('../utils/taskProductSelection');
+const { evaluateTaskCompletionFunding } = require('../utils/taskFunding');
 const {
   isLinkedToCancelledTask,
   isOrphanedNormalProcessingOrder,
@@ -879,8 +880,11 @@ router.post('/submit', authMiddleware, async (req, res) => {
       ? task.commission_amount
       : (task.commission_earned || 0));
 
-    // If user's balance is negative, deficit has not been cleared
-    if (userBalance < 0) {
+    // Never mark an order completed or credit commission before verifying that
+    // its principal is funded. This is especially important for admin-pushed
+    // high-value orders assigned to users with only a few dollars available.
+    const funding = evaluateTaskCompletionFunding(userBalance, taskPrice, Boolean(task.is_deficit));
+    if (!funding.ok && funding.code === 'unfunded_deficit') {
       const deficit = round(Math.abs(userBalance));
       await db.updateUser(user.id, { frozen_balance: deficit });
 
@@ -890,6 +894,18 @@ router.post('/submit', authMiddleware, async (req, res) => {
         message: 'Your account balance is currently in deficit. Please clear the shortfall to complete this order.',
         userFrozenBalance: deficit.toFixed(2),
         deficit_amount: deficit,
+        product_price: taskPrice,
+        user_balance: userBalance
+      });
+    }
+
+    if (!funding.ok) {
+      const shortfall = round(Math.max(0, taskPrice - userBalance));
+      return res.status(400).json({
+        success: false,
+        reachedLimit: true,
+        message: 'Insufficient working balance to complete this order. Please fund the order principal before submitting it.',
+        deficit_amount: shortfall,
         product_price: taskPrice,
         user_balance: userBalance
       });
@@ -938,12 +954,6 @@ router.post('/submit', authMiddleware, async (req, res) => {
     }
     let finalWorkingBalance = round(userBalance);
     if (!task.is_deficit) {
-      if (userBalance < taskPrice) {
-        return res.status(400).json({
-          success: false,
-          message: 'Insufficient working balance to complete this order.'
-        });
-      }
       finalWorkingBalance = round(userBalance - taskPrice);
       // Record Ledger Entry: ORDER_RESERVE for normal task upon submission
       await db.createLedgerTransaction({
