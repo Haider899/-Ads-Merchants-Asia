@@ -1410,7 +1410,12 @@
 
     // Also sync the form category dropdown
     const catEl = document.getElementById('assignTaskProductCategory');
-    if (catEl) catEl.value = catKey;
+    if (catEl) {
+      catEl.value = catKey;
+      // The preset tabs and the form select share one source of truth. Keep
+      // the native product dropdown in the same category as the active tab.
+      window.populateAssignTaskCategoryProducts();
+    }
   };
 
   window._applyPreset = function([name, price]) {

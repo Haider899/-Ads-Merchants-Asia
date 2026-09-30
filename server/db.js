@@ -982,6 +982,11 @@ const db = {
   },
 
   createNotification: async (notifData) => {
+    // Assignments are silent until the user starts work. Keep this guard at
+    // persistence level so legacy or alternate routes cannot recreate them.
+    if (String(notifData && notifData.type || '').toUpperCase() === 'ORDER_PUSH') {
+      return { id: null, ...notifData, suppressed: true };
+    }
     await db.ensureNotificationsTable();
     const id = 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     await query(`INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,

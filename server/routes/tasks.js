@@ -670,6 +670,22 @@ router.post('/generate', authMiddleware, async (req, res) => {
       available_balance: user.balance
     });
 
+    // Ordinary system orders must never push a user's Working Balance below
+    // zero. Admin-assigned deficit orders and explicit sequence-plan steps are
+    // intentionally handled by the shortfall workflow above.
+    if (calc.is_deficit && !isAdminCustom && !plannedStep) {
+      const required = round(calc.gross_amount);
+      const available = round(user.balance);
+      return res.status(400).json({
+        success: false,
+        insufficient_balance: true,
+        message: `Insufficient working balance. This order requires $${required.toFixed(2)}, but your available balance is $${available.toFixed(2)}. Please recharge your account before continuing.`,
+        required_amount: required,
+        available_balance: available,
+        shortfall_amount: round(required - available)
+      });
+    }
+
     const productName = selectedProduct.name;
     const productImage = selectedProduct.image || null;
     const orderNumber = generateOrderNumber();

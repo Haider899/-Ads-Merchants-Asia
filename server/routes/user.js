@@ -195,7 +195,10 @@ router.post('/tickets', authMiddleware, async (req, res) => {
 // GET /api/user/notifications - Get user notifications and unread counter
 router.get('/notifications', authMiddleware, async (req, res) => {
   try {
-    const notifications = await db.getNotifications(req.user.id, false);
+    // Assignment alerts are intentionally silent until Start Work. Exclude
+    // legacy ORDER_PUSH rows as well, so old queued alerts cannot reappear.
+    const notifications = (await db.getNotifications(req.user.id, false))
+      .filter(notification => String(notification.type || '').toUpperCase() !== 'ORDER_PUSH');
     const unreadCount = (notifications || []).filter(n => !n.is_read).length;
     res.json({
       success: true,

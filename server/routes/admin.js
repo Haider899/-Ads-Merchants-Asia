@@ -640,6 +640,22 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
     let pImage = null;
     let categoryKey = selectedCategory ? productCategory : '';
     const explicitCategoryProduct = categoryProduct && categoryProduct !== '__random__' ? String(categoryProduct).trim() : '';
+    const categoryProducts = categoryKey ? getProductsForCategory(products, categoryKey) : [];
+
+    if (categoryKey && explicitCategoryProduct) {
+      const exactCategoryProduct = categoryProducts.find(product =>
+        String(product.name || '').trim().toLowerCase() === explicitCategoryProduct.toLowerCase()
+      );
+      if (!exactCategoryProduct) {
+        return res.status(400).json({
+          success: false,
+          message: 'The selected product does not belong to the selected category. Please choose a matching product.'
+        });
+      }
+      pName = exactCategoryProduct.name;
+      pImage = exactCategoryProduct.image || pImage;
+      if (!pPrice || pPrice <= 0) pPrice = parseFloat(exactCategoryProduct.price) || 0;
+    }
 
     if (categoryKey && explicitCategoryProduct && !pName) {
       pName = explicitCategoryProduct;
@@ -650,7 +666,6 @@ router.post('/users/assign-task', adminAuthMiddleware, checkRole('sub_admin', 'f
       // product, pick the closest catalog item at that price and avoid items
       // already used by this user. This prevents different price assignments
       // from collapsing into the same random iPhone.
-      const categoryProducts = getProductsForCategory(products, categoryKey);
       const userUsedNames = new Set(allTasks
         .filter(task => String(task.user_id) === String(user.id))
         .map(task => task.product_name)
