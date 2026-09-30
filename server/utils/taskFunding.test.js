@@ -1,6 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { evaluateTaskCompletionFunding } = require('./taskFunding');
+const { evaluateTaskCompletionFunding, isDeficitFlag } = require('./taskFunding');
+
+test('normalizes string deficit flags safely', () => {
+  assert.equal(isDeficitFlag('0'), false);
+  assert.equal(isDeficitFlag('1'), true);
+  assert.equal(isDeficitFlag(0), false);
+  assert.equal(isDeficitFlag(1), true);
+});
+
+test('string zero cannot bypass the normal-order balance requirement', () => {
+  const result = evaluateTaskCompletionFunding(1.9, 4000, '0');
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'insufficient_balance');
+});
 
 test('blocks a high-value normal order when working balance is too low', () => {
   const result = evaluateTaskCompletionFunding(2.5, 4000, false);

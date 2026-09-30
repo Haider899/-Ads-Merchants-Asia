@@ -14,7 +14,7 @@ const {
   calculateOrder
 } = require('../utils/orderCalculator');
 const { resolveSelectedProducts, selectClosestUnusedProduct } = require('../utils/taskProductSelection');
-const { evaluateTaskCompletionFunding } = require('../utils/taskFunding');
+const { evaluateTaskCompletionFunding, isDeficitFlag } = require('../utils/taskFunding');
 const {
   isLinkedToCancelledTask,
   isOrphanedNormalProcessingOrder,
@@ -879,11 +879,12 @@ router.post('/submit', authMiddleware, async (req, res) => {
     const commAmount = parseFloat(task.commission_amount !== undefined && task.commission_amount !== null
       ? task.commission_amount
       : (task.commission_earned || 0));
+    const taskIsDeficit = isDeficitFlag(task.is_deficit);
 
     // Never mark an order completed or credit commission before verifying that
     // its principal is funded. This is especially important for admin-pushed
     // high-value orders assigned to users with only a few dollars available.
-    const funding = evaluateTaskCompletionFunding(userBalance, taskPrice, Boolean(task.is_deficit));
+    const funding = evaluateTaskCompletionFunding(userBalance, taskPrice, taskIsDeficit);
     if (!funding.ok && funding.code === 'unfunded_deficit') {
       const deficit = round(Math.abs(userBalance));
       await db.updateUser(user.id, { frozen_balance: deficit });
@@ -953,7 +954,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
       prevCommBalance = round(priorSum);
     }
     let finalWorkingBalance = round(userBalance);
-    if (!task.is_deficit) {
+    if (!taskIsDeficit) {
       finalWorkingBalance = round(userBalance - taskPrice);
       // Record Ledger Entry: ORDER_RESERVE for normal task upon submission
       await db.createLedgerTransaction({
@@ -1081,7 +1082,7 @@ router.post('/cancel', authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: 'No pending order found to cancel.' });
     }
 
-    if (task.is_deficit) {
+    if (isDeficitFlag(task.is_deficit)) {
       return res.status(400).json({
         success: false,
         message: 'Deficit orders cannot be cancelled. Please clear the shortfall to proceed.'

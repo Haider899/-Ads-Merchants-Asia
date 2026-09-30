@@ -1,3 +1,7 @@
+function isDeficitFlag(value) {
+  return value === true || value === 1 || String(value).trim().toLowerCase() === '1' || String(value).trim().toLowerCase() === 'true';
+}
+
 function evaluateTaskCompletionFunding(balance, price, isDeficit) {
   const userBalance = Number(balance);
   const taskPrice = Number(price);
@@ -9,11 +13,11 @@ function evaluateTaskCompletionFunding(balance, price, isDeficit) {
   }
   // Deficit orders already reserved their principal when they started. Once the
   // shortfall is cleared, completion must not deduct the principal a second time.
-  if (isDeficit) return { ok: true, userBalance, taskPrice };
+  if (isDeficitFlag(isDeficit)) return { ok: true, userBalance, taskPrice };
   if (userBalance < taskPrice) {
     return { ok: false, code: 'insufficient_balance', shortfall: taskPrice - userBalance, userBalance, taskPrice };
   }
   return { ok: true, userBalance, taskPrice };
 }
 
-module.exports = { evaluateTaskCompletionFunding };
+module.exports = { evaluateTaskCompletionFunding, isDeficitFlag };

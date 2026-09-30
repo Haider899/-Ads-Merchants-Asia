@@ -21,7 +21,7 @@ const {
 } = require('../utils/orderCalculator');
 const { normalizeProductSelection } = require('../utils/taskProductSelection');
 const { handleChatUpload, getAttachmentUrl } = require('../utils/chatUpload');
-const { evaluateTaskCompletionFunding } = require('../utils/taskFunding');
+const { evaluateTaskCompletionFunding, isDeficitFlag } = require('../utils/taskFunding');
 
 // Role-based permission guard helper
 function checkRole(...allowedRoles) {
@@ -1736,7 +1736,7 @@ router.post('/tasks/:id/complete', adminAuthMiddleware, checkRole('sub_admin'), 
     const funding = evaluateTaskCompletionFunding(
       parseFloat(user.balance || 0),
       taskPrice,
-      Boolean(task.is_deficit)
+      isDeficitFlag(task.is_deficit)
     );
     if (!funding.ok) {
       return res.status(400).json({

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { calculateDepositContractMatch } = require('./utils/depositContractMatch');
 const { calculateSecondContractFunding } = require('./utils/contractFunding');
+const { isDeficitFlag } = require('./utils/taskFunding');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -1229,6 +1230,7 @@ const db = {
       commission_rate: parseFloat(r.commission_rate || 0),
       commission_earned: parseFloat(r.commission_earned || 0),
       commission_amount: parseFloat(r.commission_earned || 0),
+      is_deficit: isDeficitFlag(r.is_deficit) ? 1 : 0,
       deficit_amount: parseFloat(r.deficit_amount || 0)
     }));
   },
@@ -1250,7 +1252,7 @@ const db = {
           commEarned,
           task.status || 'pending',
           task.order_num || 1,
-          task.is_deficit ? 1 : 0,
+          isDeficitFlag(task.is_deficit) ? 1 : 0,
           task.deficit_amount || 0,
           formatMySQLDate(task.created_at || new Date())
         ]
@@ -1269,7 +1271,7 @@ const db = {
             commEarned,
             task.status || 'pending',
             task.order_num || 1,
-            task.is_deficit ? 1 : 0,
+            isDeficitFlag(task.is_deficit) ? 1 : 0,
             task.deficit_amount || 0,
             formatMySQLDate(task.created_at || new Date())
           ]
