@@ -1003,8 +1003,14 @@ const db = {
     } catch (_) {}
   },
 
-  getChatMessages: async (userId) => {
+  getChatMessages: async (userId, options = {}) => {
     await db.ensureChatMessagesTable();
+    const conditions = ['user_id = ?'];
+    const params = [userId];
+    if (options.since) {
+      conditions.push('created_at >= ?');
+      params.push(options.since);
+    }
     return await query(`
       SELECT 
         id, 
@@ -1021,9 +1027,9 @@ const db = {
         read_by_user, 
         created_at 
       FROM chat_messages 
-      WHERE user_id = ?
+      WHERE ${conditions.join(' AND ')}
       ORDER BY created_at ASC
-    `, [userId]);
+    `, params);
   },
 
   createChatMessage: async ({ userId, sender, text, userName, userEmail, ipAddress, countryCode, countryName, attachmentUrl, attachmentName, attachmentMime }) => {

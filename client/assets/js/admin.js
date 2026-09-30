@@ -2523,6 +2523,13 @@
     }
   };
 
+  const adminChatImageInput = document.getElementById('adminChatImageInput');
+  if (adminChatImageInput) {
+    adminChatImageInput.addEventListener('change', () => {
+      adminChatImageInput.parentElement.title = adminChatImageInput.files[0] ? adminChatImageInput.files[0].name : 'Attach an image';
+    });
+  }
+
   window.applyQuickReply = function(text) {
     const input = document.getElementById('adminReplyInput');
     if (input) {

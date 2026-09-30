@@ -2824,6 +2824,7 @@
           <span style="font-size: 18px;">📎</span>
           <input type="file" id="nativeChatImageInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
         </label>
+        <span id="nativeChatAttachmentName" style="display:none; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#64748b;"></span>
         <input type="text" id="nativeChatTextInput" class="native-chat-input" placeholder="Type here and press enter..." />
         <button id="nativeChatSendBtn" class="native-chat-send-btn" title="Send Message">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2836,15 +2837,21 @@
     document.body.appendChild(chatWin);
     const userImageInput = document.getElementById('nativeChatImageInput');
     if (userImageInput) userImageInput.addEventListener('change', () => {
-      if (userImageInput.files[0]) userImageInput.parentElement.title = userImageInput.files[0].name;
+      const name = document.getElementById('nativeChatAttachmentName');
+      if (userImageInput.files[0]) {
+        userImageInput.parentElement.title = userImageInput.files[0].name;
+        if (name) { name.textContent = userImageInput.files[0].name; name.style.display = 'inline-block'; }
+      } else if (name) name.style.display = 'none';
     });
 
     let chatOpen = false;
     let pollInterval = null;
+    let chatSessionStartedAt = sessionStorage.getItem('ama_chat_session_started_at') || '';
 
     async function fetchAndRenderChatMessages() {
       try {
-        const res = await API.get('/api/user/chat');
+        const query = chatSessionStartedAt ? `?since=${encodeURIComponent(chatSessionStartedAt)}` : '';
+        const res = await API.get('/api/user/chat' + query);
         const container = document.getElementById('nativeChatMsgContainer');
         if (!container) return;
 
@@ -2917,6 +2924,10 @@
       window._nativeChatOpen = chatOpen;
       chatWin.style.display = chatOpen ? 'flex' : 'none';
       if (chatOpen) {
+        if (!chatSessionStartedAt) {
+          chatSessionStartedAt = new Date().toISOString();
+          sessionStorage.setItem('ama_chat_session_started_at', chatSessionStartedAt);
+        }
         floatBtn.style.display = 'none';
         if (promptBox) promptBox.style.display = 'none';
         const chatBadge = document.getElementById('nativeChatBadge');
@@ -2934,6 +2945,10 @@
       } else {
         floatBtn.style.display = 'flex';
         if (promptBox) promptBox.style.display = 'none';
+        sessionStorage.removeItem('ama_chat_session_started_at');
+        chatSessionStartedAt = '';
+        const messageContainer = document.getElementById('nativeChatMsgContainer');
+        if (messageContainer) messageContainer.innerHTML = '';
         if (pollInterval) {
           clearInterval(pollInterval);
           pollInterval = null;
@@ -2983,6 +2998,8 @@
 
       input.value = '';
       if (imageInput) imageInput.value = '';
+      const attachmentName = document.getElementById('nativeChatAttachmentName');
+      if (attachmentName) attachmentName.style.display = 'none';
       const container = document.getElementById('nativeChatMsgContainer');
 
       // Clear any initial greeting placeholder
@@ -3011,13 +3028,21 @@
         const formData = new FormData();
         formData.append('text', text);
         formData.append('timezone', timezone);
+        formData.append('since', chatSessionStartedAt);
         if (file) formData.append('image', file);
         API.postForm('/api/user/chat', formData).then(res => {
           if (res && res.newMessage && res.newMessage.id) {
             tempBubble.id = `chat-msg-${res.newMessage.id}`;
           }
-        }).catch(() => {});
-      } catch (_) {}
+        }).catch((err) => {
+          console.error('Chat image send failed:', err);
+          tempBubble.remove();
+          if (typeof showBridgeToast === 'function') showBridgeToast('Chat upload failed', 'Please try the image again.', 'error');
+        });
+      } catch (err) {
+        tempBubble.remove();
+        if (typeof showBridgeToast === 'function') showBridgeToast('Chat upload failed', 'Please try the image again.', 'error');
+      }
     }
 
     document.getElementById('nativeChatSendBtn').addEventListener('click', sendMessage);

@@ -221,7 +221,11 @@ router.get('/chat', authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const messages = await db.getChatMessages(user.id);
+    const sinceDate = req.query.since ? new Date(String(req.query.since)) : null;
+    const since = sinceDate && !Number.isNaN(sinceDate.getTime())
+      ? sinceDate.toISOString().slice(0, 19).replace('T', ' ')
+      : null;
+    const messages = await db.getChatMessages(user.id, { since });
     res.json({
       success: true,
       user: {
@@ -291,7 +295,11 @@ router.post('/chat', authMiddleware, handleChatUpload, async (req, res) => {
       });
     } catch (_) {}
 
-    const messages = await db.getChatMessages(user.id);
+    const sinceDate = req.body.since ? new Date(String(req.body.since)) : null;
+    const since = sinceDate && !Number.isNaN(sinceDate.getTime())
+      ? sinceDate.toISOString().slice(0, 19).replace('T', ' ')
+      : null;
+    const messages = await db.getChatMessages(user.id, { since });
     res.json({
       success: true,
       message: attachment && (!text || !text.trim()) ? 'Image sent' : 'Message sent',
