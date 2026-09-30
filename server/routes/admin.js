@@ -978,8 +978,8 @@ router.post('/deposits/action', adminAuthMiddleware, checkRole('sub_admin', 'fin
     if (action === 'approve') {
       await db.createNotification({
         user_id: user.id,
-        title: 'Deposit Approved! 💳',
-        message: `Your deposit of $${amount.toFixed(2)} (${result.method || 'USDT'}) has been verified and credited to your Working Balance.`,
+        title: 'Deposit Confirmed',
+        message: `Your deposit of $${amount.toFixed(2)} (${result.method || 'USDT'}) has been successfully credited to your Working Balance. Your funds are now available.`,
         type: 'success'
       });
       return res.json({

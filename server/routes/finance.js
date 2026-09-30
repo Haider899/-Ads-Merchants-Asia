@@ -75,10 +75,16 @@ router.post('/deposit', authMiddleware, async (req, res) => {
     };
 
     await db.createDeposit(deposit);
+    await db.createNotification({
+      user_id: user.id,
+      title: 'Deposit Processing',
+      message: `Your deposit of $${numAmount.toFixed(2)} submitted successfully! Your payment is currently being processed and will be completed shortly.`,
+      type: 'info'
+    }).catch(err => console.error('[Deposit Notification Error]', err.message));
 
     res.json({
       success: true,
-      message: `Deposit request of $${numAmount.toFixed(2)} submitted successfully! After admin verifies the payment, the funds will be credited directly to your Working Balance.`,
+      message: `Your deposit of $${numAmount.toFixed(2)} submitted successfully! Your payment is currently being processed and will be completed shortly.`,
       deposit
     });
   } catch (err) {
