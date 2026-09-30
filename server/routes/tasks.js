@@ -384,17 +384,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
       const taskId = ao.task_id || generateTaskNumber();
 
       const currentBalance = round(user.balance);
-      let newBalance = currentBalance;
-      let deficitVal = 0;
-
-      if (isDeficit) {
-        newBalance = round(currentBalance - orderPrice);
-        deficitVal = round(Math.abs(newBalance));
-        await db.updateUser(user.id, {
-          balance: newBalance,
-          frozen_balance: deficitVal
-        });
-      }
+      // Do not deduct here. Assigned orders follow the daily-task flow and
+      // deduct their principal exactly once when the user submits the task.
+      const newBalance = currentBalance;
+      const deficitVal = 0;
 
       // Create the pending task record with exact pushed order details
       const pushTask = {
@@ -683,18 +676,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
     const taskId = generateTaskNumber();
     const orderId = 'ord_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
 
-    // Deduct order price / gross amount from user's working balance ONLY IF DEFICIT
-    // For normal orders: deduction happens upon submission so cancelling does NOT touch balance
+    // Keep the balance unchanged while the task is only being displayed. The
+    // principal is deducted exactly once at submission for every task type.
     const currentBalance = round(user.balance);
     let newBalance = currentBalance;
-    if (calc.is_deficit) {
-      newBalance = round(currentBalance - calc.gross_amount);
-      const userUpdates = { balance: newBalance };
-      if (newBalance < 0) {
-        userUpdates.frozen_balance = round(Math.abs(newBalance));
-      }
-      await db.updateUser(user.id, userUpdates);
-    }
 
     // Check if there is an ASSIGNED order already queued for this user by admin push
     const assignedOrders = await db.query('SELECT * FROM orders WHERE user_id = ? AND order_status = "ASSIGNED" ORDER BY created_at DESC LIMIT 1', [user.id]).catch(() => []);
@@ -829,18 +814,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
 
         let defVal = 0;
         if (isDeficit) {
-          if (curBal >= 0 && price > curBal) {
-            const newBal = round(curBal - price);
-            defVal = round(Math.abs(newBal));
-            await db.updateUser(user.id, {
-              balance: newBal,
-              frozen_balance: defVal
-            });
-            user.balance = newBal;
-            user.frozen_balance = defVal;
-          } else {
-            defVal = round(Math.abs(curBal));
-          }
+          defVal = round(Math.max(0, price - curBal));
         }
 
         task = {
@@ -934,11 +908,9 @@ router.post('/submit', authMiddleware, async (req, res) => {
     }
 
     // Financial Calculation:
-    // Order amount was deducted from working balance at task match.
-    // At task submit:
-    // - Working balance remains at current level (unspent amount).
-    // - Total Balance with Commission (commission_balance) accumulates: previous commission_balance + taskPrice + commAmount.
-    // - Today's profit accumulates: previous today_profit + commAmount.
+    // Every order principal is deducted exactly once at task submission,
+    // including orders pushed by an administrator. Total Balance with
+    // Commission accumulates the order amount plus the earned commission.
     let prevCommBalance = parseFloat(user.commission_balance || 0);
     if (prevCommBalance === 0) {
       const todayStr = toDateString(new Date());
@@ -957,23 +929,19 @@ router.post('/submit', authMiddleware, async (req, res) => {
       }, 0);
       prevCommBalance = round(priorSum);
     }
-    let finalWorkingBalance = round(userBalance);
-    if (!taskIsDeficit) {
-      finalWorkingBalance = round(userBalance - taskPrice);
-      // Record Ledger Entry: ORDER_RESERVE for normal task upon submission
-      await db.createLedgerTransaction({
-        userId: user.id,
-        taskId: task.id,
-        adminId: null,
-        type: 'ORDER_RESERVE',
-        amount: -taskPrice,
-        balanceBefore: round(userBalance),
-        balanceAfter: finalWorkingBalance,
-        currency: 'USD',
-        reference: task.order_number || task.id,
-        description: `Order deduction upon submission for ${task.product_name}`
-      }).catch(() => {});
-    }
+    const finalWorkingBalance = round(userBalance - taskPrice);
+    await db.createLedgerTransaction({
+      userId: user.id,
+      taskId: task.id,
+      adminId: null,
+      type: 'ORDER_RESERVE',
+      amount: -taskPrice,
+      balanceBefore: round(userBalance),
+      balanceAfter: finalWorkingBalance,
+      currency: 'USD',
+      reference: task.order_number || task.id,
+      description: `Order deduction upon submission for ${task.product_name}`
+    }).catch(() => {});
 
     const newCommBalance = round(prevCommBalance + taskPrice + commAmount);
     const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
@@ -997,7 +965,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
     const updates = {
       balance: finalWorkingBalance,
       commission_balance: newCommBalance,
-      frozen_balance: 0.00, // Deficit cleared on successful completion
+      frozen_balance: finalWorkingBalance < 0 ? round(Math.abs(finalWorkingBalance)) : 0.00,
       today_profit: newTodayProfit,
       today_tasks_completed: newCompletedTasks,
       total_tasks_completed: newTotalTasks,

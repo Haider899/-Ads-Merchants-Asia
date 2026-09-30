@@ -15,10 +15,9 @@ test('string zero cannot bypass the normal-order balance requirement', () => {
   assert.equal(result.code, 'insufficient_balance');
 });
 
-test('deficit flag alone cannot bypass an unreserved principal', () => {
+test('deficit orders are allowed to post their shortfall at submission', () => {
   const result = evaluateTaskCompletionFunding(1.9, 4000, 1, { frozenBalance: 0 });
-  assert.equal(result.ok, false);
-  assert.equal(result.code, 'insufficient_balance');
+  assert.equal(result.ok, true);
 });
 
 test('a deficit task may complete after its reserve shortfall is cleared', () => {

@@ -11,22 +11,11 @@ function evaluateTaskCompletionFunding(balance, price, isDeficit, options = {}) 
   if (userBalance < 0) {
     return { ok: false, code: 'unfunded_deficit', deficit: Math.abs(userBalance), userBalance, taskPrice };
   }
-  // A deficit task may skip the second principal deduction only when the start
-  // path actually reserved it. frozen_balance is the durable evidence of that
-  // reservation; the deficit flag alone is not enough because legacy/alternate
-  // assignment paths can create the flag without changing the user's balance.
-  if (isDeficitFlag(isDeficit)) {
-    const reserveRecorded = Number(options.frozenBalance || 0) > 0 || options.principalReserved === true;
-    if (reserveRecorded || userBalance >= taskPrice) return { ok: true, userBalance, taskPrice };
-    return {
-      ok: false,
-      code: 'insufficient_balance',
-      shortfall: taskPrice - userBalance,
-      userBalance,
-      taskPrice
-    };
-  }
-  if (userBalance < taskPrice) {
+  // Assigned/deficit orders use the same submit-time accounting as the normal
+  // daily task flow. Their principal is deducted when the user submits, so an
+  // admin-assigned order may legitimately take Working Balance below zero.
+  // The caller still rejects an already-negative balance before another task.
+  if (!isDeficitFlag(isDeficit) && userBalance < taskPrice) {
     return { ok: false, code: 'insufficient_balance', shortfall: taskPrice - userBalance, userBalance, taskPrice };
   }
   return { ok: true, userBalance, taskPrice };

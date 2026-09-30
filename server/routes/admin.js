@@ -1768,21 +1768,22 @@ router.post('/tasks/:id/complete', adminAuthMiddleware, checkRole('sub_admin'), 
       }).catch(() => {});
     }
 
-    // Release principal & credit reward
+    // Apply the same submit-time accounting as a user submission: deduct the
+    // order principal from Working Balance, then credit only the commission.
     const currentBalance = round(user.balance || 0);
-    const balAfterRelease = round(currentBalance + taskPrice);
-    const balAfterReward = round(balAfterRelease + commAmount);
+    const balAfterDeduction = round(currentBalance - taskPrice);
+    const balAfterReward = round(balAfterDeduction);
 
     await db.createLedgerTransaction({
       userId: user.id,
       taskId: task.id,
       adminId: req.admin.id,
-      type: 'ORDER_RELEASE',
-      amount: taskPrice,
+      type: 'ORDER_RESERVE',
+      amount: -taskPrice,
       balanceBefore: currentBalance,
-      balanceAfter: balAfterRelease,
+      balanceAfter: balAfterDeduction,
       reference: task.order_number || task.id,
-      description: `Principal release (admin forced): ${task.product_name}`
+      description: `Order deduction upon admin-forced submission: ${task.product_name}`
     }).catch(() => {});
 
     await db.createLedgerTransaction({
@@ -1791,7 +1792,7 @@ router.post('/tasks/:id/complete', adminAuthMiddleware, checkRole('sub_admin'), 
       adminId: req.admin.id,
       type: 'REWARD',
       amount: commAmount,
-      balanceBefore: balAfterRelease,
+      balanceBefore: balAfterDeduction,
       balanceAfter: balAfterReward,
       reference: task.order_number || task.id,
       description: `Reward credit (admin forced): ${task.product_name}`
@@ -1800,9 +1801,11 @@ router.post('/tasks/:id/complete', adminAuthMiddleware, checkRole('sub_admin'), 
     const newTodayProfit = round((parseFloat(user.today_profit) || 0) + commAmount);
     const newCompleted = (parseInt(user.today_tasks_completed, 10) || 0) + 1;
 
+    const previousCommission = parseFloat(user.commission_balance || 0);
     await db.updateUser(user.id, {
       balance: balAfterReward,
-      frozen_balance: 0.00,
+      commission_balance: round(previousCommission + taskPrice + commAmount),
+      frozen_balance: balAfterReward < 0 ? round(Math.abs(balAfterReward)) : 0.00,
       today_profit: newTodayProfit,
       today_tasks_completed: newCompleted,
       total_tasks_completed: (parseInt(user.total_tasks_completed, 10) || 0) + 1
