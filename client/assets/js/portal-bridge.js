@@ -169,6 +169,12 @@
 
   // Toast notification helper with audio cue & high visibility
   window.showBridgeToast = function(title, message, type = 'info') {
+    const toastKey = `${title}|${message}|${type}`;
+    const now = Date.now();
+    if (window.__lastBridgeToast && window.__lastBridgeToast.key === toastKey && now - window.__lastBridgeToast.at < 1500) {
+      return;
+    }
+    window.__lastBridgeToast = { key: toastKey, at: now };
     let container = document.getElementById('bridge-toast-container');
     if (!container) {
       container = document.createElement('div');
@@ -997,9 +1003,9 @@
             }
             const ordersCompleted = res && res.code === 'orders_completed';
             showBridgeToast(
-              ordersCompleted ? (res.title || 'Merchant Orders Completed') : 'Optimization Notice',
+              ordersCompleted ? (res.title || 'Daily Task Limit Reached') : 'Optimization Notice',
               (res && res.message) || 'Unable to grab order at this time.',
-              ordersCompleted ? 'success' : 'error'
+              ordersCompleted ? 'warning' : 'error'
             );
           }
         } catch (err) {

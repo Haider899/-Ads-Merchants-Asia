@@ -306,8 +306,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
       return res.status(400).json({
         success: false,
         code: 'orders_completed',
-        title: 'Merchant Orders Completed',
-        message: 'All current orders are complete. Activate a new merchant contract to continue earning commissions.'
+        title: 'Daily Task Limit Reached',
+        message: `You have completed all ${maxTasks} daily optimization tasks. Please return tomorrow to continue.`
       });
     }
 
