@@ -766,7 +766,7 @@ const db = {
         return { success: false, userNotFound: true };
       }
 
-      if (String(kyc.funding_source || '').toLowerCase() === 'total_balance') {
+      if (['total_balance', 'reinvest'].includes(String(kyc.funding_source || '').toLowerCase())) {
         await connection.execute(
           'UPDATE kyc_submissions SET status = ?, rejection_reason = ? WHERE id = ?',
           ['approved', rejectionReason, kyc.id]
@@ -778,7 +778,7 @@ const db = {
           alreadyApproved: false,
           user: db.formatUser({ ...user, kyc_status: 'approved', kyc_notes: rejectionReason }),
           releaseAmount: 0,
-          fundingSource: 'total_balance',
+          fundingSource: String(kyc.funding_source || '').toLowerCase(),
           balanceBefore: Number(user.balance || 0).toFixed(2),
           balanceAfter: Number(user.balance || 0).toFixed(2),
           releasedDeposits: [],
@@ -795,7 +795,13 @@ const db = {
         [user.id]
       );
       const match = calculateDepositContractMatch(kyc.investment_amount, deposits);
-      if (!match.matches) {
+      const isExistingOrReinvestmentContract =
+        String(user.kyc_status || '').toLowerCase() === 'approved' ||
+        ['total_balance', 'reinvest', 'balance'].includes(String(kyc.funding_source || '').toLowerCase()) ||
+        Number(user.total_tasks_completed || 0) > 0 ||
+        Number(user.today_tasks_completed || 0) > 0;
+
+      if (!match.matches && !isExistingOrReinvestmentContract) {
         await connection.rollback();
         return {
           success: false,
@@ -809,10 +815,11 @@ const db = {
       let runningBalanceCents = balanceBefore;
       const releasableDeposits = deposits.filter(d => String(d.status || '').toLowerCase() === 'verified');
       const releaseCents = releasableDeposits.reduce((sum, d) => sum + Math.max(0, Math.round(Number(d.amount || 0) * 100)), 0);
+      const effectiveFundingSource = isExistingOrReinvestmentContract && !match.matches ? 'reinvest' : (kyc.funding_source || 'deposit');
 
       await connection.execute(
-        'UPDATE kyc_submissions SET status = ?, rejection_reason = ? WHERE id = ?',
-        ['approved', rejectionReason, kyc.id]
+        'UPDATE kyc_submissions SET status = ?, funding_source = ?, rejection_reason = ? WHERE id = ?',
+        ['approved', effectiveFundingSource, rejectionReason, kyc.id]
       );
       for (const deposit of releasableDeposits) {
         const amountCents = Math.max(0, Math.round(Number(deposit.amount || 0) * 100));
@@ -833,7 +840,7 @@ const db = {
             (nextBalanceCents / 100).toFixed(2),
             'USD',
             deposit.id,
-            `Verified deposit released after exact-match contract approval (${deposit.method || 'USDT'})`,
+            `Verified deposit released after contract approval (${deposit.method || 'USDT'})`,
             formatMySQLDate(new Date())
           ]
         );
@@ -842,18 +849,25 @@ const db = {
       }
 
       let frozenBalance = Number(user.frozen_balance || 0);
-      if (runningBalanceCents >= 0) {
-        const [pendingDeficitRows] = await connection.execute(
-          'SELECT COUNT(*) AS cnt FROM tasks WHERE user_id = ? AND status = ? AND is_deficit = 1',
-          [user.id, 'pending']
-        );
-        if (!pendingDeficitRows[0] || Number(pendingDeficitRows[0].cnt || 0) === 0) frozenBalance = 0;
-      }
+      if (releasableDeposits.length > 0) {
+        if (runningBalanceCents >= 0) {
+          const [pendingDeficitRows] = await connection.execute(
+            'SELECT COUNT(*) AS cnt FROM tasks WHERE user_id = ? AND status = ? AND is_deficit = 1',
+            [user.id, 'pending']
+          );
+          if (!pendingDeficitRows[0] || Number(pendingDeficitRows[0].cnt || 0) === 0) frozenBalance = 0;
+        }
 
-      await connection.execute(
-        'UPDATE users SET balance = ?, frozen_balance = ?, kyc_status = ?, kyc_notes = ? WHERE id = ?',
-        [(runningBalanceCents / 100).toFixed(2), frozenBalance.toFixed(2), 'approved', rejectionReason, user.id]
-      );
+        await connection.execute(
+          'UPDATE users SET balance = ?, frozen_balance = ?, kyc_status = ?, kyc_notes = ? WHERE id = ?',
+          [(runningBalanceCents / 100).toFixed(2), frozenBalance.toFixed(2), 'approved', rejectionReason, user.id]
+        );
+      } else {
+        await connection.execute(
+          'UPDATE users SET kyc_status = ?, kyc_notes = ? WHERE id = ?',
+          ['approved', rejectionReason, user.id]
+        );
+      }
       await connection.commit();
 
       return {
@@ -861,10 +875,11 @@ const db = {
         alreadyApproved: false,
         user: db.formatUser({ ...user, balance: (runningBalanceCents / 100).toFixed(2), frozen_balance: frozenBalance, kyc_status: 'approved', kyc_notes: rejectionReason }),
         releaseAmount: (releaseCents / 100).toFixed(2),
+        fundingSource: effectiveFundingSource,
         balanceBefore: (balanceBefore / 100).toFixed(2),
         balanceAfter: (runningBalanceCents / 100).toFixed(2),
         releasedDeposits: releasableDeposits.map(d => d.id),
-        contractAmount: match.contractAmount
+        contractAmount: Number(kyc.investment_amount || 0).toFixed(2)
       };
     } catch (err) {
       try { await connection.rollback(); } catch (_) {}

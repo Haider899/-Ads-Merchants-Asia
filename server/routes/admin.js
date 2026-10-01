@@ -910,6 +910,8 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
           title: 'Contract Approved! ✅',
           message: result.fundingSource === 'total_balance'
             ? 'Your second contract has been approved. The selected amount was already moved from Total Balance to Working Balance.'
+            : result.fundingSource === 'reinvest'
+            ? 'Your reinvestment contract has been approved. You can now start grabbing orders for your new cycle.'
             : releasedAmount > 0
             ? `Your contract has been approved and $${releasedAmount.toFixed(2)} in verified deposits has been credited to your Working Balance.`
             : 'Your contract has been approved. Your verified deposits were already credited; no funds were credited a second time.',
@@ -932,6 +934,8 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
           ? 'This contract was already approved; no funds were credited again.'
           : result.fundingSource === 'total_balance'
             ? 'Second contract approved. Total Balance funding is already in Working Balance.'
+            : result.fundingSource === 'reinvest'
+            ? 'Reinvestment contract approved successfully.'
             : `Contract approved. $${Number(result.releaseAmount || 0).toFixed(2)} in newly verified deposits released to Working Balance.`
       });
     }

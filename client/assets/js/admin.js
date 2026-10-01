@@ -1987,7 +1987,7 @@
     if (action === 'approve') {
       const confirmed = await AdminUI.confirm({
         title: 'Approve KYC Verification?',
-        message: `Approve the contract for ${applicantName}? The system will require the contract investment amount to exactly match all already-credited plus newly verified deposits. Any newly verified funds will be credited once only after approval; a mismatch blocks approval and credits nothing.`,
+        message: `Approve the contract for ${applicantName}? Newly verified deposits will be credited upon approval. For reinvestments and existing merchants, accumulated funds will be safely confirmed.`,
         type: 'success',
         confirmText: 'Yes, Approve Verification'
       });

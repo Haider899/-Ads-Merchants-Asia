@@ -129,15 +129,20 @@ router.post('/kyc', authMiddleware, async (req, res) => {
   let fundingSource = 'deposit';
   let fundedAmount = 0;
   if (isSecondContract) {
-    const transfer = await db.transferTotalBalanceToWorking(user.id, investmentAmount);
-    if (!transfer.success) {
-      const message = transfer.code === 'insufficient_total_balance'
-        ? `Insufficient Total Balance. Available: $${transfer.available}; requested: $${transfer.requested}.`
-        : 'Enter a valid positive investment amount.';
-      return res.status(400).json({ success: false, insufficient_total_balance: transfer.code === 'insufficient_total_balance', message });
+    if (workingBalance >= investmentAmount) {
+      fundingSource = 'reinvest';
+      fundedAmount = investmentAmount;
+    } else {
+      const transfer = await db.transferTotalBalanceToWorking(user.id, investmentAmount);
+      if (!transfer.success) {
+        const message = transfer.code === 'insufficient_total_balance'
+          ? `Insufficient Total Balance. Available: $${transfer.available}; requested: $${transfer.requested}.`
+          : 'Enter a valid positive investment amount.';
+        return res.status(400).json({ success: false, insufficient_total_balance: transfer.code === 'insufficient_total_balance', message });
+      }
+      fundingSource = 'total_balance';
+      fundedAmount = Number(transfer.amount);
     }
-    fundingSource = 'total_balance';
-    fundedAmount = Number(transfer.amount);
   }
 
   const kycSubmission = {
