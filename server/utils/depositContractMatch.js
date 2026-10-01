@@ -3,6 +3,15 @@ function toCents(value) {
   return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
 }
 
+function calculateApprovedDepositTotal(deposits = []) {
+  return deposits.reduce((sum, deposit) => {
+    const status = String(deposit.status || '').toLowerCase();
+    return sum + (status === 'approved' || status === 'verified'
+      ? Math.max(0, toCents(deposit.amount))
+      : 0);
+  }, 0);
+}
+
 function calculateDepositContractMatch(investmentAmount, deposits = []) {
   const contractCents = toCents(investmentAmount);
   const approvedCents = deposits.reduce((sum, deposit) =>
@@ -21,4 +30,4 @@ function calculateDepositContractMatch(investmentAmount, deposits = []) {
   };
 }
 
-module.exports = { calculateDepositContractMatch };
+module.exports = { calculateApprovedDepositTotal, calculateDepositContractMatch };

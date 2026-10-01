@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { parseInvestmentAmount } = require('../utils/investmentAmount');
+const { calculateApprovedDepositTotal } = require('../utils/depositContractMatch');
 const { handleChatUpload, getAttachmentUrl } = require('../utils/chatUpload');
 
 // GET /api/user/profile
@@ -81,6 +82,11 @@ router.post('/kyc', authMiddleware, async (req, res) => {
   const user = await db.findUserById(req.user.id);
   const workingBalance = Number(user && user.balance);
   const isSecondContract = String(user && user.kyc_status || '').toLowerCase() === 'approved';
+  let canonicalDepositCents = 0;
+  if (!isSecondContract) {
+    const deposits = await db.getDeposits(user.id);
+    canonicalDepositCents = calculateApprovedDepositTotal(deposits);
+  }
 
   if (investmentAmount === null) {
     return res.status(400).json({
@@ -97,11 +103,19 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     });
   }
 
-  if (!isSecondContract && Math.round(investmentAmount * 100) !== Math.round(workingBalance * 100)) {
+  if (!isSecondContract && canonicalDepositCents <= 0) {
     return res.status(400).json({
       success: false,
-      balance_mismatch: true,
-      message: `Contract investment amount must match your current Working Balance of $${workingBalance.toFixed(2)}.`
+      deposit_required: true,
+      message: 'Your first contract must be backed by an approved or verified deposit. Please wait until your deposit is approved.'
+    });
+  }
+
+  if (!isSecondContract && Math.round(investmentAmount * 100) !== canonicalDepositCents) {
+    return res.status(400).json({
+      success: false,
+      deposit_mismatch: true,
+      message: `Contract investment amount must match your approved and verified deposit total of $${(canonicalDepositCents / 100).toFixed(2)}.`
     });
   }
 

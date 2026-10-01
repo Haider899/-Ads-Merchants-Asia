@@ -1,6 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { calculateDepositContractMatch } = require('./depositContractMatch');
+const { calculateApprovedDepositTotal, calculateDepositContractMatch } = require('./depositContractMatch');
+
+test('canonical first-contract total includes approved and verified deposits only', () => {
+  assert.equal(calculateApprovedDepositTotal([
+    { status: 'approved', amount: '94.76' },
+    { status: 'verified', amount: '5.24' },
+    { status: 'pending', amount: '100.00' },
+    { status: 'rejected', amount: '50.00' }
+  ]), 10000);
+});
 
 test('matches the contract against approved plus newly verified deposits exactly', () => {
   const result = calculateDepositContractMatch('100.00', [

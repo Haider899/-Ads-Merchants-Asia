@@ -2144,7 +2144,18 @@
     const workingBalanceAmount = Number(user && user.balance !== undefined ? user.balance : 0);
     const isSecondContract = String(user && user.kyc_status || '').toLowerCase() === 'approved';
     const totalBalanceAmount = Number(user && user.commission_balance !== undefined ? user.commission_balance : 0);
-    let canonicalInvestmentAmount = isSecondContract ? totalBalanceAmount : workingBalanceAmount;
+    let canonicalDepositAmount = 0;
+    if (!isSecondContract) {
+      try {
+        const financeHistory = await API.get('/api/finance/history');
+        const deposits = financeHistory && Array.isArray(financeHistory.deposits) ? financeHistory.deposits : [];
+        canonicalDepositAmount = deposits.reduce((sum, deposit) => {
+          const status = String(deposit.status || '').toLowerCase();
+          return sum + (status === 'approved' || status === 'verified' ? Number(deposit.amount || 0) : 0);
+        }, 0);
+      } catch (_) {}
+    }
+    const canonicalInvestmentAmount = isSecondContract ? totalBalanceAmount : canonicalDepositAmount;
     if (investmentInput) {
       investmentInput.readOnly = !isSecondContract;
       if (isSecondContract) investmentInput.removeAttribute('readonly');
@@ -2156,11 +2167,11 @@
       investmentInput.style.cursor = isSecondContract ? 'text' : 'not-allowed';
       investmentInput.style.fontWeight = '700';
       investmentInput.style.color = workingBalanceAmount < 0 ? '#dc2626' : '#0284c7';
-      investmentInput.value = (isSecondContract ? totalBalanceAmount : workingBalanceAmount).toFixed(2);
+      investmentInput.value = canonicalInvestmentAmount.toFixed(2);
       const amountNote = document.getElementById('investmentAmountNote');
       if (amountNote) amountNote.innerHTML = isSecondContract
         ? '<i class="fa fa-wallet mr-1"></i> Editable for your second contract. The amount will be deducted from Total Balance with Commission and added to Working Balance.'
-        : '<i class="fa fa-wallet mr-1"></i> Your first contract uses the current Working Balance. The amount is fixed to the verified deposit balance.';
+        : '<i class="fa fa-wallet mr-1"></i> Your first contract uses the exact approved and verified deposit total.';
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');
