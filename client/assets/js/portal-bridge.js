@@ -2157,21 +2157,23 @@
     }
     const canonicalInvestmentAmount = isSecondContract ? totalBalanceAmount : canonicalDepositAmount;
     if (investmentInput) {
-      investmentInput.readOnly = !isSecondContract;
-      if (isSecondContract) investmentInput.removeAttribute('readonly');
-      else investmentInput.setAttribute('readonly', 'readonly');
+      // Keep the field editable for the user's requested workflow. The server
+      // still validates first-contract amounts against the approved deposit
+      // ledger and second-contract amounts against available Total Balance.
+      investmentInput.readOnly = false;
+      investmentInput.removeAttribute('readonly');
       investmentInput.min = '0.01';
       investmentInput.step = '0.01';
       investmentInput.inputMode = 'decimal';
-      investmentInput.style.backgroundColor = isSecondContract ? '#ffffff' : '#f1f5f9';
-      investmentInput.style.cursor = isSecondContract ? 'text' : 'not-allowed';
+      investmentInput.style.backgroundColor = '#ffffff';
+      investmentInput.style.cursor = 'text';
       investmentInput.style.fontWeight = '700';
       investmentInput.style.color = workingBalanceAmount < 0 ? '#dc2626' : '#0284c7';
       investmentInput.value = canonicalInvestmentAmount.toFixed(2);
       const amountNote = document.getElementById('investmentAmountNote');
       if (amountNote) amountNote.innerHTML = isSecondContract
         ? '<i class="fa fa-wallet mr-1"></i> Editable for your second contract. The amount will be deducted from Total Balance with Commission and added to Working Balance.'
-        : '<i class="fa fa-wallet mr-1"></i> Your first contract uses the exact approved and verified deposit total.';
+        : '<i class="fa fa-wallet mr-1"></i> Editable. For approval, the amount must match your exact approved and verified deposit total.';
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');
