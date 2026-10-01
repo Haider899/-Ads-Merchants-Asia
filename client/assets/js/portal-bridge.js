@@ -276,11 +276,15 @@
     }
 
     // Global clean logout handler for all profile & navigation logout links
-    document.querySelectorAll('a[href*="logout"], a[href*="signout"], .profile-button-items[href*="login"], #profileLogoutBtn').forEach(el => {
+    document.querySelectorAll('a[href*="logout"], a[href*="signout"], .logout-button, .profile-button-items[href*="login"], #profileLogoutBtn').forEach(el => {
       el.addEventListener('click', (e) => {
         e.preventDefault();
         localStorage.removeItem('ama_token');
         localStorage.removeItem('ama_user');
+        try {
+          sessionStorage.removeItem('ama_shown_toast_ids');
+          sessionStorage.removeItem('ama_chat_session_started_at');
+        } catch (_) {}
         window.location.href = '/logout';
       });
     });
