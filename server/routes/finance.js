@@ -148,6 +148,7 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
     if (user.custom_order_num) {
       maxTasks = Math.max(maxTasks, parseInt(user.custom_order_num, 10) || 0);
     }
+    maxTasks = Math.max(maxTasks, completedTasks);
 
     if (isNegative || pendingTask || pendingOrder || completedTasks < maxTasks) {
       let reason = 'You have to complete your pending order before requesting a withdrawal.';

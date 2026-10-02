@@ -146,6 +146,7 @@ router.get('/status', authMiddleware, async (req, res) => {
       parseInt(user.custom_order_num, 10) || 0
     );
   }
+  maxTasks = Math.max(maxTasks, parseInt(user.today_tasks_completed || 0, 10));
 
   const userTasks = await db.getTasks(user.id);
   const productGallery = await db.getProducts().catch(() => []);
@@ -278,6 +279,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
     if (assignedCnt > 0) {
       maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + assignedCnt);
     }
+    maxTasks = Math.max(maxTasks, parseInt(user.today_tasks_completed || 0, 10));
     // An active admin assignment must remain startable even when the user's
     // ordinary daily quota is complete. Other guards below still apply.
     const hasPushedOrders = (assignedCnt > 0) || Boolean(user.custom_order_num);
