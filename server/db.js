@@ -767,22 +767,75 @@ const db = {
       }
 
       if (['total_balance', 'reinvest'].includes(String(kyc.funding_source || '').toLowerCase())) {
+        const numInvestment = Number(kyc.investment_amount || 0);
+        const alreadyFunded = Number(kyc.funded_amount || 0) > 0;
+        let balanceBefore = Number(user.balance || 0).toFixed(2);
+        let balanceAfter = Number(user.balance || 0).toFixed(2);
+
+        if (!alreadyFunded && numInvestment > 0) {
+          const [transferResult] = await connection.execute(
+            'UPDATE users SET commission_balance = commission_balance - ?, balance = balance + ? WHERE id = ? AND commission_balance >= ?',
+            [numInvestment.toFixed(2), numInvestment.toFixed(2), user.id, numInvestment.toFixed(2)]
+          );
+
+          if (!transferResult || transferResult.affectedRows !== 1) {
+            await connection.rollback();
+            return {
+              success: false,
+              insufficientBalance: true,
+              message: `Insufficient Total Balance to fund contract amount $${numInvestment.toFixed(2)}.`
+            };
+          }
+
+          balanceBefore = Number(user.balance || 0).toFixed(2);
+          balanceAfter = (Number(user.balance || 0) + numInvestment).toFixed(2);
+
+          const transactionId = `txn_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+          await connection.execute(
+            `INSERT INTO wallet_transactions
+              (id, user_id, admin_id, transaction_type, amount, balance_before, balance_after, currency, reference, description, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              transactionId,
+              user.id,
+              adminId || null,
+              'CONTRACT_FUNDING',
+              (-numInvestment).toFixed(2),
+              balanceBefore,
+              balanceAfter,
+              'USD',
+              `second-contract-${Date.now()}`,
+              'Second contract funded from Total Balance to Working Balance upon admin approval',
+              formatMySQLDate(new Date())
+            ]
+          );
+
+          await connection.execute(
+            'UPDATE kyc_submissions SET funded_amount = ? WHERE id = ?',
+            [numInvestment.toFixed(2), kyc.id]
+          );
+        }
+
         await connection.execute(
           'UPDATE kyc_submissions SET status = ?, rejection_reason = ? WHERE id = ?',
           ['approved', rejectionReason, kyc.id]
         );
         await connection.execute('UPDATE users SET kyc_status = ?, kyc_notes = ? WHERE id = ?', ['approved', rejectionReason, user.id]);
         await connection.commit();
+
+        const [refreshedRows] = await connection.execute('SELECT * FROM users WHERE id = ?', [user.id]).catch(() => [[user]]);
+        const refreshedUser = (refreshedRows && refreshedRows[0]) || { ...user, balance: balanceAfter, kyc_status: 'approved', kyc_notes: rejectionReason };
+
         return {
           success: true,
           alreadyApproved: false,
-          user: db.formatUser({ ...user, kyc_status: 'approved', kyc_notes: rejectionReason }),
-          releaseAmount: 0,
+          user: db.formatUser(refreshedUser),
+          releaseAmount: numInvestment.toFixed(2),
           fundingSource: String(kyc.funding_source || '').toLowerCase(),
-          balanceBefore: Number(user.balance || 0).toFixed(2),
-          balanceAfter: Number(user.balance || 0).toFixed(2),
+          balanceBefore,
+          balanceAfter,
           releasedDeposits: [],
-          contractAmount: Number(kyc.investment_amount || 0).toFixed(2)
+          contractAmount: numInvestment.toFixed(2)
         };
       }
 

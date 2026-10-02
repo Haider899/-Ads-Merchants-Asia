@@ -21,3 +21,19 @@ test('rejects invalid or over-limit second-contract funding', () => {
   assert.equal(calculateSecondContractFunding('600', '500', '0').code, 'insufficient_total_balance');
   assert.equal(calculateSecondContractFunding('100', '500', '0').amount, '100.00');
 });
+
+test('second contract submission does not immediately transfer funds before admin approval', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const userRoute = fs.readFileSync(path.join(__dirname, '../routes/user.js'), 'utf8');
+  assert.doesNotMatch(userRoute, /db\.transferTotalBalanceToWorking/);
+  assert.match(userRoute, /calculateSecondContractFunding/);
+});
+
+test('admin approval executes second contract funding when not already funded', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const dbFile = fs.readFileSync(path.join(__dirname, '../db.js'), 'utf8');
+  assert.match(dbFile, /UPDATE users SET commission_balance = commission_balance - \?, balance = balance \+ \?/);
+  assert.match(dbFile, /UPDATE kyc_submissions SET funded_amount = \?/);
+});

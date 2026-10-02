@@ -2218,7 +2218,7 @@
       investmentInput.value = canonicalInvestmentAmount.toFixed(2);
       const amountNote = document.getElementById('investmentAmountNote');
       if (amountNote) amountNote.innerHTML = isSecondContract
-        ? '<i class="fa fa-wallet mr-1"></i> Editable for your second contract. The amount will be deducted from Total Balance with Commission and added to Working Balance.'
+        ? '<i class="fa fa-wallet mr-1"></i> Editable for your second contract. Upon admin approval, the amount will be deducted from Total Balance with Commission and added to Working Balance.'
         : '<i class="fa fa-wallet mr-1"></i> Editable. For approval, the amount must match your exact approved and verified deposit total.';
     }
 

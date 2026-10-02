@@ -895,6 +895,9 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
       if (result.userNotFound) {
         return res.status(404).json({ success: false, message: 'Associated user not found.' });
       }
+      if (result.insufficientBalance) {
+        return res.status(400).json({ success: false, message: result.message });
+      }
       if (result.mismatch) {
         return res.status(409).json({
           success: false,
@@ -909,7 +912,7 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
           user_id: user.id,
           title: 'Contract Approved! ✅',
           message: result.fundingSource === 'total_balance'
-            ? 'Your second contract has been approved. The selected amount was already moved from Total Balance to Working Balance.'
+            ? `Your second contract has been approved. $${Number(result.contractAmount || 0).toFixed(2)} has been moved from Total Balance to Working Balance.`
             : result.fundingSource === 'reinvest'
             ? 'Your reinvestment contract has been approved. You can now start grabbing orders for your new cycle.'
             : releasedAmount > 0
@@ -933,7 +936,7 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
         message: result.alreadyApproved
           ? 'This contract was already approved; no funds were credited again.'
           : result.fundingSource === 'total_balance'
-            ? 'Second contract approved. Total Balance funding is already in Working Balance.'
+            ? `Second contract approved. $${Number(result.contractAmount || 0).toFixed(2)} transferred to Working Balance.`
             : result.fundingSource === 'reinvest'
             ? 'Reinvestment contract approved successfully.'
             : `Contract approved. $${Number(result.releaseAmount || 0).toFixed(2)} in newly verified deposits released to Working Balance.`
@@ -949,8 +952,8 @@ router.post('/kyc/action', adminAuthMiddleware, checkRole('sub_admin', 'support'
 
     const newStatus = action === 'reject' ? 'rejected' : 'reupload_required';
     const userKycStatus = newStatus;
-    if (String(kyc.funding_source || '').toLowerCase() === 'total_balance' && Number(kyc.funded_amount || kyc.investment_amount || 0) > 0 && user) {
-      await db.refundSecondContractFunding(user.id, Number(kyc.funded_amount || kyc.investment_amount));
+    if (String(kyc.funding_source || '').toLowerCase() === 'total_balance' && Number(kyc.funded_amount || 0) > 0 && user) {
+      await db.refundSecondContractFunding(user.id, Number(kyc.funded_amount));
     }
     await db.updateKycSubmission(kyc.id, { status: newStatus, rejection_reason: reason });
 
