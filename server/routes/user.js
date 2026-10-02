@@ -68,11 +68,21 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 router.get('/kyc', authMiddleware, async (req, res) => {
   const user = await db.findUserById(req.user.id);
   const submissions = await db.getKycSubmissions(user.id);
+  const hasApprovedContract = submissions.some(s => String(s.status || '').toLowerCase() === 'approved');
+  const isSecondContract =
+    hasApprovedContract ||
+    String(user.kyc_status || '').toLowerCase() === 'approved' ||
+    Number(user.total_tasks_completed || 0) > 0 ||
+    Number(user.commission_balance || 0) > 0;
+
   res.json({
     success: true,
     kyc_status: user.kyc_status || 'none',
     kyc_notes: user.kyc_notes || '',
-    latest_submission: submissions[0] || null
+    has_approved_contract: hasApprovedContract,
+    is_second_contract: isSecondContract,
+    latest_submission: submissions[0] || null,
+    submissions
   });
 });
 
@@ -82,7 +92,13 @@ router.post('/kyc', authMiddleware, async (req, res) => {
   const investmentAmount = parseInvestmentAmount(investment_amount);
   const user = await db.findUserById(req.user.id);
   const workingBalance = Number(user && user.balance);
-  const isSecondContract = String(user && user.kyc_status || '').toLowerCase() === 'approved';
+  const submissions = await db.getKycSubmissions(user.id);
+  const hasApprovedContract = submissions.some(s => String(s.status || '').toLowerCase() === 'approved');
+  const isSecondContract =
+    hasApprovedContract ||
+    String(user && user.kyc_status || '').toLowerCase() === 'approved' ||
+    Number(user && user.total_tasks_completed || 0) > 0 ||
+    Number(user && user.commission_balance || 0) > 0;
   let canonicalDepositCents = 0;
   if (!isSecondContract) {
     const deposits = await db.getDeposits(user.id);
@@ -139,6 +155,34 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     }
     fundingSource = 'total_balance';
     fundedAmount = 0;
+  }
+
+  const existingPending = submissions.find(s => String(s.status || '').toLowerCase() === 'pending');
+  if (existingPending) {
+    if (String(existingPending.funding_source || '').toLowerCase() === 'total_balance' && Number(existingPending.funded_amount || 0) > 0) {
+      await db.refundSecondContractFunding(user.id, Number(existingPending.funded_amount));
+    }
+    await db.updateKycSubmission(existingPending.id, {
+      name: name.trim(),
+      front_id_image: front_id,
+      back_id_image: back_id,
+      signature_image: signature,
+      investment_amount: investmentAmount,
+      funding_source: fundingSource,
+      funded_amount: 0,
+      status: 'pending',
+      rejection_reason: '',
+      created_at: new Date().toISOString()
+    });
+    await db.updateUser(user.id, {
+      kyc_status: 'pending',
+      kyc_notes: ''
+    });
+    return res.json({
+      success: true,
+      message: 'Merchant KYC and verification contract submitted successfully! Under review by administration.',
+      submission: { ...existingPending, investment_amount: investmentAmount, funded_amount: 0 }
+    });
   }
 
   const kycSubmission = {

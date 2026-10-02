@@ -2188,8 +2188,17 @@
 
     const investmentInput = document.getElementById('investmentAmount');
     const workingBalanceAmount = Number(user && user.balance !== undefined ? user.balance : 0);
-    const isSecondContract = String(user && user.kyc_status || '').toLowerCase() === 'approved';
     const totalBalanceAmount = Number(user && user.commission_balance !== undefined ? user.commission_balance : 0);
+    const hasApprovedKyc = Boolean(
+      (kycRes && (kycRes.is_second_contract || kycRes.has_approved_contract)) ||
+      (kycRes && Array.isArray(kycRes.submissions) && kycRes.submissions.some(s => String(s.status || '').toLowerCase() === 'approved')) ||
+      (kycRes && kycRes.latest_submission && String(kycRes.latest_submission.status || '').toLowerCase() === 'approved')
+    );
+    const isSecondContract =
+      hasApprovedKyc ||
+      String(user && user.kyc_status || '').toLowerCase() === 'approved' ||
+      Number(user && user.total_tasks_completed || 0) > 0 ||
+      Number(user && user.commission_balance || 0) > 0;
     let canonicalDepositAmount = 0;
     if (!isSecondContract) {
       try {

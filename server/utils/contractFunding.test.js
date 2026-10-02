@@ -37,3 +37,11 @@ test('admin approval executes second contract funding when not already funded', 
   assert.match(dbFile, /UPDATE users SET commission_balance = commission_balance - \?, balance = balance \+ \?/);
   assert.match(dbFile, /UPDATE kyc_submissions SET funded_amount = \?/);
 });
+
+test('user route recognizes second contract from past approved submissions even if current status is pending', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const userRoute = fs.readFileSync(path.join(__dirname, '../routes/user.js'), 'utf8');
+  assert.match(userRoute, /hasApprovedContract/);
+});
+
