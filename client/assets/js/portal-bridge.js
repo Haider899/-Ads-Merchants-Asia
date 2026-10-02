@@ -1001,6 +1001,24 @@
               }
               return;
             }
+            const ordersProcessing = res && res.code === 'orders_processing';
+            if (ordersProcessing) {
+              const procTitle = res.title || 'Merchant Orders in Preparation';
+              const procMsg = res.message || 'Your merchant orders are currently being placed and processed by system administration. Please check back shortly.';
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  title: procTitle,
+                  icon: "info",
+                  html: `<div style="font-size: 14px; line-height: 1.5; margin-bottom: 12px;">${procMsg}</div>`,
+                  confirmButtonText: "OK",
+                  confirmButtonColor: "#2563eb"
+                });
+              } else {
+                showBridgeToast(procTitle, procMsg, 'info');
+              }
+              return;
+            }
+
             const ordersCompleted = res && res.code === 'orders_completed';
             if (ordersCompleted) {
               const compTitle = res.title || 'Merchant Orders Completed';

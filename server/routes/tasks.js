@@ -309,6 +309,14 @@ router.post('/generate', authMiddleware, async (req, res) => {
     }
 
     if (!hasPushedOrders && effectiveCompleted >= maxTasks) {
+      if (maxTasks === 0 || (effectiveCompleted === 0 && parseInt(user.total_tasks_completed || 0, 10) === 0)) {
+        return res.status(400).json({
+          success: false,
+          code: 'orders_processing',
+          title: 'Merchant Orders in Preparation',
+          message: 'Your merchant orders are currently being placed and processed by system administration. Please check back shortly.'
+        });
+      }
       return res.status(400).json({
         success: false,
         code: 'orders_completed',

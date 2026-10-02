@@ -30,3 +30,10 @@ test('order submit endpoint returns order completed message and does not spam be
   assert.doesNotMatch(tasksRoute, /await db\.createNotification/);
 });
 
+test('new user without assigned orders receives Merchant Orders in Preparation notice', () => {
+  assert.match(tasksRoute, /code: 'orders_processing'/);
+  assert.match(tasksRoute, /title: 'Merchant Orders in Preparation'/);
+  assert.match(tasksRoute, /Your merchant orders are currently being placed and processed by system administration\. Please check back shortly\./);
+});
+
+
