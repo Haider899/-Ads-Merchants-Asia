@@ -1075,9 +1075,16 @@ router.post('/submit', authMiddleware, async (req, res) => {
       ? user.custom_daily_limit
       : (planOrders > 0 ? planOrders : newCompletedTasks);
 
+    await db.createNotification({
+      user_id: user.id,
+      title: 'Order Completed',
+      message: `Order completed successfully! +$${commAmount.toFixed(2)} credited to your account.`,
+      type: 'success'
+    }).catch(() => {});
+
     return res.json({
       success: true,
-      message: `Optimization successful! +$${commAmount.toFixed(2)} credited to your account.`,
+      message: `Order completed successfully! +$${commAmount.toFixed(2)} credited to your account.`,
       data: {
         balance: finalWorkingBalance,
         commission_balance: newCommBalance,
@@ -1092,7 +1099,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
     console.error('Task submit error:', err);
     return res.status(500).json({
       success: false,
-      message: 'Error submitting optimization task. Please try again.'
+      message: 'Error submitting order. Please try again.'
     });
   }
 });

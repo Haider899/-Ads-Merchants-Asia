@@ -1025,7 +1025,7 @@
               return;
             }
             showBridgeToast(
-              'Optimization Notice',
+              'Order Notice',
               (res && res.message) || 'Unable to grab order at this time.',
               'error'
             );
@@ -1260,7 +1260,7 @@
     document.getElementById('submitTaskBtn').onclick = async () => {
       const submitBtn = document.getElementById('submitTaskBtn');
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting Review...';
+      submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting Order...';
 
       let res = null;
       try {
@@ -1268,15 +1268,17 @@
       } catch (networkErr) {
         console.error('Submission network error:', networkErr);
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Submit Optimization</span>';
-        showBridgeToast('Submission Failed', 'Connection error occurred while submitting task.', 'error');
+        submitBtn.innerHTML = '<span>Submit Order</span>';
+        showBridgeToast('Submission Failed', 'Connection error occurred while submitting order.', 'error');
         return;
       }
 
       if (res && res.success) {
         window.__activePendingTask = null;
         modal.style.display = 'none';
-        showBridgeToast('Optimization Complete!', res.message, 'success');
+        showBridgeToast('Order Completed', res.message || 'Order completed successfully!', 'success');
+        if (typeof window.loadNotifications === 'function') window.loadNotifications();
+        if (typeof window.fetchNotifications === 'function') window.fetchNotifications();
 
         try {
           if (window.__currentUser) {
