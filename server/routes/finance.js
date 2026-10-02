@@ -212,6 +212,7 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
     }
 
     // Deduct withdrawable balance and add to frozen balance
+    const sourceFund = commBalance >= numAmount ? 'commission' : (commBalance > 0 ? 'commission' : 'balance');
     const updates = {
       frozen_balance: parseFloat((currentFrozen + numAmount).toFixed(2))
     };
@@ -235,7 +236,7 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       account_name: (account_holder || user.fullname || user.username || 'Merchant').trim(),
       account_number: (wallet_address || iban || '').trim(),
       status: 'pending',
-      admin_notes: '',
+      admin_notes: `source:${sourceFund}`,
       created_at: new Date().toISOString()
     };
 

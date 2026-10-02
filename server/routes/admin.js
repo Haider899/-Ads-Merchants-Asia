@@ -1068,49 +1068,36 @@ router.post('/withdrawals/action', adminAuthMiddleware, checkRole('sub_admin', '
     const currentFrozen = parseFloat(user.frozen_balance) || 0;
     const currentBalance = parseFloat(user.balance) || 0;
 
-    const settings = await db.getSettings();
-    const cleanWallet = (withdrawal.wallet_address || '').trim().toLowerCase();
-    const isPlatformAddress = Boolean(
-      cleanWallet && (
-        (settings.trc20_address && cleanWallet === settings.trc20_address.trim().toLowerCase()) ||
-        (settings.erc20_address && cleanWallet === settings.erc20_address.trim().toLowerCase()) ||
-        (settings.btc_address && cleanWallet === settings.btc_address.trim().toLowerCase())
-      )
-    );
-
-    if (action === 'reinvest' || (action === 'approve' && isPlatformAddress)) {
-      // Transfer funds from frozen/withdrawal directly into user's working balance and reset task count
+    // 1. REINVEST: Only when explicitly selected by Admin
+    if (action === 'reinvest') {
       const newFrozen = parseFloat(Math.max(0, currentFrozen - withdrawAmount).toFixed(2));
       const newBalance = parseFloat((currentBalance + withdrawAmount).toFixed(2));
 
+      // Reinvest funds directly return into user's working balance without auto-assigning or resetting tasks
       await db.updateUser(user.id, {
         balance: newBalance,
-        frozen_balance: newFrozen,
-        today_profit: 0.00,
-        today_tasks_completed: 0,
-        current_set: 0,
-        tasks_reset_at: new Date(),
-        last_reset_date: new Date().toISOString().slice(0, 10)
+        frozen_balance: newFrozen
       });
 
       await db.updateWithdrawal(withdrawalId, {
         status: 'reinvested',
-        admin_notes: notes || 'Internal Reinvestment to Working Balance (Cycle Reset)'
+        admin_notes: notes || 'Internal Reinvestment to Working Balance'
       });
 
       await db.createNotification({
         user_id: user.id,
         title: 'Reinvestment Approved! 🔄',
-        message: `Your withdrawal of $${withdrawAmount.toFixed(2)} has been transferred into your Working Balance! Daily optimization tasks have been reset to 0 so you can start your next cycle.`,
+        message: `Your withdrawal of $${withdrawAmount.toFixed(2)} has been transferred into your Working Balance!`,
         type: 'success'
       });
 
       return res.json({
         success: true,
-        message: `Withdrawal of $${withdrawAmount.toFixed(2)} approved and reinvested into User Working Balance (New Balance: $${newBalance.toFixed(2)}, Tasks Reset: 0).`,
+        message: `Withdrawal of $${withdrawAmount.toFixed(2)} approved and reinvested into User Working Balance (New Balance: $${newBalance.toFixed(2)}).`,
         is_reinvest: true
       });
     } else if (action === 'approve') {
+      // 2. APPROVE EXTERNAL PAYOUT: Funds leave the platform to external destination
       const newFrozen = parseFloat(Math.max(0, currentFrozen - withdrawAmount).toFixed(2));
       await db.updateUser(user.id, { frozen_balance: newFrozen });
       await db.updateWithdrawal(withdrawalId, {
@@ -1152,10 +1139,19 @@ router.post('/withdrawals/action', adminAuthMiddleware, checkRole('sub_admin', '
         message: `Withdrawal of $${withdrawAmount.toFixed(2)} approved and marked as paid.`
       });
     } else if (action === 'reject') {
-      // Refund frozen balance back to working balance
+      // 3. REJECT & REFUND: Return funds back to where they originated from
+      const isFromBalance = withdrawal.admin_notes && withdrawal.admin_notes.includes('source:balance');
       const newFrozen = parseFloat(Math.max(0, currentFrozen - withdrawAmount).toFixed(2));
-      const newBalance = parseFloat((currentBalance + withdrawAmount).toFixed(2));
-      await db.updateUser(user.id, { balance: newBalance, frozen_balance: newFrozen });
+      const userUpdates = { frozen_balance: newFrozen };
+
+      if (isFromBalance) {
+        userUpdates.balance = parseFloat((currentBalance + withdrawAmount).toFixed(2));
+      } else {
+        const currentComm = parseFloat(user.commission_balance || 0);
+        userUpdates.commission_balance = parseFloat((currentComm + withdrawAmount).toFixed(2));
+      }
+
+      await db.updateUser(user.id, userUpdates);
 
       await db.updateWithdrawal(withdrawalId, {
         status: 'rejected',
@@ -1165,13 +1161,13 @@ router.post('/withdrawals/action', adminAuthMiddleware, checkRole('sub_admin', '
       await db.createNotification({
         user_id: user.id,
         title: 'Withdrawal Rejected ⚠️',
-        message: `Your withdrawal request of $${withdrawAmount.toFixed(2)} was rejected. Funds have been returned to your working balance. Reason: ` + (notes || 'Address verification failed.'),
+        message: `Your withdrawal request of $${withdrawAmount.toFixed(2)} was rejected. Funds have been returned to your account. Reason: ` + (notes || 'Address verification failed.'),
         type: 'warning'
       });
 
       return res.json({
         success: true,
-        message: `Withdrawal of $${withdrawAmount.toFixed(2)} rejected. $${withdrawAmount.toFixed(2)} refunded to user balance.`
+        message: `Withdrawal of $${withdrawAmount.toFixed(2)} rejected and refunded to user.`
       });
     }
 
