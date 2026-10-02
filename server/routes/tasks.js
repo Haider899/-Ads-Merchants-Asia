@@ -1075,13 +1075,6 @@ router.post('/submit', authMiddleware, async (req, res) => {
       ? user.custom_daily_limit
       : (planOrders > 0 ? planOrders : newCompletedTasks);
 
-    await db.createNotification({
-      user_id: user.id,
-      title: 'Order Completed',
-      message: `Order completed successfully! +$${commAmount.toFixed(2)} credited to your account.`,
-      type: 'success'
-    }).catch(() => {});
-
     return res.json({
       success: true,
       message: `Order completed successfully! +$${commAmount.toFixed(2)} credited to your account.`,

@@ -1277,8 +1277,6 @@
         window.__activePendingTask = null;
         modal.style.display = 'none';
         showBridgeToast('Order Completed', res.message || 'Order completed successfully!', 'success');
-        if (typeof window.loadNotifications === 'function') window.loadNotifications();
-        if (typeof window.fetchNotifications === 'function') window.fetchNotifications();
 
         try {
           if (window.__currentUser) {

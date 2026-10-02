@@ -24,9 +24,9 @@ test('tasks and finance routes do not enforce a hardcoded daily 5 orders limit f
   assert.doesNotMatch(financeRoute, /\? user\.task_sequence_plan\.total_orders\s*:\s*5/);
 });
 
-test('order submit endpoint creates Order Completed notification and returns order completed message', () => {
-  assert.match(tasksRoute, /title: 'Order Completed'/);
+test('order submit endpoint returns order completed message and does not spam bell notifications', () => {
   assert.match(tasksRoute, /Order completed successfully! \+\$\$\{commAmount\.toFixed\(2\)\} credited to your account\./);
   assert.doesNotMatch(tasksRoute, /Optimization successful!/);
+  assert.doesNotMatch(tasksRoute, /await db\.createNotification/);
 });
 
