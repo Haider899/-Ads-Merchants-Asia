@@ -131,11 +131,13 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       (o.order_status || '').toUpperCase() === 'ASSIGNED'
     ).length;
 
+    const planOrders = Array.isArray(user.task_sequence_plan)
+      ? user.task_sequence_plan.length
+      : (user.task_sequence_plan && user.task_sequence_plan.total_orders ? parseInt(user.task_sequence_plan.total_orders, 10) : 0);
+
     let maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
       ? user.custom_daily_limit
-      : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
-        ? user.task_sequence_plan.total_orders
-        : 5);
+      : (planOrders > 0 ? planOrders : parseInt(user.today_tasks_completed || 0, 10));
 
     const completedTasks = parseInt(user.today_tasks_completed || 0, 10);
     // Admin may add order #6/#7 or queue multiple extra orders. Include those

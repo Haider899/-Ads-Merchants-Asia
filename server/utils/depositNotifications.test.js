@@ -12,5 +12,5 @@ test('deposit processing notification uses the approved copy', () => {
 
 test('deposit confirmation notification describes Working Balance availability', () => {
   assert.match(adminRoute, /title: 'Deposit Confirmed'/);
-  assert.match(adminRoute, /Your deposit of \$\$\{amount\.toFixed\(2\)\} \(\$\{result\.method \|\| 'USDT'\}\) has been successfully credited to your Working Balance\. Your funds are now available\./);
+  assert.match(adminRoute, /Your deposit of \$\$\{amount\.toFixed\(2\)\} has been successfully credited to your Working Balance\. Your funds are now available\./);
 });

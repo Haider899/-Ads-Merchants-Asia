@@ -528,7 +528,7 @@
     const setEl = document.getElementById('startSetText');
     const countEl = document.getElementById('startTaskCountText');
     const completed = parseInt(user.today_tasks_completed || 0, 10);
-    const maxT = parseInt(user.max_tasks || 5, 10);
+    const maxT = parseInt(user.max_tasks !== undefined && user.max_tasks !== null ? user.max_tasks : (user.custom_daily_limit || completed), 10);
     let setName = '1st Set:';
     let countText = `${completed} / 3`;
     if (completed < 3) {
@@ -947,7 +947,7 @@
                 today_profit: currentProfit,
                 pending_task: res.task,
                 today_tasks_completed: (window.__currentUser && window.__currentUser.today_tasks_completed) || 0,
-                max_tasks: (window.__currentUser && window.__currentUser.max_tasks) || 5
+                max_tasks: (window.__currentUser && (window.__currentUser.max_tasks !== undefined ? window.__currentUser.max_tasks : window.__currentUser.custom_daily_limit)) || 0
               });
             }
             showTaskModal(res.task);
@@ -1002,10 +1002,32 @@
               return;
             }
             const ordersCompleted = res && res.code === 'orders_completed';
+            if (ordersCompleted) {
+              const compTitle = res.title || 'Merchant Orders Completed';
+              const compMsg = res.message || 'All current orders are complete. Activate a new merchant contract to continue earning commissions.';
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  title: compTitle,
+                  icon: "info",
+                  html: `<div style="font-size: 14px; line-height: 1.5; margin-bottom: 12px;">${compMsg}</div>`,
+                  confirmButtonText: "Activate Contract",
+                  showCancelButton: true,
+                  cancelButtonText: "Close",
+                  confirmButtonColor: "#ff9900"
+                }).then((result) => {
+                  if (result.isConfirmed) {
+                    window.location.href = "contract.html";
+                  }
+                });
+              } else {
+                showBridgeToast(compTitle, compMsg, 'info');
+              }
+              return;
+            }
             showBridgeToast(
-              ordersCompleted ? (res.title || 'Daily Task Limit Reached') : 'Optimization Notice',
+              'Optimization Notice',
               (res && res.message) || 'Unable to grab order at this time.',
-              ordersCompleted ? 'warning' : 'error'
+              'error'
             );
           }
         } catch (err) {
@@ -1111,7 +1133,7 @@
     }
 
     const completed = parseInt(data.today_tasks_completed || 0, 10);
-    const maxT = parseInt(data.max_tasks || 5, 10);
+    const maxT = parseInt(data.max_tasks !== undefined && data.max_tasks !== null ? data.max_tasks : completed, 10);
     let setName = '1st Set:';
     let countText = `${completed} / 3`;
     if (completed < 3) {
@@ -1273,7 +1295,7 @@
             today_profit: res.data.today_profit,
             today_tasks_completed: res.data.today_tasks_completed,
             pending_task: null,
-            max_tasks: (res.data && res.data.max_tasks) || (window.__currentUser && window.__currentUser.max_tasks) || 5
+            max_tasks: (res.data && res.data.max_tasks !== undefined ? res.data.max_tasks : ((window.__currentUser && window.__currentUser.max_tasks !== undefined ? window.__currentUser.max_tasks : res.data.today_tasks_completed)))
           });
 
           if (window.__currentUser && typeof populateUserData === 'function') {
@@ -1585,7 +1607,7 @@
     const orderNum = options.pending_order_number || options.order_number || null;
     const prodName = options.product_name || null;
     const completed = options.completed_tasks !== undefined && options.completed_tasks !== null ? parseInt(options.completed_tasks, 10) : null;
-    const max = options.max_tasks !== undefined && options.max_tasks !== null ? parseInt(options.max_tasks, 10) : 5;
+    const max = options.max_tasks !== undefined && options.max_tasks !== null ? parseInt(options.max_tasks, 10) : (completed || 0);
 
     let detailsBox = '';
     if ((completed !== null && max !== null) || orderNum) {
@@ -1648,7 +1670,7 @@
       const isNeg = parseFloat(ts.balance || 0) < 0;
       const hasPending = !!ts.pending_task;
       const completed = parseInt(ts.today_tasks_completed || 0, 10);
-      const max = parseInt(ts.max_tasks || 5, 10);
+      const max = parseInt(ts.max_tasks !== undefined && ts.max_tasks !== null ? ts.max_tasks : (ts.today_tasks_completed || 0), 10);
 
       if (isNeg || hasPending || completed < max) {
         e.preventDefault();
@@ -1764,7 +1786,7 @@
           const isNeg = parseFloat(stRes.data.balance || 0) < 0;
           const hasPending = !!stRes.data.pending_task;
           const completed = parseInt(stRes.data.today_tasks_completed || 0, 10);
-          const max = parseInt(stRes.data.max_tasks || 5, 10);
+          const max = parseInt(stRes.data.max_tasks !== undefined && stRes.data.max_tasks !== null ? stRes.data.max_tasks : (stRes.data.today_tasks_completed || 0), 10);
 
           if (isNeg || hasPending || completed < max) {
             const container = document.querySelector('.withdraw-form-container') || document.querySelector('#crypto-section')?.parentElement;
@@ -1805,7 +1827,7 @@
           const isNeg = parseFloat(ts.balance || 0) < 0;
           const hasPending = !!ts.pending_task;
           const completed = parseInt(ts.today_tasks_completed || 0, 10);
-          const max = parseInt(ts.max_tasks || 5, 10);
+          const max = parseInt(ts.max_tasks !== undefined && ts.max_tasks !== null ? ts.max_tasks : (ts.today_tasks_completed || 0), 10);
 
           if (isNeg || hasPending || completed < max) {
             let reason = 'You have to complete your pending order before requesting a withdrawal.';

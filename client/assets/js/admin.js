@@ -3181,8 +3181,8 @@
       document.getElementById('orderUserWorkingBal').textContent = `$${bal.toFixed(2)}`;
       document.getElementById('orderUserWorkingBal').style.color = bal < 0 ? '#ef4444' : '#0f172a';
       document.getElementById('orderUserVip').textContent = `${user.vip_level || 'Bronze'} VIP`;
-      const dailyCap = user.custom_daily_limit || (user.task_sequence_plan && user.task_sequence_plan.total_orders) || 5;
-      document.getElementById('orderUserTasks').textContent = `${user.today_tasks_completed || 0} / ${dailyCap}`;
+      const dailyCap = user.custom_daily_limit || (user.task_sequence_plan && user.task_sequence_plan.total_orders) || (Array.isArray(user.task_sequence_plan) ? user.task_sequence_plan.length : 0);
+      document.getElementById('orderUserTasks').textContent = dailyCap ? `${user.today_tasks_completed || 0} / ${dailyCap}` : `${user.today_tasks_completed || 0} completed`;
 
       // Pre-fill VIP commission rate
       const vipRates = { Bronze: 20, Silver: 30, Gold: 40, Diamond: 50 };

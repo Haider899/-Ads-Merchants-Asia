@@ -122,13 +122,15 @@ router.get('/status', authMiddleware, async (req, res) => {
   user = await autoResetIfNewDay(user);
 
   const settings = await db.getSettings();
-  const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
-  // Admin-set custom daily limit or sequence plan takes priority over default
+  const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20 };
+  const planOrders = Array.isArray(user.task_sequence_plan)
+    ? user.task_sequence_plan.length
+    : (user.task_sequence_plan && user.task_sequence_plan.total_orders ? parseInt(user.task_sequence_plan.total_orders, 10) : 0);
+
+  // Admin-set custom daily limit or sequence plan strictly controls order quota (no hardcoded 5 fallback)
   let maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
     ? user.custom_daily_limit
-    : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
-      ? user.task_sequence_plan.total_orders
-      : 5);
+    : (planOrders > 0 ? planOrders : parseInt(user.today_tasks_completed || 0, 10));
 
   // If admin pushed orders to this user, expand maxTasks so progress bars and limits reflect assigned quantity
   const pendingAssignedOrders = await db.query('SELECT COUNT(*) as cnt FROM orders WHERE user_id = ? AND order_status = "ASSIGNED"', [user.id]).catch(() => [{ cnt: 0 }]);
@@ -243,12 +245,14 @@ router.post('/generate', authMiddleware, async (req, res) => {
     user = await autoResetIfNewDay(user);
 
     const settings = await db.getSettings();
-    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20, max_tasks: 5 };
+    const vipRate = (settings.vip_rates && settings.vip_rates[user.vip_level]) || { commission: 0.20 };
+    const planOrders = Array.isArray(user.task_sequence_plan)
+      ? user.task_sequence_plan.length
+      : (user.task_sequence_plan && user.task_sequence_plan.total_orders ? parseInt(user.task_sequence_plan.total_orders, 10) : 0);
+
     let maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
       ? user.custom_daily_limit
-      : ((user.task_sequence_plan && user.task_sequence_plan.total_orders)
-        ? user.task_sequence_plan.total_orders
-        : 5);
+      : (planOrders > 0 ? planOrders : parseInt(user.today_tasks_completed || 0, 10));
 
     // Recompute actual completed tasks since last admin reset (to prevent false daily-limit block)
     const todayStr2 = toDateString(new Date());
@@ -306,8 +310,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
       return res.status(400).json({
         success: false,
         code: 'orders_completed',
-        title: 'Daily Task Limit Reached',
-        message: `You have completed all ${maxTasks} daily optimization tasks. Please return tomorrow to continue.`
+        title: 'Merchant Orders Completed',
+        message: 'All current orders are complete. Activate a new merchant contract to continue earning commissions.'
       });
     }
 
@@ -1062,6 +1066,13 @@ router.post('/submit', authMiddleware, async (req, res) => {
 
     await db.updateUser(user.id, updates);
 
+    const planOrders = Array.isArray(user.task_sequence_plan)
+      ? user.task_sequence_plan.length
+      : (user.task_sequence_plan && user.task_sequence_plan.total_orders ? parseInt(user.task_sequence_plan.total_orders, 10) : 0);
+    const maxTasks = (user.custom_daily_limit && user.custom_daily_limit > 0)
+      ? user.custom_daily_limit
+      : (planOrders > 0 ? planOrders : newCompletedTasks);
+
     return res.json({
       success: true,
       message: `Optimization successful! +$${commAmount.toFixed(2)} credited to your account.`,
@@ -1071,7 +1082,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
         frozen_balance: 0.00,
         today_profit: newTodayProfit,
         today_tasks_completed: newCompletedTasks,
-        commission_earned: commAmount
+        commission_earned: commAmount,
+        max_tasks: maxTasks
       }
     });
   } catch (err) {
