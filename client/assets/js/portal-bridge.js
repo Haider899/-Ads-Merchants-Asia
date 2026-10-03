@@ -2210,11 +2210,11 @@
         }, 0);
       } catch (_) {}
     }
-    const canonicalInvestmentAmount = isSecondContract ? totalBalanceAmount : canonicalDepositAmount;
+    const canonicalInvestmentAmount = isSecondContract ? (workingBalanceAmount > 0 ? workingBalanceAmount : (canonicalDepositAmount > 0 ? canonicalDepositAmount : totalBalanceAmount)) : canonicalDepositAmount;
     if (investmentInput) {
       // Keep the field editable for the user's requested workflow. The server
-      // still validates first-contract amounts against the approved deposit
-      // ledger and second-contract amounts against available Total Balance.
+      // validates first-contract amounts against the approved deposit ledger
+      // and subsequent contracts against active Working Balance.
       investmentInput.readOnly = false;
       investmentInput.removeAttribute('readonly');
       investmentInput.min = '0.01';
@@ -2227,7 +2227,7 @@
       investmentInput.value = canonicalInvestmentAmount.toFixed(2);
       const amountNote = document.getElementById('investmentAmountNote');
       if (amountNote) amountNote.innerHTML = isSecondContract
-        ? '<i class="fa fa-wallet mr-1"></i> Editable for your second contract. Upon admin approval, the amount will be deducted from Total Balance with Commission and added to Working Balance.'
+        ? '<i class="fa fa-wallet mr-1"></i> Merchant contract for your active Working Balance.'
         : '<i class="fa fa-wallet mr-1"></i> Editable. For approval, the amount must match your exact approved and verified deposit total.';
     }
 

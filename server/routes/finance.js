@@ -187,9 +187,9 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
     }
 
     const commBalance = parseFloat(user.commission_balance || 0);
-    const workBalance = parseFloat(user.balance || 0);
-    // As instructed by client: user can only withdraw up to Total Balance with Commission (commission_balance)
-    const availableWithdrawable = commBalance > 0 ? commBalance : workBalance;
+    // As instructed by client: user can only withdraw from Total Balance with Commission (commission_balance).
+    // Working balance is operational trading funds and cannot be withdrawn directly.
+    const availableWithdrawable = commBalance;
     const currentFrozen = parseFloat(user.frozen_balance) || 0;
 
     if (availableWithdrawable < numAmount) {
@@ -211,16 +211,12 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       }
     }
 
-    // Deduct withdrawable balance and add to frozen balance
-    const sourceFund = commBalance >= numAmount ? 'commission' : (commBalance > 0 ? 'commission' : 'balance');
+    // Deduct withdrawable balance from Total Balance with Commission and add to frozen balance
+    const sourceFund = 'commission';
     const updates = {
-      frozen_balance: parseFloat((currentFrozen + numAmount).toFixed(2))
+      frozen_balance: parseFloat((currentFrozen + numAmount).toFixed(2)),
+      commission_balance: parseFloat(Math.max(0, commBalance - numAmount).toFixed(2))
     };
-    if (commBalance > 0) {
-      updates.commission_balance = parseFloat(Math.max(0, commBalance - numAmount).toFixed(2));
-    } else {
-      updates.balance = parseFloat((workBalance - numAmount).toFixed(2));
-    }
 
     await db.updateUser(user.id, updates);
 

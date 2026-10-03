@@ -146,15 +146,15 @@ router.post('/kyc', authMiddleware, async (req, res) => {
   let fundingSource = 'deposit';
   let fundedAmount = 0;
   if (isSecondContract) {
-    const funding = calculateSecondContractFunding(investmentAmount, user && user.commission_balance, user && user.balance);
-    if (!funding.ok) {
-      const message = funding.code === 'insufficient_total_balance'
-        ? `Insufficient Total Balance. Available: $${funding.available}; requested: $${funding.requested}.`
-        : 'Enter a valid positive investment amount.';
-      return res.status(400).json({ success: false, insufficient_total_balance: funding.code === 'insufficient_total_balance', message });
+    if (!Number.isFinite(workingBalance) || workingBalance < 0) {
+      return res.status(400).json({
+        success: false,
+        negative_balance: true,
+        message: 'Your Working Balance is negative. Please clear the deficit before submitting a contract.'
+      });
     }
-    fundingSource = 'total_balance';
-    fundedAmount = 0;
+    fundingSource = 'balance';
+    fundedAmount = investmentAmount;
   }
 
   const existingPending = submissions.find(s => String(s.status || '').toLowerCase() === 'pending');
@@ -169,7 +169,7 @@ router.post('/kyc', authMiddleware, async (req, res) => {
       signature_image: signature,
       investment_amount: investmentAmount,
       funding_source: fundingSource,
-      funded_amount: 0,
+      funded_amount: fundedAmount,
       status: 'pending',
       rejection_reason: '',
       created_at: new Date().toISOString()
@@ -181,7 +181,7 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     return res.json({
       success: true,
       message: 'Merchant KYC and verification contract submitted successfully! Under review by administration.',
-      submission: { ...existingPending, investment_amount: investmentAmount, funded_amount: 0 }
+      submission: { ...existingPending, investment_amount: investmentAmount, funded_amount: fundedAmount }
     });
   }
 

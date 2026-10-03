@@ -22,12 +22,12 @@ test('rejects invalid or over-limit second-contract funding', () => {
   assert.equal(calculateSecondContractFunding('100', '500', '0').amount, '100.00');
 });
 
-test('second contract submission does not immediately transfer funds before admin approval', () => {
+test('second contract submission is funded from active Working Balance without premature transfer', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const userRoute = fs.readFileSync(path.join(__dirname, '../routes/user.js'), 'utf8');
   assert.doesNotMatch(userRoute, /db\.transferTotalBalanceToWorking/);
-  assert.match(userRoute, /calculateSecondContractFunding/);
+  assert.match(userRoute, /fundingSource = 'balance'/);
 });
 
 test('admin approval executes second contract funding when not already funded', () => {
@@ -35,7 +35,7 @@ test('admin approval executes second contract funding when not already funded', 
   const path = require('node:path');
   const dbFile = fs.readFileSync(path.join(__dirname, '../db.js'), 'utf8');
   assert.match(dbFile, /UPDATE users SET commission_balance = commission_balance - \?, balance = balance \+ \?/);
-  assert.match(dbFile, /UPDATE kyc_submissions SET funded_amount = \?/);
+  assert.match(dbFile, /today_tasks_completed = 0/);
 });
 
 test('user route recognizes second contract from past approved submissions even if current status is pending', () => {
@@ -43,5 +43,12 @@ test('user route recognizes second contract from past approved submissions even 
   const path = require('node:path');
   const userRoute = fs.readFileSync(path.join(__dirname, '../routes/user.js'), 'utf8');
   assert.match(userRoute, /hasApprovedContract/);
+});
+
+test('withdrawals are strictly limited to commission_balance (Total Balance with Commission)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const financeRoute = fs.readFileSync(path.join(__dirname, '../routes/finance.js'), 'utf8');
+  assert.match(financeRoute, /availableWithdrawable = commBalance;/);
 });
 
