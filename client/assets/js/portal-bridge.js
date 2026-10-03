@@ -2216,23 +2216,17 @@
     }
     const canonicalInvestmentAmount = isSecondContract ? workingBalanceAmount : canonicalDepositAmount;
     if (investmentInput) {
-      // Keep the field editable for the user's requested workflow. The server
-      // validates first-contract amounts against the approved deposit ledger
-      // and subsequent contracts against active Working Balance.
-      investmentInput.readOnly = false;
-      investmentInput.removeAttribute('readonly');
-      investmentInput.min = '0.01';
-      investmentInput.step = '0.01';
-      investmentInput.inputMode = 'decimal';
-      investmentInput.style.backgroundColor = '#ffffff';
-      investmentInput.style.cursor = 'text';
+      investmentInput.readOnly = true;
+      investmentInput.setAttribute('readonly', 'readonly');
+      investmentInput.style.backgroundColor = '#f1f5f9';
+      investmentInput.style.cursor = 'not-allowed';
       investmentInput.style.fontWeight = '700';
       investmentInput.style.color = workingBalanceAmount < 0 ? '#dc2626' : '#0284c7';
       investmentInput.value = canonicalInvestmentAmount.toFixed(2);
       const amountNote = document.getElementById('investmentAmountNote');
       if (amountNote) amountNote.innerHTML = isSecondContract
-        ? '<i class="fa fa-wallet mr-1"></i> Merchant contract for your active Working Balance.'
-        : '<i class="fa fa-wallet mr-1"></i> Editable. For approval, the amount must match your exact approved and verified deposit total.';
+        ? '<i class="fa fa-lock mr-1"></i> Locked to your active Working Balance.'
+        : '<i class="fa fa-lock mr-1"></i> Locked to your approved and verified deposit total.';
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');
