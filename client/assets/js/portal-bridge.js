@@ -2171,24 +2171,28 @@
 
   // CONTRACT / KYC SUBMISSION HANDLER
   async function initContractKycPage(user) {
-    const kycRes = await API.get('/api/user/kyc').catch(() => null);
+    const [kycRes, profileRes] = await Promise.all([
+      API.get('/api/user/kyc').catch(() => null),
+      API.get('/api/user/profile').catch(() => null)
+    ]);
+    const activeUser = (profileRes && profileRes.user) || user || window.__currentUser || {};
     const form = document.getElementById('invite_submit_form') || document.querySelector('form');
     const submitBtn = document.getElementById('invite_submit_form_btn') || (form && form.querySelector('button.form-submit-btn, button[type="submit"], button[type="button"]'));
 
     // 1. Pre-fill user information if empty
     const nameInput = document.getElementById('name');
-    if (nameInput && !nameInput.value.trim() && user) {
-      nameInput.value = user.fullname || user.username || '';
+    if (nameInput && !nameInput.value.trim() && activeUser) {
+      nameInput.value = activeUser.fullname || activeUser.username || '';
     }
 
     const userIdInput = document.getElementById('userId');
-    if (userIdInput && user) {
-      userIdInput.value = user.id || user.user_code || user.username || '1001';
+    if (userIdInput && activeUser) {
+      userIdInput.value = activeUser.id || activeUser.user_code || activeUser.username || '1001';
     }
 
     const investmentInput = document.getElementById('investmentAmount');
-    const workingBalanceAmount = Number(user && user.balance !== undefined ? user.balance : 0);
-    const totalBalanceAmount = Number(user && user.commission_balance !== undefined ? user.commission_balance : 0);
+    const workingBalanceAmount = Number(activeUser.balance !== undefined ? activeUser.balance : (user && user.balance !== undefined ? user.balance : 0));
+    const totalBalanceAmount = Number(activeUser.commission_balance !== undefined ? activeUser.commission_balance : (user && user.commission_balance !== undefined ? user.commission_balance : 0));
     const hasApprovedKyc = Boolean(
       (kycRes && (kycRes.is_second_contract || kycRes.has_approved_contract)) ||
       (kycRes && Array.isArray(kycRes.submissions) && kycRes.submissions.some(s => String(s.status || '').toLowerCase() === 'approved')) ||
@@ -2196,9 +2200,9 @@
     );
     const isSecondContract =
       hasApprovedKyc ||
-      String(user && user.kyc_status || '').toLowerCase() === 'approved' ||
-      Number(user && user.total_tasks_completed || 0) > 0 ||
-      Number(user && user.commission_balance || 0) > 0;
+      String(activeUser.kyc_status || '').toLowerCase() === 'approved' ||
+      Number(activeUser.total_tasks_completed || 0) > 0 ||
+      Number(activeUser.commission_balance || 0) > 0;
     let canonicalDepositAmount = 0;
     if (!isSecondContract) {
       try {
@@ -2210,7 +2214,7 @@
         }, 0);
       } catch (_) {}
     }
-    const canonicalInvestmentAmount = isSecondContract ? (workingBalanceAmount > 0 ? workingBalanceAmount : (canonicalDepositAmount > 0 ? canonicalDepositAmount : totalBalanceAmount)) : canonicalDepositAmount;
+    const canonicalInvestmentAmount = isSecondContract ? workingBalanceAmount : canonicalDepositAmount;
     if (investmentInput) {
       // Keep the field editable for the user's requested workflow. The server
       // validates first-contract amounts against the approved deposit ledger
@@ -2277,10 +2281,14 @@
       if (kycRes.latest_submission) {
         const sub = kycRes.latest_submission;
         if (sub.name && nameInput) nameInput.value = sub.name;
-        if (investmentInput && !isSecondContract && Number.isFinite(canonicalInvestmentAmount)) {
-          investmentInput.value = canonicalInvestmentAmount.toFixed(2);
-        } else if (sub.investment_amount && investmentInput) {
-          investmentInput.value = Number(sub.investment_amount).toFixed(2);
+        if (investmentInput) {
+          if (isSecondContract && Number.isFinite(workingBalanceAmount) && workingBalanceAmount > 0) {
+            investmentInput.value = workingBalanceAmount.toFixed(2);
+          } else if (!isSecondContract && Number.isFinite(canonicalInvestmentAmount)) {
+            investmentInput.value = canonicalInvestmentAmount.toFixed(2);
+          } else if (sub.investment_amount) {
+            investmentInput.value = Number(sub.investment_amount).toFixed(2);
+          }
         }
         if (sub.front_id_image) {
           const frontImg = document.getElementById('frontPreviewImg');
