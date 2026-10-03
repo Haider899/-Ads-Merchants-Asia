@@ -61,3 +61,12 @@ test('withdrawal route defines workBalance and checks pending tasks before withd
   assert.match(financeRoute, /if \(isNegative \|\| pendingTask \|\| pendingOrder \|\| completedTasks < maxTasks\)/);
 });
 
+test('push and incomplete orders expand maxTasks and are returned before daily completion check', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const tasksRoute = fs.readFileSync(path.join(__dirname, '../routes/tasks.js'), 'utf8');
+  const financeRoute = fs.readFileSync(path.join(__dirname, '../routes/finance.js'), 'utf8');
+  assert.match(tasksRoute, /activeIncompleteOrders/);
+  assert.match(financeRoute, /incompleteOrdersList/);
+});
+

@@ -127,9 +127,12 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
     const pendingOrder = (userOrders || []).find(o => 
       ['ASSIGNED', 'PENDING', 'PROCESSING', 'SHORTFALL'].includes((o.order_status || '').toUpperCase())
     );
-    const assignedOrderCount = (userOrders || []).filter(o =>
-      (o.order_status || '').toUpperCase() === 'ASSIGNED'
-    ).length;
+    const incompleteOrdersList = (userOrders || []).filter(o =>
+      ['ASSIGNED', 'PENDING', 'PROCESSING', 'SHORTFALL'].includes((o.order_status || '').toUpperCase()) &&
+      !['COMPLETED', 'CANCELLED', 'REJECTED'].includes((o.order_status || '').toUpperCase())
+    );
+    const pendingTasksList = (userTasks || []).filter(t => t.status === 'pending');
+    const totalIncompleteCount = Math.max(incompleteOrdersList.length, pendingTasksList.length);
 
     const planOrders = Array.isArray(user.task_sequence_plan)
       ? user.task_sequence_plan.length
@@ -140,10 +143,9 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       : (planOrders > 0 ? planOrders : parseInt(user.today_tasks_completed || 0, 10));
 
     const completedTasks = parseInt(user.today_tasks_completed || 0, 10);
-    // Admin may add order #6/#7 or queue multiple extra orders. Include those
-    // orders in the completion target instead of allowing early withdrawal.
-    if (assignedOrderCount > 0) {
-      maxTasks = Math.max(maxTasks, completedTasks + assignedOrderCount);
+    // Include pending/assigned/pushed orders in the completion target so progress shows 5 / 6
+    if (totalIncompleteCount > 0) {
+      maxTasks = Math.max(maxTasks, completedTasks + totalIncompleteCount);
     }
     if (user.custom_order_num) {
       maxTasks = Math.max(maxTasks, parseInt(user.custom_order_num, 10) || 0);
@@ -164,7 +166,7 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
         success: false,
         has_pending_tasks: true,
         pending_order_number: pendingTask ? pendingTask.order_number : (pendingOrder ? pendingOrder.order_number : null),
-        product_name: pendingTask ? pendingTask.product_name : null,
+        product_name: pendingTask ? pendingTask.product_name : (pendingOrder ? pendingOrder.product_name : null),
         completed_tasks: completedTasks,
         max_tasks: maxTasks,
         message: reason

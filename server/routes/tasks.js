@@ -132,23 +132,33 @@ router.get('/status', authMiddleware, async (req, res) => {
     ? user.custom_daily_limit
     : (planOrders > 0 ? planOrders : parseInt(user.today_tasks_completed || 0, 10));
 
+  const userTasks = await db.getTasks(user.id);
+
   // If admin pushed orders to this user, expand maxTasks so progress bars and limits reflect assigned quantity
-  const pendingAssignedOrders = await db.query('SELECT COUNT(*) as cnt FROM orders WHERE user_id = ? AND order_status = "ASSIGNED"', [user.id]).catch(() => [{ cnt: 0 }]);
-  const assignedCnt = (pendingAssignedOrders && pendingAssignedOrders[0] && parseInt(pendingAssignedOrders[0].cnt, 10)) || 0;
-  if (assignedCnt > 0) {
-    maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + assignedCnt);
-  }
+  const incompleteOrders = await db.query(
+    'SELECT * FROM orders WHERE user_id = ? AND UPPER(order_status) IN ("ASSIGNED", "PENDING", "PROCESSING", "SHORTFALL") AND UPPER(order_status) NOT IN ("COMPLETED", "CANCELLED", "REJECTED") ORDER BY created_at ASC',
+    [user.id]
+  ).catch(() => []);
+  const pendingTasksList = (userTasks || []).filter(t => t.status === 'pending');
+  const assignedCnt = incompleteOrders.length;
   const hasCustomAssignment = Boolean(user.custom_order_num);
+
+  const totalIncompleteCount = Math.max(
+    assignedCnt,
+    pendingTasksList.length,
+    hasCustomAssignment ? 1 : 0
+  );
+
+  if (totalIncompleteCount > 0) {
+    maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + totalIncompleteCount);
+  }
   if (hasCustomAssignment) {
     maxTasks = Math.max(
       maxTasks,
-      (parseInt(user.today_tasks_completed || 0, 10) || 0) + 1,
       parseInt(user.custom_order_num, 10) || 0
     );
   }
   maxTasks = Math.max(maxTasks, parseInt(user.today_tasks_completed || 0, 10));
-
-  const userTasks = await db.getTasks(user.id);
   const productGallery = await db.getProducts().catch(() => []);
   const productGalleryImages = productGallery
     .filter(product => product && product.image && !(product.is_active !== undefined && Number(product.is_active) === 0))
@@ -204,7 +214,24 @@ router.get('/status', authMiddleware, async (req, res) => {
   }
 
   // Find any active pending task for this user
-  const pendingTask = (userTasks || []).find(t => t.status === 'pending');
+  let pendingTask = (userTasks || []).find(t => t.status === 'pending');
+  if (!pendingTask && incompleteOrders && incompleteOrders.length > 0) {
+    const ao = incompleteOrders[0];
+    const aoPrice = parseFloat(ao.gross_amount || ao.unit_price || 0);
+    const aoComm = parseFloat(ao.commission_amount || 0);
+    const isDeficit = Boolean(ao.payment_status === 'SHORTFALL' || aoPrice > parseFloat(user.balance || 0) || parseFloat(user.balance || 0) < 0);
+    pendingTask = {
+      id: ao.task_id || ao.id,
+      order_number: ao.order_number,
+      product_name: ao.product_name,
+      product_image: ao.product_image || null,
+      product_price: aoPrice,
+      commission_amount: aoComm,
+      commission_rate: parseFloat(ao.commission_rate || vipRate.commission),
+      is_deficit: isDeficit ? 1 : 0,
+      deficit_amount: isDeficit ? Math.abs(parseFloat(user.balance || 0)) : 0
+    };
+  }
 
   res.json({
     success: true,
@@ -227,6 +254,7 @@ router.get('/status', authMiddleware, async (req, res) => {
         id: pendingTask.id,
         order_number: pendingTask.order_number,
         product_name: pendingTask.product_name,
+        product_image: pendingTask.product_image || null,
         product_price: parseFloat(pendingTask.product_price || 0),
         commission_amount: parseFloat(pendingTask.commission_amount !== undefined && pendingTask.commission_amount !== null ? pendingTask.commission_amount : (pendingTask.commission_earned || 0)),
         commission_rate: parseFloat(pendingTask.commission_rate || vipRate.commission),
@@ -273,9 +301,12 @@ router.post('/generate', authMiddleware, async (req, res) => {
     // Use whichever count is lower (DB field vs actual count) to prevent false blocks
     const effectiveCompleted = Math.min(parseInt(user.today_tasks_completed || 0, 10), trulyCompleted > 0 ? trulyCompleted : parseInt(user.today_tasks_completed || 0, 10));
 
-    // Check if there are admin pushed assigned orders or custom order overrides
-    const assignedOrdersQueue = await db.query('SELECT * FROM orders WHERE user_id = ? AND order_status = "ASSIGNED" ORDER BY created_at ASC', [user.id]).catch(() => []);
-    const assignedCnt = (assignedOrdersQueue && assignedOrdersQueue.length) || 0;
+    // Check if there are admin pushed assigned orders or active incomplete orders
+    const activeIncompleteOrders = await db.query(
+      'SELECT * FROM orders WHERE user_id = ? AND UPPER(order_status) IN ("ASSIGNED", "PENDING", "PROCESSING", "SHORTFALL") AND UPPER(order_status) NOT IN ("COMPLETED", "CANCELLED", "REJECTED") ORDER BY created_at ASC',
+      [user.id]
+    ).catch(() => []);
+    const assignedCnt = (activeIncompleteOrders && activeIncompleteOrders.length) || 0;
     if (assignedCnt > 0) {
       maxTasks = Math.max(maxTasks, (parseInt(user.today_tasks_completed || 0, 10) || 0) + assignedCnt);
     }
@@ -308,24 +339,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
       });
     }
 
-    if (!hasPushedOrders && effectiveCompleted >= maxTasks) {
-      if (maxTasks === 0 || (effectiveCompleted === 0 && parseInt(user.total_tasks_completed || 0, 10) === 0)) {
-        return res.status(400).json({
-          success: false,
-          code: 'orders_processing',
-          title: 'Merchant Orders in Preparation',
-          message: 'Your merchant orders are currently being placed and processed by system administration. Please check back shortly.'
-        });
-      }
-      return res.status(400).json({
-        success: false,
-        code: 'orders_completed',
-        title: 'Merchant Orders Completed',
-        message: 'All current orders are complete. Activate a new merchant contract to continue earning commissions.'
-      });
-    }
-
-    // Check if there is already a pending task for this user
+    // PRIORITY 1: Check if there is already an active pending task for this user
     const existingTasks = await db.getTasks(user.id);
     const existingPending = existingTasks.find(t => t.status === 'pending');
     if (existingPending) {
@@ -345,52 +359,9 @@ router.post('/generate', authMiddleware, async (req, res) => {
       });
     }
 
-    // ALSO check orders table for SHORTFALL orders that may not have a task record
-    // (e.g. if task was deleted by admin reset but the deficit order remains)
-    const pendingShortfallOrders = await db.query(
-      'SELECT * FROM orders WHERE user_id = ? AND payment_status = "SHORTFALL" AND order_status IN ("PROCESSING", "ASSIGNED") ORDER BY created_at ASC LIMIT 1',
-      [user.id]
-    ).catch(() => []);
-    if (pendingShortfallOrders && pendingShortfallOrders.length > 0) {
-      const sfo = pendingShortfallOrders[0];
-      const sfoPrice = parseFloat(sfo.gross_amount || sfo.unit_price || 0);
-      const sfoComm = parseFloat(sfo.commission_amount || 0);
-      // Re-create the pending task record from the order so user sees it
-      const sfoTaskId = sfo.task_id || generateTaskNumber();
-      const sfoTask = {
-        id: sfoTaskId,
-        order_number: sfo.order_number,
-        user_id: user.id,
-        product_name: sfo.product_name,
-        product_image: sfo.product_image || null,
-        product_price: sfoPrice,
-        commission_rate: parseFloat(sfo.commission_rate || 0.20),
-        commission_amount: sfoComm,
-        commission_earned: sfoComm,
-        status: 'pending',
-        order_num: (parseInt(user.today_tasks_completed, 10) || 0) + 1,
-        is_deficit: 1,
-        deficit_amount: Math.abs(parseFloat(user.balance || 0)),
-        created_at: sfo.created_at || new Date()
-      };
-      await db.createTask(sfoTask).catch(() => {});
-      await db.updateOrder(sfo.id, { task_id: sfoTaskId, order_status: 'PROCESSING' }).catch(() => {});
-      return res.json({
-        success: true,
-        task: {
-          ...sfoTask,
-          product_price: sfoPrice,
-          commission_amount: sfoComm,
-          commission_rate: parseFloat(sfo.commission_rate || 0.20)
-        },
-        is_existing: true,
-        message: 'You have a pending deficit order that must be completed first.'
-      });
-    }
-
-    // PRIORITY 1: IF ADMIN PUSHED AN ASSIGNED ORDER, GENERATE IT IMMEDIATELY
-    if (assignedOrdersQueue && assignedOrdersQueue.length > 0) {
-      const ao = assignedOrdersQueue[0];
+    // PRIORITY 2: Check orders table for any incomplete/pushed order (ASSIGNED, PROCESSING, PENDING, SHORTFALL)
+    if (activeIncompleteOrders && activeIncompleteOrders.length > 0) {
+      const ao = activeIncompleteOrders[0];
       const orderPrice = parseFloat(ao.gross_amount || ao.unit_price || 0);
       const commAmount = parseFloat(ao.commission_amount || 0);
       const commRate = parseFloat(ao.commission_rate || 0.20);
@@ -398,10 +369,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
       const taskId = ao.task_id || generateTaskNumber();
 
       const currentBalance = round(user.balance);
-      // Do not deduct here. Assigned orders follow the daily-task flow and
-      // deduct their principal exactly once when the user submits the task.
       const newBalance = currentBalance;
-      const deficitVal = 0;
+      const deficitVal = isDeficit ? Math.abs(parseFloat(user.balance || 0)) : 0;
 
       // Create the pending task record with exact pushed order details
       const pushTask = {
@@ -418,15 +387,15 @@ router.post('/generate', authMiddleware, async (req, res) => {
         order_num: (parseInt(user.today_tasks_completed, 10) || 0) + 1,
         is_deficit: isDeficit ? 1 : 0,
         deficit_amount: deficitVal,
-        created_at: new Date()
+        created_at: ao.created_at || new Date()
       };
-      await db.createTask(pushTask);
+      await db.createTask(pushTask).catch(() => {});
 
       // Update the order in orders table to PROCESSING
       await db.updateOrder(ao.id, {
         task_id: taskId,
         order_status: 'PROCESSING',
-        payment_status: isDeficit ? 'SHORTFALL' : 'PAID'
+        payment_status: isDeficit ? 'SHORTFALL' : (ao.payment_status || 'PAID')
       }).catch(() => {});
 
       if (isDeficit) {
@@ -452,7 +421,26 @@ router.post('/generate', authMiddleware, async (req, res) => {
         task: pushTask,
         new_balance: newBalance,
         deficit_amount: deficitVal,
-        is_deficit: isDeficit
+        is_deficit: isDeficit,
+        is_existing: true
+      });
+    }
+
+    // PRIORITY 3: Daily quota completion check (ONLY if no pending task or incomplete order exists)
+    if (!hasPushedOrders && effectiveCompleted >= maxTasks) {
+      if (maxTasks === 0 || (effectiveCompleted === 0 && parseInt(user.total_tasks_completed || 0, 10) === 0)) {
+        return res.status(400).json({
+          success: false,
+          code: 'orders_processing',
+          title: 'Merchant Orders in Preparation',
+          message: 'Your merchant orders are currently being placed and processed by system administration. Please check back shortly.'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        code: 'orders_completed',
+        title: 'Merchant Orders Completed',
+        message: 'All current orders are complete. Activate a new merchant contract to continue earning commissions.'
       });
     }
 

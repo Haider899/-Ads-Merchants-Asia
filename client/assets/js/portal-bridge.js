@@ -867,6 +867,10 @@
         window.__currentUser.today_tasks_completed = taskStatus.data.today_tasks_completed;
       }
       updateTaskDisplay(taskStatus.data);
+      if (taskStatus.data && taskStatus.data.pending_task) {
+        window.__activePendingTask = taskStatus.data.pending_task;
+        showTaskModal(taskStatus.data.pending_task);
+      }
     }
 
     const startBtns = document.querySelectorAll('#start-button, .start-button, #startOptimizationBtn, .start-btn, .start-item-start');
@@ -1625,7 +1629,10 @@
     const orderNum = options.pending_order_number || options.order_number || null;
     const prodName = options.product_name || null;
     const completed = options.completed_tasks !== undefined && options.completed_tasks !== null ? parseInt(options.completed_tasks, 10) : null;
-    const max = options.max_tasks !== undefined && options.max_tasks !== null ? parseInt(options.max_tasks, 10) : (completed || 0);
+    let max = options.max_tasks !== undefined && options.max_tasks !== null ? parseInt(options.max_tasks, 10) : (completed || 0);
+    if (orderNum && completed !== null && max <= completed) {
+      max = completed + 1;
+    }
 
     let detailsBox = '';
     if ((completed !== null && max !== null) || orderNum) {
