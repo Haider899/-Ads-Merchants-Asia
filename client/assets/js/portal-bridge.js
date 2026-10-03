@@ -629,7 +629,7 @@
 
     // Withdraw page withdrawable balance (Total Balance with Commission)
     const commBalNum = parseFloat(user.commission_balance !== undefined && user.commission_balance !== null ? user.commission_balance : 0);
-    const withdrawableBal = commBalNum > 0 ? formatUSD(commBalNum) : workingBal;
+    const withdrawableBal = formatUSD(commBalNum);
     document.querySelectorAll('.withdraw-card-value').forEach(el => {
       el.textContent = `USD ${withdrawableBal}`;
     });
@@ -1938,7 +1938,7 @@
                 el.textContent = `USD ${newWork.toFixed(2)}`;
               });
               document.querySelectorAll('.withdraw-card-value').forEach(el => {
-                el.textContent = `USD ${(newCommission > 0 ? newCommission : newWork).toFixed(2)}`;
+                el.textContent = `USD ${newCommission.toFixed(2)}`;
               });
               document.querySelectorAll('.user-total-balance, #profile-total-balance').forEach(el => {
                 el.textContent = `USD ${newTot.toFixed(2)}`;

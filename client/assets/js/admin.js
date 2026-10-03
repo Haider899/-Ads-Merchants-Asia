@@ -2199,9 +2199,7 @@
         return;
       }
       tbody.innerHTML = state.withdrawals.map(w => {
-        const cleanW = (w.wallet_address || '').trim().toLowerCase();
-        const platformW = (state.settings && state.settings.trc20_address ? state.settings.trc20_address.trim().toLowerCase() : '');
-        const isReinvest = Boolean(cleanW && platformW && cleanW === platformW) || (w.status === 'reinvested');
+        const isReinvest = (w.status === 'reinvested');
 
         return `
         <tr>

@@ -52,3 +52,12 @@ test('withdrawals are strictly limited to commission_balance (Total Balance with
   assert.match(financeRoute, /availableWithdrawable = commBalance;/);
 });
 
+test('withdrawal route defines workBalance and checks pending tasks before withdrawal', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const financeRoute = fs.readFileSync(path.join(__dirname, '../routes/finance.js'), 'utf8');
+  assert.match(financeRoute, /const workBalance = parseFloat\(user\.balance \|\| 0\);/);
+  assert.match(financeRoute, /new_balance: workBalance/);
+  assert.match(financeRoute, /if \(isNegative \|\| pendingTask \|\| pendingOrder \|\| completedTasks < maxTasks\)/);
+});
+

@@ -186,6 +186,7 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       });
     }
 
+    const workBalance = parseFloat(user.balance || 0);
     const commBalance = parseFloat(user.commission_balance || 0);
     // As instructed by client: user can only withdraw from Total Balance with Commission (commission_balance).
     // Working balance is operational trading funds and cannot be withdrawn directly.
@@ -242,7 +243,7 @@ router.post('/withdraw', authMiddleware, async (req, res) => {
       success: true,
       message: `Withdrawal request for $${numAmount.toFixed(2)} submitted successfully! Processing time is usually 15-60 minutes.`,
       withdrawal,
-      new_balance: updates.balance !== undefined ? updates.balance : workBalance,
+      new_balance: workBalance,
       new_commission_balance: updates.commission_balance !== undefined ? updates.commission_balance : commBalance,
       new_frozen: updates.frozen_balance
     });
