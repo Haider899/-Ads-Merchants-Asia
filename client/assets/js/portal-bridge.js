@@ -1359,8 +1359,15 @@
     const walletsRes = await API.get('/api/finance/wallets');
     if (walletsRes && walletsRes.success && walletsRes.wallets) {
       const w = walletsRes.wallets;
-      const trcAddressEl = document.getElementById('divToCopy') || document.querySelector('.copy-address');
-      if (trcAddressEl) trcAddressEl.textContent = w.TRC20.address;
+      const copySpans = document.querySelectorAll('.copy-address');
+      
+      const trcAddressEl = document.getElementById('divToCopyTRC') || document.querySelector('[data-wallet="TRC20"]') || document.getElementById('divToCopy') || copySpans[0];
+      const ercAddressEl = document.getElementById('divToCopyERC') || document.querySelector('[data-wallet="ERC20"]') || copySpans[1];
+      const btcAddressEl = document.getElementById('divToCopyBTC') || document.querySelector('[data-wallet="BTC"]') || copySpans[2];
+
+      if (trcAddressEl && w.TRC20 && w.TRC20.address) trcAddressEl.textContent = w.TRC20.address;
+      if (ercAddressEl && w.ERC20 && w.ERC20.address) ercAddressEl.textContent = w.ERC20.address;
+      if (btcAddressEl && w.BTC && w.BTC.address) btcAddressEl.textContent = w.BTC.address;
     }
 
     // Handle receipt file preview
