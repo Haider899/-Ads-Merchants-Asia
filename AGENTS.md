@@ -81,3 +81,51 @@ This document is the single source of truth for all business logic, financial ca
     - **Recurring Ring Alert**: Ring message chime lasts **3 seconds** and repeats every **5 seconds** until an admin responds or opens the chat with that customer!
     - Visual indicator / pulse banner in the admin header.
 - **Browser Audio Policy**: Must support user interaction unlock to ensure sound plays cleanly without browser autoplay restrictions.
+
+---
+
+## 7. Withdrawal Architecture & Strict Balance Segregation
+- **Commission Balance Only**: Withdrawals are strictly deducted from `commission_balance` (Total Balance with Commission).
+- **Working Balance Protected**: `user.balance` (Working Balance) is operational capital and is **strictly non-withdrawable**.
+- **Pending Order Guard**:
+  - A withdrawal cannot be initiated if any task or order is in progress (`ASSIGNED`, `PENDING`, `PROCESSING`, `SHORTFALL`), if working balance is negative, or if daily orders are incomplete.
+  - Withdrawal modal dynamically alerts the user and displays `completed / maxTasks Completed` (e.g. `5 / 6 Completed`).
+- **Payout Actions**:
+  - `Approve (Paid External)`: Payout leaves the platform; funds are cleared from `frozen_balance`.
+  - `Approve & Reinvest`: Payout funds are transferred directly into user's Working Balance (`user.balance`) and cleared from `frozen_balance`.
+  - `Reject & Refund`: Funds are returned directly to `commission_balance` (Total Balance with Commission) and cleared from `frozen_balance`.
+- **Badge Accuracy**: In the admin panel, withdrawals only receive the `Internal Reinvest` badge when their status is explicitly `reinvested`.
+
+---
+
+## 8. Contract System & Read-Only Working Balance Lock
+- **Read-Only Lock**:
+  - On `views/contract.html` and `portal-bridge.js`, the Investment Amount field is strictly locked (`readonly="readonly"`, `#f1f5f9` background, `cursor: not-allowed`).
+  - Users cannot manually edit the investment amount.
+- **Contract Funding Source**:
+  - **First Contract**: Locked to the merchant's approved & verified deposit total.
+  - **Second & Subsequent Contracts**: Automatically locked to the merchant's active **Working Balance** (`user.balance`).
+- **Cycle Reset upon Contract Approval**:
+  - When an administrator approves a contract in `approveKycAndReleaseVerifiedDeposits`, `today_tasks_completed` is set to 0 and `current_set` to 1 so the merchant can immediately start their next optimization cycle cleanly without false completion popups.
+
+---
+
+## 9. Admin Push Orders & Dynamic Counter Expansion
+- **Dynamic Quota Formula**:
+  - `maxTasks` dynamically expands: `Math.max(quota, completedTasks + totalIncompleteCount)`.
+  - When a user has 5 completed orders and 1 pushed order is assigned/pending, counter shows **`5 / 6`**.
+  - When user completes order 6 and admin pushes order 7, counter shows **`6 / 7`**.
+  - Start button adapts set display dynamically: e.g. `3rd Set: 0 / 1` -> `3rd Set: 1 / 2` -> `3rd Set: 2 / 3`.
+- **Order Priority Guard (Never Disappears)**:
+  - In `POST /api/tasks/generate`, active incomplete orders in `orders` table (`ASSIGNED`, `PENDING`, `PROCESSING`, `SHORTFALL`) and pending tasks in `tasks` table **must be evaluated and returned FIRST**.
+  - Never place the `effectiveCompleted >= maxTasks` daily completion check above pending task evaluation. Pushed orders must immediately launch in `showTaskModal` and never trigger the "Merchant Orders Completed / Activate Contract" popup.
+
+---
+
+## 10. Tech Stack & Critical Developer Gotchas
+- **Tech Stack**: Node.js (v18/20), Express.js, MySQL 8 (`mysql2/promise`), `jsonwebtoken`, `bcryptjs`, Vanilla JS (`portal-bridge.js`, `admin.js`), SweetAlert2.
+- **`workBalance` Definition**: Always declare `const workBalance = parseFloat(user.balance || 0);` before referencing it in `server/routes/finance.js`.
+- **MySQL Date Formatting**: Always use `toDateString(val)` (`YYYY-MM-DD`) when checking calendar resets. Never use `String(date).slice(0, 10)` which parses JavaScript `Date` toString into `"Mon Sep 14"`.
+- **Automated Tests**: Run test suite with `npm test`. All 62 tests must pass before deployment.
+- **PM2 VPS Restart**: Restart production service via `pm2 restart server`.
+
