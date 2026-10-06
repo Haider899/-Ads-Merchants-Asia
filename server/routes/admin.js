@@ -1321,9 +1321,9 @@ router.get('/settings', adminAuthMiddleware, checkRole('super_admin'), async (re
 router.post('/settings', adminAuthMiddleware, checkRole('super_admin'), async (req, res) => {
   const { trc20_address, erc20_address, btc_address, min_deposit, min_withdraw, telegram_support, whatsapp_support, new_admin_password } = req.body;
   const updates = {};
-  if (trc20_address) updates.trc20_address = trc20_address.trim();
-  if (erc20_address) updates.erc20_address = erc20_address.trim();
-  if (btc_address) updates.btc_address = btc_address.trim();
+  if (trc20_address !== undefined) updates.trc20_address = String(trc20_address).trim();
+  if (erc20_address !== undefined) updates.erc20_address = String(erc20_address).trim();
+  if (btc_address !== undefined) updates.btc_address = String(btc_address).trim();
   if (min_deposit !== undefined && min_deposit !== '') {
     const parsedMinimum = positiveAmount(min_deposit);
     if (parsedMinimum === null || parsedMinimum < DEFAULT_MINIMUM_DEPOSIT) {
