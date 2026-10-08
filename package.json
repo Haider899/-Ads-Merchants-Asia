@@ -1,7 +1,7 @@
 {
   "name": "ads-merchants-asia",
   "version": "1.0.0",
-  "description": "Amazon Asia Merchant - Ads Merchants Asia Full-Stack Platform",
+  "description": "Ads Merchants Asia Full-Stack Platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

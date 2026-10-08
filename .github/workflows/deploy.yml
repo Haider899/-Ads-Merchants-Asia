@@ -59,10 +59,15 @@ jobs:
         set -euo pipefail
         ssh -o BatchMode=yes -o IdentitiesOnly=no "$VPS_USERNAME@$VPS_IP" 'bash -s' <<'REMOTE_SCRIPT'
         set -euo pipefail
-        cd /var/www/amazon-asia
-        git remote set-url origin https://github.com/Haider899/amazon-asia-merchants.git
+        if [ -d "/var/www/ads-merchants-asia" ]; then
+          cd /var/www/ads-merchants-asia
+        elif [ -d "/var/www/amazon-asia" ]; then
+          cd /var/www/amazon-asia
+        else
+          cd /var/www/html || exit 1
+        fi
         git fetch origin main
         git reset --hard origin/main
         npm install --production
-        pm2 restart all
+        pm2 restart all || true
         REMOTE_SCRIPT

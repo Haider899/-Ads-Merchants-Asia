@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
 
-        showToast('Account Created!', 'Your account has been registered with Amazon Asia Merchants. Verification SMS sent.', 'success');
+        showToast('Account Created!', 'Your account has been registered with Ads Merchants Asia. Verification SMS sent.', 'success');
         
         // Auto switch to login tab after 1.5s
         setTimeout(() => {
