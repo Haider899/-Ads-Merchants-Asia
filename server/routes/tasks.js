@@ -252,7 +252,8 @@ router.get('/status', authMiddleware, async (req, res) => {
       product_gallery: productGalleryImages,
       pending_task: pendingTask ? {
         id: pendingTask.id,
-        order_number: pendingTask.order_number,
+        order_num: pendingTask.order_num || pendingTask.order_number || ((parseInt(user.today_tasks_completed, 10) || 0) + 1),
+        order_number: pendingTask.order_number || pendingTask.order_num || ((parseInt(user.today_tasks_completed, 10) || 0) + 1),
         product_name: pendingTask.product_name,
         product_image: pendingTask.product_image || null,
         product_price: parseFloat(pendingTask.product_price || 0),
@@ -351,6 +352,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
         success: true,
         task: {
           ...existingPending,
+          order_num: existingPending.order_num || existingPending.order_number || ((parseInt(user.today_tasks_completed, 10) || 0) + 1),
+          order_number: existingPending.order_number || existingPending.order_num || ((parseInt(user.today_tasks_completed, 10) || 0) + 1),
           product_price: price,
           commission_amount: comm,
           commission_rate: parseFloat(existingPending.commission_rate || 0.20)

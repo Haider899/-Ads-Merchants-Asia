@@ -84,11 +84,8 @@ sleep(2000).then(() => {
                     ? `Your current balance is insufficient to complete this order. Please recharge ${formattedDeficit} USDT to your account to proceed with the order.`
                     : 'Your current balance is insufficient to complete this order. Please recharge your account to proceed with the order.',
                 focusConfirm: false,
-                confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = "startData";
-                }
+                confirmButtonText: `Ok`,
+                confirmButtonColor: "#7066e0"
             });
 
         } else if (data.message === "You have reached the data limit.") {

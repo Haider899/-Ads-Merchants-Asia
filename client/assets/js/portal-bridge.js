@@ -869,7 +869,7 @@
       updateTaskDisplay(taskStatus.data);
       if (taskStatus.data && taskStatus.data.pending_task) {
         window.__activePendingTask = taskStatus.data.pending_task;
-        showTaskModal(taskStatus.data.pending_task);
+        // Do not auto-launch modal on page load; user must click the Start button to view and start optimization
       }
     }
 
@@ -972,9 +972,8 @@
                 }).then((result) => {
                   if (result.isConfirmed) {
                     window.location.href = "depositData";
-                  } else {
-                    window.location.href = "startData";
                   }
+                  // On "Later", remain on start page cleanly without reload
                 });
               } else {
                 alert(taskDeficitMessage(formattedDeficit));
@@ -1202,11 +1201,13 @@
     }
 
 
+    const displayOrderNum = task.order_num || task.order_number || task.orderId || task.id || (window.__currentUser && (parseInt(window.__currentUser.today_tasks_completed, 10) || 0) + 1) || '1';
+
     modal.innerHTML = `
       <div style="background: #fff; border-radius: 16px; max-width: 440px; width: 100%; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 16px;">
           <h5 style="margin: 0; font-size: 18px; font-weight: 700; color: #111;">Merchant Order Match</h5>
-          <span style="background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px;">Order #${task.order_num}</span>
+          <span style="background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px;">Order #${displayOrderNum}</span>
         </div>
         <div style="text-align: center; margin-bottom: 16px;">
           <img src="${task.product_image || 'assets/uploads/logo/1742595477_icon.png'}" style="width: 220px; height: 220px; object-fit: contain; object-position: center; display: block; margin: 0 auto 14px; border-radius: 10px; border: 1px solid #f0f0f0; padding: 10px; box-sizing: border-box; background: #fff;" />
@@ -1340,9 +1341,8 @@
               icon: "info",
               text: taskDeficitMessage(formattedDeficit),
               focusConfirm: false,
-              confirmButtonText: `<i class="fa fa-thumbs-up"></i> Ok`,
-            }).then(() => {
-              window.location.href = "startData";
+              confirmButtonText: `Ok`,
+              confirmButtonColor: "#7066e0"
             });
           } else {
             alert(taskDeficitMessage(formattedDeficit));
