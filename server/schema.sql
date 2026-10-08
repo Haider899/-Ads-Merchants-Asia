@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
 
 -- Seed Super Admin
 INSERT IGNORE INTO admins (id, fullname, email, password_hash, role, status) VALUES 
-('adm_super_01', 'amazon-a', 'amazon-a@asiamerchants.com', '$2a$10$HMBrYLF.k0a2XJbP6Mi.R.n3SzuZoU0ZAnnGF8tpp.9XfcFTFtuxe', 'super_admin', 'active');
+('adm_super_01', 'amazon-a', 'amazon-a@asiamerchantsads.com', '$2a$10$XoQOV2B3ySVt.WaJtkXFuecwXu5MUeVT9UrpH8Db5P.jb7OToxpj2', 'super_admin', 'active');
 
 -- Seed Settings
 INSERT IGNORE INTO settings (setting_key, setting_value) VALUES 
