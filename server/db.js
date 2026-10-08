@@ -1,6 +1,7 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
 const { calculateDepositContractMatch } = require('./utils/depositContractMatch');
 const { calculateSecondContractFunding } = require('./utils/contractFunding');
 const { isDeficitFlag } = require('./utils/taskFunding');
@@ -9,7 +10,7 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
   user: process.env.DB_USER || 'root',
   password: (process.env.DB_PASSWORD || process.env.DB_PASS || '').replace(/^['"]|['"]$/g, ''),
-  database: process.env.DB_NAME || 'ads_merchants_db',
+  database: process.env.DB_NAME || 'ads_merchants_asia',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
