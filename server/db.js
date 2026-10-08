@@ -6,11 +6,17 @@ const { calculateDepositContractMatch } = require('./utils/depositContractMatch'
 const { calculateSecondContractFunding } = require('./utils/contractFunding');
 const { isDeficitFlag } = require('./utils/taskFunding');
 
+const dbUser = process.env.DB_USER || 'ads_user';
+const dbPass = (process.env.DB_PASSWORD || process.env.DB_PASS || 'AdsAsia#2026').replace(/^['"]|['"]$/g, '');
+const dbName = process.env.DB_NAME || 'ads_merchants_asia';
+
+console.log(`[DB] Initializing MySQL pool: user="${dbUser}", host="${process.env.DB_HOST || '127.0.0.1'}", database="${dbName}"`);
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
-  user: process.env.DB_USER || 'root',
-  password: (process.env.DB_PASSWORD || process.env.DB_PASS || '').replace(/^['"]|['"]$/g, ''),
-  database: process.env.DB_NAME || 'ads_merchants_asia',
+  user: dbUser,
+  password: dbPass,
+  database: dbName,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
