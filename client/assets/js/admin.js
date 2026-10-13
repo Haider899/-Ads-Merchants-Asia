@@ -1020,7 +1020,12 @@
     document.getElementById('editUserEmail').value = `${user.fullname} (@${user.username}) - ${user.email}`;
     document.getElementById('editUserVip').value = user.vip_level;
     document.getElementById('editUserBalance').value = user.balance;
-    document.getElementById('editUserFrozenBalance').value = user.frozen_balance || 0;
+    const effectiveFrozen = parseFloat(user.balance || 0) >= 0 && (!user.pending_task || !user.pending_task.is_deficit)
+      ? 0.00
+      : parseFloat(user.frozen_balance || 0);
+    document.getElementById('editUserFrozenBalance').value = effectiveFrozen;
+    const commBalEl = document.getElementById('editUserCommBalance');
+    if (commBalEl) commBalEl.textContent = `$${parseFloat(user.commission_balance || 0).toFixed(2)}`;
     const profitEl = document.getElementById('editUserTodayProfit');
     if (profitEl) profitEl.textContent = `$${parseFloat(user.today_profit || 0).toFixed(2)}`;
     document.getElementById('editUserAddBalance').value = '';
@@ -1783,20 +1788,24 @@
     }
   };
 
-  // Self-Balancing / Reinvest profit into working balance
+  // Self-Balancing / Reinvest profit or commission balance into working balance
   window.reinvestProfitToBalance = async function() {
     const userId = document.getElementById('editUserId').value;
     if (!userId) return;
     const user = state.users.find(u => String(u.id) === String(userId));
-    const profit = user ? parseFloat(user.today_profit || 0) : 0;
-    if (profit <= 0) {
-      AdminUI.toast('No Profit', 'This merchant currently has $0.00 accumulated profit to transfer.', 'warning');
+    const commBal = user ? parseFloat(user.commission_balance || 0) : 0;
+    const todayProfit = user ? parseFloat(user.today_profit || 0) : 0;
+    const availableAmount = commBal > 0 ? commBal : todayProfit;
+
+    if (availableAmount <= 0) {
+      AdminUI.toast('No Available Balance', 'This merchant currently has $0.00 accumulated commission balance or profit to transfer.', 'warning');
       return;
     }
 
+    const sourceLabel = commBal > 0 ? 'Total Commission Balance' : "Today's Profit";
     const confirmed = await AdminUI.confirm({
-      title: 'Reinvest Profit to Working Balance?',
-      message: `Transfer $${profit.toFixed(2)} accumulated today's profit directly into Working Balance for merchant "${user.fullname || user.username}"? Their today's tasks will also be reset to 0 so they can continue a full new order cycle.`,
+      title: 'Reinvest to Working Balance?',
+      message: `Transfer $${availableAmount.toFixed(2)} from ${sourceLabel} directly into Working Balance for merchant "${user.fullname || user.username}"? Their today's tasks will also be reset to 0 so they can continue a full new order cycle.`,
       type: 'success',
       confirmText: 'Yes, Transfer & Reset Tasks'
     });
@@ -1804,16 +1813,17 @@
 
     const res = await AdminAPI.post('/api/admin/users/update', {
       userId,
-      reinvest_profit: true
+      reinvest_profit: true,
+      reinvest_amount: availableAmount
     });
 
     if (res && res.success) {
-      AdminUI.toast('Profit Reinvested', res.message || 'Profit moved to working balance successfully.', 'success');
+      AdminUI.toast('Balance Reinvested', res.message || 'Balance moved to working balance successfully.', 'success');
       AdminUI.closeModal('editUserModal');
       loadUsers();
       loadMetrics();
     } else {
-      AdminUI.toast('Reinvest Failed', (res && res.message) || 'Error transferring profit', 'error');
+      AdminUI.toast('Reinvest Failed', (res && res.message) || 'Error transferring balance', 'error');
     }
   };
 
@@ -2658,8 +2668,20 @@
       let actionBtns = '';
       if (st === 'PROCESSING' || st === 'PENDING' || st === 'SHORTFALL') {
         actionBtns += `
+          <button class="btn-action" style="background:#10b981; color:white; padding:4px 8px; font-size:11px;" onclick="completeOrder('${o.id}')" title="Mark order completed and credit merchant">
+            Complete
+          </button>
           <button class="btn-action" style="background:#ef4444; color:white; padding:4px 8px; font-size:11px;" onclick="cancelOrder('${o.id}', true)">
             Cancel & Refund
+          </button>
+        `;
+      } else if (st === 'CANCELLED') {
+        actionBtns += `
+          <button class="btn-action" style="background:#3b82f6; color:white; padding:4px 8px; font-size:11px;" onclick="reactivateOrder('${o.id}')" title="Reactivate order so user can complete it">
+            Reactivate
+          </button>
+          <button class="btn-action" style="background:#10b981; color:white; padding:4px 8px; font-size:11px;" onclick="completeOrder('${o.id}')" title="Mark order completed and credit merchant">
+            Complete
           </button>
         `;
       }
@@ -2705,6 +2727,40 @@
       `;
     }).join('');
   }
+
+  window.reactivateOrder = async function(orderId) {
+    if (!confirm('Reactivate this cancelled order so the merchant can complete it?')) return;
+    try {
+      const res = await AdminAPI.post(`/api/admin/orders/${orderId}/status`, { status: 'ASSIGNED' });
+      if (res && res.success) {
+        AdminUI.toast('Order Reactivated', res.message || 'Order has been reactivated.', 'success');
+        loadOrders();
+        loadTasks();
+        loadUsers();
+      } else {
+        AdminUI.toast('Error', (res && res.message) || 'Failed to reactivate order', 'error');
+      }
+    } catch (err) {
+      AdminUI.toast('Error', err.message, 'error');
+    }
+  };
+
+  window.completeOrder = async function(orderId) {
+    if (!confirm('Mark this order as COMPLETED and credit the merchant with commission?')) return;
+    try {
+      const res = await AdminAPI.post(`/api/admin/orders/${orderId}/status`, { status: 'COMPLETED' });
+      if (res && res.success) {
+        AdminUI.toast('Order Completed', res.message || 'Order marked as completed.', 'success');
+        loadOrders();
+        loadTasks();
+        loadUsers();
+      } else {
+        AdminUI.toast('Error', (res && res.message) || 'Failed to complete order', 'error');
+      }
+    } catch (err) {
+      AdminUI.toast('Error', err.message, 'error');
+    }
+  };
 
   window.cancelOrder = async function(orderId, refundUser = true) {
     if (!confirm('Are you sure you want to cancel this order? If confirmed, reserved balance will be refunded to user.')) return;

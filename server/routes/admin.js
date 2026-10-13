@@ -218,6 +218,9 @@ router.get('/users', adminAuthMiddleware, async (req, res) => {
       const session = activeMap.get(String(u.id));
       safe.is_online = Boolean(session || isUserOnline(u.id));
       safe.session_info = session || null;
+      if (parseFloat(safe.balance || 0) >= 0 && (!safe.pending_task || !safe.pending_task.is_deficit)) {
+        safe.frozen_balance = 0.00;
+      }
       return safe;
     });
 
@@ -351,7 +354,11 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
     if (vip_level) updates.vip_level = vip_level;
     if (status) updates.status = status;
     if (kyc_status) updates.kyc_status = String(kyc_status).toLowerCase();
-    if (frozen_balance !== undefined && frozen_balance !== '') updates.frozen_balance = parseFloat(frozen_balance);
+    if (frozen_balance !== undefined && frozen_balance !== '') {
+      updates.frozen_balance = parseFloat(frozen_balance);
+    } else if (updates.balance !== undefined && updates.balance >= 0) {
+      updates.frozen_balance = 0.00;
+    }
 
     // Admin custom daily task limit (empty or 0 = clear override, revert to VIP default)
     if (custom_daily_limit !== undefined) {
@@ -400,21 +407,33 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
     }
 
     let reinvestNotification = null;
-    // Self-Balancing / Reinvestment: Move Today's Profit into Working Balance & Reset tasks count
+    // Self-Balancing / Reinvestment: Move Commission Balance / Today's Profit into Working Balance & Reset tasks count
     if (reinvest_profit) {
-      const profit = parseFloat(user.today_profit || 0);
-      if (profit > 0) {
+      const commBal = parseFloat(user.commission_balance || 0);
+      const todayProf = parseFloat(user.today_profit || 0);
+      const reqAmount = (req.body.reinvest_amount !== undefined && !isNaN(parseFloat(req.body.reinvest_amount)))
+        ? parseFloat(req.body.reinvest_amount)
+        : null;
+      const transferAmt = reqAmount !== null ? reqAmount : (commBal > 0 ? commBal : todayProf);
+
+      if (transferAmt > 0) {
         const baseBal = parseFloat(user.balance || 0);
-        updates.balance = parseFloat((baseBal + profit).toFixed(2));
+        updates.balance = parseFloat((baseBal + transferAmt).toFixed(2));
+        if (commBal >= transferAmt) {
+          updates.commission_balance = parseFloat((commBal - transferAmt).toFixed(2));
+        } else {
+          updates.commission_balance = 0.00;
+        }
         updates.today_profit = 0.00;
         updates.today_tasks_completed = 0;
         updates.current_set = 0;
         updates.tasks_reset_at = new Date();
         updates.last_reset_date = new Date().toISOString().slice(0, 10);
+        updates.frozen_balance = 0.00;
         reinvestNotification = {
           user_id: user.id,
-          title: 'Profit Reinvested! 🚀',
-          message: `$${profit.toFixed(2)} accumulated profit has been moved into your Working Balance (Self-Balancing Reinvestment). You can now grab your next cycle of orders!`,
+          title: 'Balance Reinvested! 🚀',
+          message: `$${transferAmt.toFixed(2)} accumulated balance has been moved into your Working Balance (Self-Balancing Reinvestment). You can now grab your next cycle of orders!`,
           type: 'success'
         };
       }
@@ -453,6 +472,9 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
     } else if (numAdd > 0) {
       const currentBase = updates.balance !== undefined ? updates.balance : parseFloat(user.balance || 0);
       updates.balance = parseFloat((currentBase + numAdd).toFixed(2));
+      if (updates.balance >= 0) {
+        updates.frozen_balance = 0.00;
+      }
       postActions.push(async () => {
         await db.createLedgerTransaction({
           userId: user.id,
@@ -1636,9 +1658,65 @@ router.post('/orders/:id/status', adminAuthMiddleware, checkRole('sub_admin'), a
       updates.payment_status = 'PAID';
     } else if (status === 'CANCELLED') {
       updates.payment_status = 'CANCELLED';
+    } else if (status === 'ASSIGNED' || status === 'PENDING') {
+      updates.order_status = 'ASSIGNED';
+      updates.payment_status = 'PENDING';
+      updates.completed_at = null;
     }
 
     await db.updateOrder(order.id, updates);
+
+    // If completing an order that was not completed, credit commission & update task counts:
+    if (status === 'COMPLETED' && order.order_status !== 'COMPLETED') {
+      const user = await db.findUserById(order.user_id);
+      if (user) {
+        const commAmt = parseFloat(order.commission_amount || 0);
+        const grossAmt = parseFloat(order.gross_amount || order.unit_price || 0);
+        const newCommBalance = round(parseFloat(user.commission_balance || 0) + grossAmt + commAmt);
+        const newTodayProfit = round(parseFloat(user.today_profit || 0) + commAmt);
+        const newCompleted = (parseInt(user.today_tasks_completed, 10) || 0) + 1;
+        const newTotal = (parseInt(user.total_tasks_completed, 10) || 0) + 1;
+
+        await db.updateUser(user.id, {
+          commission_balance: newCommBalance,
+          today_profit: newTodayProfit,
+          today_tasks_completed: newCompleted,
+          total_tasks_completed: newTotal,
+          frozen_balance: 0.00
+        });
+
+        await db.createLedgerTransaction({
+          userId: user.id,
+          orderId: order.id,
+          adminId: req.admin.id,
+          type: 'REWARD',
+          amount: commAmt,
+          balanceBefore: round(user.balance || 0),
+          balanceAfter: round(user.balance || 0),
+          currency: 'USD',
+          reference: order.order_number,
+          description: `Admin verified & completed order #${order.order_number}`
+        }).catch(() => {});
+      }
+    }
+
+    // If reactivating a cancelled order, re-create the pending task if missing
+    if ((status === 'ASSIGNED' || status === 'PENDING') && order.order_status === 'CANCELLED') {
+      const taskId = order.task_id || `tsk_${Date.now()}`;
+      await db.createTask({
+        id: taskId,
+        user_id: order.user_id,
+        order_number: order.order_number,
+        product_name: order.product_name,
+        product_image: order.product_image || null,
+        product_price: parseFloat(order.gross_amount || order.unit_price || 0),
+        commission_rate: parseFloat(order.commission_rate || 0.20),
+        commission_amount: parseFloat(order.commission_amount || 0),
+        status: 'pending',
+        is_deficit: order.payment_status === 'SHORTFALL' ? 1 : 0
+      }).catch(() => {});
+      await db.updateOrder(order.id, { task_id: taskId });
+    }
 
     // If cancelling and refunding reserved funds to user:
     if (status === 'CANCELLED' && refundUser && order.user_deduction > 0) {

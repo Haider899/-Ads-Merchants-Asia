@@ -1872,16 +1872,22 @@
                     <!-- Reinvestment / Self-Balancing Control Card -->
                     <div style="margin-bottom: 14px; padding: 12px 14px; background: #ecfdf5; border-radius: 12px; border: 1px solid #a7f3d0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <div>
-                                <span style="font-size: 12px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Today's Accumulated Profit</span>
-                                <div id="editUserTodayProfit" style="font-size: 18px; font-weight: 800; color: #059669;">$0.00</div>
+                            <div style="display: flex; gap: 18px; align-items: center;">
+                                <div>
+                                    <span style="font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Total Comm. Balance</span>
+                                    <div id="editUserCommBalance" style="font-size: 18px; font-weight: 800; color: #2563eb;">$0.00</div>
+                                </div>
+                                <div style="border-left: 1px solid #a7f3d0; padding-left: 18px;">
+                                    <span style="font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Today's Profit</span>
+                                    <div id="editUserTodayProfit" style="font-size: 18px; font-weight: 800; color: #059669;">$0.00</div>
+                                </div>
                             </div>
                             <button type="button" class="btn-action" style="background: #10b981; color: white; padding: 8px 14px; font-size: 12.5px; font-weight: 700; border-radius: 8px;" onclick="reinvestProfitToBalance()">
-                                <i class="fa fa-sync-alt mr-1"></i> Reinvest Profit to Working Balance
+                                <i class="fa fa-sync-alt mr-1"></i> Reinvest to Working Balance
                             </button>
                         </div>
                         <small style="color: #047857; font-size: 11.5px; display: block; margin-top: 6px; line-height: 1.4;">
-                            Transfers user's earned profit into Working Balance & resets task count to 0 so they can continue a full new cycle of orders without depositing fresh crypto.
+                            Transfers user's accumulated balance or earned profit directly into Working Balance & resets task count to 0 so they can continue a full new cycle of orders without depositing fresh crypto.
                         </small>
                     </div>
 
@@ -2505,6 +2511,6 @@
     </div>
 
     <!-- Dedicated Admin Script -->
-    <script src="/client/assets/js/admin.js?v=4.9.0"></script>
+    <script src="/client/assets/js/admin.js?v=4.9.1"></script>
 </body>
 </html>
