@@ -193,13 +193,11 @@ function toDateString(val) {
             today_tasks_completed: 0,
             today_profit: 0.00,
             current_set: 0,
-            commission_balance: 0.00,
             last_reset_date: today
           });
           user.today_tasks_completed = 0;
           user.today_profit = 0.00;
           user.current_set = 0;
-          user.commission_balance = 0.00;
           user.last_reset_date = today;
         } catch (_) {}
       }

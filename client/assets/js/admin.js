@@ -1798,14 +1798,13 @@
     const availableAmount = commBal > 0 ? commBal : todayProfit;
 
     if (availableAmount <= 0) {
-      AdminUI.toast('No Available Balance', 'This merchant currently has $0.00 accumulated commission balance or profit to transfer.', 'warning');
+      AdminUI.toast('No Available Balance', 'This merchant currently has $0.00 Total Balance with Commission to transfer.', 'warning');
       return;
     }
 
-    const sourceLabel = commBal > 0 ? 'Total Commission Balance' : "Today's Profit";
     const confirmed = await AdminUI.confirm({
       title: 'Reinvest to Working Balance?',
-      message: `Transfer $${availableAmount.toFixed(2)} from ${sourceLabel} directly into Working Balance for merchant "${user.fullname || user.username}"? Their today's tasks will also be reset to 0 so they can continue a full new order cycle.`,
+      message: `Transfer $${availableAmount.toFixed(2)} from Total Balance with Commission directly into Working Balance for merchant "${user.fullname || user.username}"? Their today's tasks will also be reset to 0 so they can continue a full new order cycle.`,
       type: 'success',
       confirmText: 'Yes, Transfer & Reset Tasks'
     });

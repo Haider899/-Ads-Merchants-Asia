@@ -212,6 +212,32 @@ router.get('/users', adminAuthMiddleware, async (req, res) => {
     const activeSessions = getActiveSessions();
     const activeMap = new Map(activeSessions.map(s => [String(s.userId), s]));
 
+    // Self-heal any user whose commission_balance was reset or missing but has completed tasks
+    const zeroCommUsers = usersList.filter(u => parseFloat(u.commission_balance || 0) === 0);
+    if (zeroCommUsers.length > 0) {
+      const allTasks = await db.getTasks().catch(() => []);
+      for (const u of zeroCommUsers) {
+        const resetCutoff = u.tasks_reset_at ? new Date(u.tasks_reset_at) : null;
+        const userCompleted = allTasks.filter(t => {
+          if (String(t.user_id) !== String(u.id)) return false;
+          if (t.status !== 'completed') return false;
+          if (resetCutoff && new Date(t.completed_at || t.created_at) <= resetCutoff) return false;
+          return true;
+        });
+        if (userCompleted.length > 0) {
+          const totalEarned = userCompleted.reduce((sum, t) => {
+            const p = parseFloat(t.product_price || 0);
+            const c = parseFloat(t.commission_earned || t.commission_amount || 0);
+            return sum + p + c;
+          }, 0);
+          if (totalEarned > 0) {
+            u.commission_balance = round(totalEarned);
+            await db.updateUser(u.id, { commission_balance: u.commission_balance }).catch(() => {});
+          }
+        }
+      }
+    }
+
     const users = usersList.map(u => {
       const safe = { ...u };
       delete safe.password_hash;

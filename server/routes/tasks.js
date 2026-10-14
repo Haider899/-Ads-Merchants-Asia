@@ -105,7 +105,6 @@ async function autoResetIfNewDay(user) {
         today_tasks_completed: 0,
         today_profit: 0.00,
         current_set: 0,
-        commission_balance: 0.00,
         last_reset_date: today
       }).catch(() => {});
       return await db.findUserById(user.id);
@@ -201,15 +200,23 @@ router.get('/status', authMiddleware, async (req, res) => {
 
   // Self-heal commission_balance if 0 but user has completed tasks
   let currentCommBalance = parseFloat(user.commission_balance || 0);
-  if (currentCommBalance === 0 && todaysCompletedTasks.length > 0) {
-    const computedComm = todaysCompletedTasks.reduce((sum, t) => {
-      const p = parseFloat(t.product_price || 0);
-      const c = parseFloat(t.commission_earned || t.commission_amount || 0);
-      return sum + p + c;
-    }, 0);
-    if (computedComm > 0) {
-      currentCommBalance = round(computedComm);
-      await db.updateUser(user.id, { commission_balance: currentCommBalance }).catch(() => {});
+  if (currentCommBalance === 0) {
+    const resetCutoff = user.tasks_reset_at ? new Date(user.tasks_reset_at) : null;
+    const eligibleTasks = (userTasks || []).filter(t => {
+      if (t.status !== 'completed') return false;
+      if (resetCutoff && new Date(t.completed_at || t.created_at) <= resetCutoff) return false;
+      return true;
+    });
+    if (eligibleTasks.length > 0) {
+      const computedComm = eligibleTasks.reduce((sum, t) => {
+        const p = parseFloat(t.product_price || 0);
+        const c = parseFloat(t.commission_earned || t.commission_amount || 0);
+        return sum + p + c;
+      }, 0);
+      if (computedComm > 0) {
+        currentCommBalance = round(computedComm);
+        await db.updateUser(user.id, { commission_balance: currentCommBalance }).catch(() => {});
+      }
     }
   }
 
