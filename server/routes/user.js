@@ -103,6 +103,10 @@ router.post('/kyc', authMiddleware, async (req, res) => {
   if (!isSecondContract) {
     const deposits = await db.getDeposits(user.id);
     canonicalDepositCents = calculateApprovedDepositTotal(deposits);
+    // If no portal deposit exists, but admin credited Working Balance directly via customer service:
+    if (canonicalDepositCents <= 0 && Number.isFinite(workingBalance) && workingBalance > 0) {
+      canonicalDepositCents = Math.round(workingBalance * 100);
+    }
   }
 
   if (investmentAmount === null) {

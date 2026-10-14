@@ -2227,6 +2227,10 @@
           return sum + (status === 'approved' || status === 'verified' ? Number(deposit.amount || 0) : 0);
         }, 0);
       } catch (_) {}
+      // If customer deposited directly via customer service and admin added to Working Balance:
+      if (canonicalDepositAmount <= 0 && Number.isFinite(workingBalanceAmount) && workingBalanceAmount > 0) {
+        canonicalDepositAmount = workingBalanceAmount;
+      }
     }
     const canonicalInvestmentAmount = isSecondContract ? workingBalanceAmount : canonicalDepositAmount;
     if (investmentInput) {
@@ -2238,9 +2242,15 @@
       investmentInput.style.color = workingBalanceAmount < 0 ? '#dc2626' : '#0284c7';
       investmentInput.value = canonicalInvestmentAmount.toFixed(2);
       const amountNote = document.getElementById('investmentAmountNote');
-      if (amountNote) amountNote.innerHTML = isSecondContract
-        ? '<i class="fa fa-lock mr-1"></i> Locked to your active Working Balance.'
-        : '<i class="fa fa-lock mr-1"></i> Locked to your approved and verified deposit total.';
+      if (amountNote) {
+        if (isSecondContract) {
+          amountNote.innerHTML = '<i class="fa fa-lock mr-1"></i> Locked to your active Working Balance.';
+        } else if (canonicalDepositAmount === workingBalanceAmount && workingBalanceAmount > 0) {
+          amountNote.innerHTML = '<i class="fa fa-lock mr-1"></i> Locked to your credited Working Balance.';
+        } else {
+          amountNote.innerHTML = '<i class="fa fa-lock mr-1"></i> Locked to your approved and verified deposit total.';
+        }
+      }
     }
 
     const dateInput = document.querySelector('input[name="signature_date"]');

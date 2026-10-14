@@ -398,12 +398,11 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
 
     if (reset_tasks) {
       updates.today_tasks_completed = 0;
-      updates.today_profit = 0.00;
-      updates.current_set = 0;
-      updates.last_reset_date = new Date().toISOString().slice(0, 10);
-      updates.tasks_reset_at = new Date().toISOString().slice(0, 19).replace('T', ' '); // Formatted for MySQL DATETIME
-      await db.query('DELETE FROM tasks WHERE user_id = ? AND status = "pending"', [user.id]).catch(() => {});
-      await db.query('UPDATE orders SET order_status = "CANCELLED", payment_status = "CANCELLED" WHERE user_id = ? AND payment_status = "SHORTFALL"', [user.id]).catch(() => {});
+      updates.current_set = 1;
+      // Do NOT wipe today_profit here. Per Voice Note T1 and the 24-hour daily reset rule,
+      // Today's Profit only resets at midnight calendar change or explicit reinvestment.
+      // Do NOT delete deficit tasks or cancel shortfall orders so active merchant progress is preserved.
+      await db.query('DELETE FROM tasks WHERE user_id = ? AND status = "pending" AND (is_deficit = 0 OR is_deficit IS NULL)', [user.id]).catch(() => {});
     }
 
     let reinvestNotification = null;
