@@ -2232,7 +2232,7 @@
         canonicalDepositAmount = workingBalanceAmount;
       }
     }
-    const canonicalInvestmentAmount = isSecondContract ? workingBalanceAmount : canonicalDepositAmount;
+    const canonicalInvestmentAmount = Number.isFinite(workingBalanceAmount) && workingBalanceAmount > 0 ? workingBalanceAmount : 0;
     if (investmentInput) {
       investmentInput.readOnly = true;
       investmentInput.setAttribute('readonly', 'readonly');
@@ -2243,13 +2243,7 @@
       investmentInput.value = canonicalInvestmentAmount.toFixed(2);
       const amountNote = document.getElementById('investmentAmountNote');
       if (amountNote) {
-        if (isSecondContract) {
-          amountNote.innerHTML = '<i class="fa fa-lock mr-1"></i> Locked to your active Working Balance.';
-        } else if (canonicalDepositAmount === workingBalanceAmount && workingBalanceAmount > 0) {
-          amountNote.innerHTML = '<i class="fa fa-lock mr-1"></i> Locked to your credited Working Balance.';
-        } else {
-          amountNote.innerHTML = '<i class="fa fa-lock mr-1"></i> Locked to your approved and verified deposit total.';
-        }
+        amountNote.innerHTML = '<i class="fa fa-lock mr-1"></i> Locked to your active Working Balance.';
       }
     }
 
@@ -2300,13 +2294,7 @@
         const sub = kycRes.latest_submission;
         if (sub.name && nameInput) nameInput.value = sub.name;
         if (investmentInput) {
-          if (isSecondContract && Number.isFinite(workingBalanceAmount) && workingBalanceAmount > 0) {
-            investmentInput.value = workingBalanceAmount.toFixed(2);
-          } else if (!isSecondContract && Number.isFinite(canonicalInvestmentAmount)) {
-            investmentInput.value = canonicalInvestmentAmount.toFixed(2);
-          } else if (sub.investment_amount) {
-            investmentInput.value = Number(sub.investment_amount).toFixed(2);
-          }
+          investmentInput.value = canonicalInvestmentAmount.toFixed(2);
         }
         if (sub.front_id_image) {
           const frontImg = document.getElementById('frontPreviewImg');
@@ -2414,8 +2402,8 @@
       let nameVal = nameEl ? nameEl.value.trim() : (user.fullname || user.username || '');
       let investmentVal = investmentEl ? investmentEl.value.trim() : '0.00';
 
-      if (!isSecondContract && (!Number.isFinite(workingBalanceAmount) || workingBalanceAmount < 0)) {
-        showBridgeToast('Contract Unavailable', 'Your Working Balance is negative. Please clear the deficit before submitting a contract.', 'error');
+      if (!Number.isFinite(workingBalanceAmount) || workingBalanceAmount <= 0) {
+        showBridgeToast('Contract Unavailable', workingBalanceAmount < 0 ? 'Your Working Balance is negative. Please clear the deficit before submitting a contract.' : 'Your Working Balance must be greater than $0.00 to activate a contract. Please recharge your account first.', 'error');
         return false;
       }
 

@@ -128,22 +128,32 @@ async function authMiddleware(req, res, next) {
 
 function toDateString(val) {
   if (!val) return null;
-  if (val instanceof Date) {
-    const y = val.getFullYear();
-    const m = String(val.getMonth() + 1).padStart(2, '0');
-    const d = String(val.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+  if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return val;
   }
-  if (typeof val === 'string') {
-    if (val.includes('T')) return val.split('T')[0];
-    if (val.match(/^\d{4}-\d{2}-\d{2}/)) return val.slice(0, 10);
-    const parsed = new Date(val);
-    if (!isNaN(parsed.getTime())) {
-      const y = parsed.getFullYear();
-      const m = String(parsed.getMonth() + 1).padStart(2, '0');
-      const d = String(parsed.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
+  let d = null;
+  if (val instanceof Date) {
+    if (val.getHours() === 0 && val.getMinutes() === 0 && val.getSeconds() === 0 && val.getMilliseconds() === 0) {
+      const y = val.getFullYear();
+      const m = String(val.getMonth() + 1).padStart(2, '0');
+      const day = String(val.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     }
+    d = val;
+  } else if (typeof val === 'string') {
+    if (val.match(/^\d{4}-\d{2}-\d{2}/) && !val.includes('T') && !val.includes(' ')) {
+      return val.slice(0, 10);
+    }
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) d = parsed;
+  }
+  if (d && !isNaN(d.getTime())) {
+    // 4:00 AM daily rollover: subtract 4 hours so midnight to 03:59 belongs to previous day
+    const adjusted = new Date(d.getTime() - 4 * 60 * 60 * 1000);
+    const y = adjusted.getFullYear();
+    const m = String(adjusted.getMonth() + 1).padStart(2, '0');
+    const day = String(adjusted.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
   return null;
 }

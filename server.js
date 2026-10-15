@@ -267,7 +267,9 @@ app.listen(PORT, () => {
   // Scheduled 24h Daily Reset: Automatically reset today_profit & today_tasks_completed for all users on new day
   setInterval(async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      // 4:00 AM daily rollover: subtract 4 hours so midnight to 03:59 belongs to previous day
+      const adjusted = new Date(Date.now() - 4 * 60 * 60 * 1000);
+      const today = ${adjusted.getFullYear()}--;
       // Deficit Guard: never wipe progress or profit if user is currently in negative balance (deficit)
       await db.query(
         "UPDATE users SET today_profit = 0.00, today_tasks_completed = 0, current_set = 0, last_reset_date = ? WHERE (last_reset_date IS NULL OR last_reset_date != ?) AND balance >= 0",

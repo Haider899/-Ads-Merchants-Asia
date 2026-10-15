@@ -449,11 +449,11 @@ router.post('/users/update', adminAuthMiddleware, checkRole('sub_admin', 'financ
         } else {
           updates.commission_balance = 0.00;
         }
-        updates.today_profit = 0.00;
+        // Preserve today_profit on reinvestment: profit earned today remains visible until 4:00 AM daily reset
         updates.today_tasks_completed = 0;
         updates.current_set = 0;
+        updates.kyc_status = 'none'; // Require new merchant contract for new Working Balance before starting next cycle
         updates.tasks_reset_at = new Date();
-        updates.last_reset_date = new Date().toISOString().slice(0, 10);
         updates.frozen_balance = 0.00;
         reinvestNotification = {
           user_id: user.id,

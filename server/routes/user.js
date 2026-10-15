@@ -99,15 +99,7 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     String(user && user.kyc_status || '').toLowerCase() === 'approved' ||
     Number(user && user.total_tasks_completed || 0) > 0 ||
     Number(user && user.commission_balance || 0) > 0;
-  let canonicalDepositCents = 0;
-  if (!isSecondContract) {
-    const deposits = await db.getDeposits(user.id);
-    canonicalDepositCents = calculateApprovedDepositTotal(deposits);
-    // If no portal deposit exists, but admin credited Working Balance directly via customer service:
-    if (canonicalDepositCents <= 0 && Number.isFinite(workingBalance) && workingBalance > 0) {
-      canonicalDepositCents = Math.round(workingBalance * 100);
-    }
-  }
+  let canonicalDepositCents = Math.round(workingBalance * 100);
 
   if (investmentAmount === null) {
     return res.status(400).json({
@@ -116,27 +108,20 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     });
   }
 
-  if (!isSecondContract && (!Number.isFinite(workingBalance) || workingBalance < 0)) {
+  if (!Number.isFinite(workingBalance) || workingBalance <= 0) {
     return res.status(400).json({
       success: false,
-      negative_balance: true,
-      message: 'Your Working Balance is negative. Please clear the deficit before submitting a contract.'
+      negative_balance: workingBalance < 0,
+      message: workingBalance < 0
+        ? 'Your Working Balance is negative. Please clear the deficit before submitting a contract.'
+        : 'Your Working Balance must be greater than $0.00 to activate a contract. Please recharge or wait for balance approval.'
     });
   }
 
-  if (!isSecondContract && canonicalDepositCents <= 0) {
+  if (Math.round(investmentAmount * 100) !== canonicalDepositCents) {
     return res.status(400).json({
       success: false,
-      deposit_required: true,
-      message: 'Your first contract must be backed by an approved or verified deposit. Please wait until your deposit is approved.'
-    });
-  }
-
-  if (!isSecondContract && Math.round(investmentAmount * 100) !== canonicalDepositCents) {
-    return res.status(400).json({
-      success: false,
-      deposit_mismatch: true,
-      message: `Contract investment amount must match your approved and verified deposit total of $${(canonicalDepositCents / 100).toFixed(2)}.`
+      message: `Contract investment amount must match your active Working Balance of $${workingBalance.toFixed(2)}.`
     });
   }
 
@@ -147,19 +132,8 @@ router.post('/kyc', authMiddleware, async (req, res) => {
     });
   }
 
-  let fundingSource = 'deposit';
-  let fundedAmount = 0;
-  if (isSecondContract) {
-    if (!Number.isFinite(workingBalance) || workingBalance < 0) {
-      return res.status(400).json({
-        success: false,
-        negative_balance: true,
-        message: 'Your Working Balance is negative. Please clear the deficit before submitting a contract.'
-      });
-    }
-    fundingSource = 'balance';
-    fundedAmount = investmentAmount;
-  }
+  let fundingSource = 'balance';
+  let fundedAmount = investmentAmount;
 
   const existingPending = submissions.find(s => String(s.status || '').toLowerCase() === 'pending');
   if (existingPending) {
